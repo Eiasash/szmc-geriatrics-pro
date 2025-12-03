@@ -727,10 +727,10 @@
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
           const pageText = textContent.items.map(item => item.str).join(' ');
-          fullText += pageText + '\\n\\n---PAGE BREAK---\\n\\n';
+          fullText += pageText + '\n\n---PAGE BREAK---\n\n';
         }
-        
-        state.importText = fullText.replace(/---PAGE BREAK---/g, '\\n\\n');
+
+        state.importText = fullText.replace(/---PAGE BREAK---/g, '\n\n');
         if (statusEl) statusEl.textContent = `✓ Extracted ${pdf.numPages} pages from PDF`;
         render();
       } catch (err) {
@@ -750,18 +750,18 @@
         
         // Get slide content
         const slides = [];
-        const slideFiles = Object.keys(zip.files).filter(f => f.match(/ppt\\/slides\\/slide\\d+\\.xml/)).sort();
+        const slideFiles = Object.keys(zip.files).filter(f => f.match(/ppt\/slides\/slide\d+\.xml/)).sort();
         
         for (const slideFile of slideFiles) {
           const content = await zip.file(slideFile).async('string');
           // Extract text from XML
-          const textMatches = content.match(/<a:t>([^<]*)<\\/a:t>/g) || [];
-          const slideText = textMatches.map(m => m.replace(/<\\/?a:t>/g, '')).filter(t => t.trim());
+          const textMatches = content.match(/<a:t>([^<]*)<\/a:t>/g) || [];
+          const slideText = textMatches.map(m => m.replace(/<\/?a:t>/g, '')).filter(t => t.trim());
           
           if (slideText.length > 0) {
             slides.push({
               title: slideText[0] || '',
-              content: slideText.slice(1).join('\\n')
+              content: slideText.slice(1).join('\n')
             });
           }
         }
@@ -770,9 +770,9 @@
         let mdText = '';
         slides.forEach((slide, i) => {
           if (i === 0) {
-            mdText += '# ' + slide.title + '\\n\\n' + slide.content + '\\n\\n';
+            mdText += '# ' + slide.title + '\n\n' + slide.content + '\n\n';
           } else {
-            mdText += '## ' + slide.title + '\\n\\n' + slide.content + '\\n\\n';
+            mdText += '## ' + slide.title + '\n\n' + slide.content + '\n\n';
           }
         });
         
@@ -822,19 +822,19 @@
         
         // Get title
         const title = doc.querySelector('title')?.textContent || doc.querySelector('h1')?.textContent;
-        if (title) mdText += '# ' + title.trim() + '\\n\\n';
-        
+        if (title) mdText += '# ' + title.trim() + '\n\n';
+
         // Get headers and their content
         doc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, td').forEach(el => {
           const tag = el.tagName.toLowerCase();
           const text = el.textContent.trim();
           if (!text) return;
-          
-          if (tag === 'h1') mdText += '# ' + text + '\\n\\n';
-          else if (tag === 'h2') mdText += '## ' + text + '\\n\\n';
-          else if (tag === 'h3') mdText += '### ' + text + '\\n\\n';
-          else if (tag === 'li') mdText += '- ' + text + '\\n';
-          else if (tag === 'p' || tag === 'td') mdText += text + '\\n\\n';
+
+          if (tag === 'h1') mdText += '# ' + text + '\n\n';
+          else if (tag === 'h2') mdText += '## ' + text + '\n\n';
+          else if (tag === 'h3') mdText += '### ' + text + '\n\n';
+          else if (tag === 'li') mdText += '- ' + text + '\n';
+          else if (tag === 'p' || tag === 'td') mdText += text + '\n\n';
         });
         
         state.importText = mdText || doc.body?.textContent || 'Could not extract text';
