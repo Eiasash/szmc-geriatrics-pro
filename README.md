@@ -4,7 +4,7 @@
 
 Built for Shaare Zedek Medical Center (SZMC), Jerusalem - Geriatrics Fellowship
 
-![Version](https://img.shields.io/badge/version-4.0-blue)
+![Version](https://img.shields.io/badge/version-4.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## 🌐 Live Demo
@@ -19,6 +19,34 @@ Built for Shaare Zedek Medical Center (SZMC), Jerusalem - Geriatrics Fellowship
 - **Morning report template** - Teaching format
 - Slide navigation with swipe gestures
 - Auto-save to localStorage
+
+### 📥 Import Presentations (NEW in v4.1)
+Import from multiple formats:
+- **JSON** - Native format, export/import between devices
+- **Markdown** - Use `# Title` and `## Slide` headers
+- **Plain Text** - Sections separated by blank lines
+- **CSV** - Medication lists, lab values
+
+Example Markdown import:
+```markdown
+# Delirium Case
+
+## Patient
+78yo male, nursing home resident
+
+## Chief Complaint
+Acute confusion x 2 days
+
+## Medications
+- Metoprolol 25mg daily
+- Lisinopril 10mg daily
+- Donepezil 10mg qhs
+
+## Differential Diagnosis
+- Delirium secondary to UTI
+- Medication effect
+- Dementia exacerbation
+```
 
 ### 🧮 Clinical Calculators
 - **CrCl** (Cockcroft-Gault)
