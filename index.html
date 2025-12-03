@@ -36,7 +36,7 @@
 
   <script>
     // ============ SZMC GERIATRICS PRO v4.0 ============
-    const VERSION = '4.0';
+    const VERSION = '4.1';
     
     // State
     let state = {
@@ -224,6 +224,272 @@
       state.recentAction = msg;
       render();
       setTimeout(() => { state.recentAction = null; render(); }, 2000);
+    }
+
+    // ============ IMPORT FUNCTIONS ============
+    function parseJSON(text) {
+      try {
+        const data = JSON.parse(text);
+        // Handle array of presentations
+        if (Array.isArray(data)) {
+          return data.filter(p => p.slides && Array.isArray(p.slides));
+        }
+        // Handle single presentation
+        if (data.slides && Array.isArray(data.slides)) {
+          return [data];
+        }
+        // Handle just slides array
+        if (Array.isArray(data) && data[0]?.type) {
+          return [{ id: Date.now(), created: new Date().toISOString(), slides: data }];
+        }
+        return null;
+      } catch(e) { return null; }
+    }
+
+    function parseMarkdown(text) {
+      const lines = text.split('\n');
+      const slides = [];
+      let currentSlide = null;
+      let contentBuffer = [];
+
+      const flushContent = () => {
+        if (currentSlide && contentBuffer.length) {
+          const content = contentBuffer.join('\n').trim();
+          if (currentSlide.type === 'list') {
+            currentSlide.items = content.split('\n').map(l => l.replace(/^[-*•]\s*/, '').trim()).filter(l => l);
+          } else {
+            currentSlide.content = content;
+          }
+          contentBuffer = [];
+        }
+      };
+
+      lines.forEach(line => {
+        // H1 = Title slide
+        if (line.match(/^#\s+(.+)/)) {
+          flushContent();
+          if (currentSlide) slides.push(currentSlide);
+          currentSlide = { type: 'title', title: line.replace(/^#\s+/, '').trim(), subtitle: '' };
+        }
+        // H2 = New slide
+        else if (line.match(/^##\s+(.+)/)) {
+          flushContent();
+          if (currentSlide) slides.push(currentSlide);
+          const title = line.replace(/^##\s+/, '').trim().toLowerCase();
+          let type = 'content';
+          if (title.includes('medication') || title.includes('pmh') || title.includes('differential') || title.includes('teaching') || title.includes('lab')) type = 'list';
+          else if (title.includes('exam') || title.includes('physical')) type = 'exam';
+          else if (title.includes('management') || title.includes('treatment')) type = 'treatment';
+          else if (title.includes('assessment') || title.includes('score')) type = 'scores';
+          else if (title.includes('patient')) type = 'patient';
+          currentSlide = { type, title: line.replace(/^##\s+/, '').trim(), items: [], content: '', vitals: {}, scores: {} };
+        }
+        // List items
+        else if (line.match(/^[-*•]\s+/)) {
+          contentBuffer.push(line);
+          if (currentSlide && currentSlide.type !== 'list') currentSlide.type = 'list';
+        }
+        // Regular content
+        else if (line.trim()) {
+          contentBuffer.push(line);
+        }
+      });
+
+      flushContent();
+      if (currentSlide) slides.push(currentSlide);
+
+      if (slides.length === 0) return null;
+      return [{ id: Date.now(), created: new Date().toISOString(), modified: new Date().toISOString(), slides }];
+    }
+
+    function parsePlainText(text) {
+      // Split by double newlines or common separators
+      const sections = text.split(/\n{2,}|={3,}|-{3,}/).filter(s => s.trim());
+      if (sections.length === 0) return null;
+
+      const slides = [];
+      
+      // First section is title
+      slides.push({
+        type: 'title',
+        title: sections[0].split('\n')[0].trim() || 'Imported Case',
+        subtitle: sections[0].split('\n').slice(1).join(' ').trim()
+      });
+
+      // Process remaining sections
+      sections.slice(1).forEach(section => {
+        const lines = section.split('\n').filter(l => l.trim());
+        if (lines.length === 0) return;
+
+        const firstLine = lines[0].toLowerCase();
+        let type = 'content';
+        let title = lines[0];
+
+        // Detect slide type from first line
+        if (firstLine.includes('hpi') || firstLine.includes('history')) {
+          type = 'content'; title = 'HPI';
+        } else if (firstLine.includes('medication') || firstLine.includes('med')) {
+          type = 'list'; title = 'Medications';
+        } else if (firstLine.includes('pmh') || firstLine.includes('past medical')) {
+          type = 'list'; title = 'PMH / PSH';
+        } else if (firstLine.includes('exam') || firstLine.includes('physical')) {
+          type = 'exam'; title = 'Physical Exam';
+        } else if (firstLine.includes('lab')) {
+          type = 'list'; title = 'Labs';
+        } else if (firstLine.includes('differential') || firstLine.includes('ddx')) {
+          type = 'list'; title = 'Differential Diagnosis';
+        } else if (firstLine.includes('assessment') || firstLine.includes('geriatric')) {
+          type = 'scores'; title = 'Geriatric Assessment';
+        } else if (firstLine.includes('management') || firstLine.includes('plan') || firstLine.includes('treatment')) {
+          type = 'treatment'; title = 'Management';
+        } else if (firstLine.includes('teaching') || firstLine.includes('point')) {
+          type = 'list'; title = 'Teaching Points';
+        } else if (firstLine.includes('patient') || firstLine.match(/^\d+\s*(yo|y\/o|year)/i)) {
+          type = 'patient'; title = 'Patient';
+        }
+
+        const content = lines.slice(1).join('\n').trim() || lines.join('\n').trim();
+        const slide = { type, title };
+
+        if (type === 'list') {
+          slide.items = content.split('\n').map(l => l.replace(/^[-*•\d.)\]]\s*/, '').trim()).filter(l => l);
+        } else if (type === 'patient') {
+          slide.demographics = content.split('\n')[0] || '';
+          slide.cc = content.split('\n').slice(1).join(' ').trim() || '';
+        } else if (type === 'treatment') {
+          const pharm = content.match(/pharm[^:]*:([\s\S]*?)(?=non-?pharm|$)/i);
+          const nonpharm = content.match(/non-?pharm[^:]*:([\s\S]*)/i);
+          slide.pharm = pharm ? pharm[1].trim() : content;
+          slide.nonpharm = nonpharm ? nonpharm[1].trim() : '';
+        } else if (type === 'exam') {
+          slide.vitals = {};
+          slide.findings = content;
+          // Try to extract vitals
+          const bpMatch = content.match(/BP[:\s]*(\d+\/\d+)/i);
+          const hrMatch = content.match(/HR[:\s]*(\d+)/i);
+          const rrMatch = content.match(/RR[:\s]*(\d+)/i);
+          const tempMatch = content.match(/Temp[:\s]*([\d.]+)/i);
+          const spo2Match = content.match(/SpO2[:\s]*(\d+)/i);
+          if (bpMatch) slide.vitals.BP = bpMatch[1];
+          if (hrMatch) slide.vitals.HR = hrMatch[1];
+          if (rrMatch) slide.vitals.RR = rrMatch[1];
+          if (tempMatch) slide.vitals.Temp = tempMatch[1];
+          if (spo2Match) slide.vitals.SpO2 = spo2Match[1];
+        } else if (type === 'scores') {
+          slide.scores = {};
+          const scorePatterns = ['MMSE', 'MoCA', 'GDS', 'ADL', 'IADL', 'TUG', 'MNA', 'CFS', 'Morse', 'Braden', 'CAM'];
+          scorePatterns.forEach(score => {
+            const match = content.match(new RegExp(score + '[:\\s]*(\\d+[/\\d]*)', 'i'));
+            if (match) slide.scores[score] = match[1];
+          });
+        } else {
+          slide.content = content;
+        }
+
+        slides.push(slide);
+      });
+
+      return [{ id: Date.now(), created: new Date().toISOString(), modified: new Date().toISOString(), slides }];
+    }
+
+    function parseCSV(text) {
+      const lines = text.split('\n').filter(l => l.trim());
+      if (lines.length < 2) return null;
+
+      const headers = lines[0].split(/[,\t]/).map(h => h.trim().toLowerCase());
+      const rows = lines.slice(1).map(line => {
+        const values = line.split(/[,\t]/).map(v => v.trim().replace(/^["']|["']$/g, ''));
+        const row = {};
+        headers.forEach((h, i) => row[h] = values[i] || '');
+        return row;
+      });
+
+      // Detect CSV type and create appropriate slides
+      const slides = [{ type: 'title', title: 'Imported Data', subtitle: `${rows.length} items` }];
+
+      // Medication list
+      if (headers.some(h => h.includes('medication') || h.includes('drug') || h.includes('med'))) {
+        slides.push({
+          type: 'list',
+          title: 'Medications',
+          items: rows.map(r => Object.values(r).filter(v => v).join(' - '))
+        });
+      }
+      // Lab results
+      else if (headers.some(h => h.includes('test') || h.includes('lab') || h.includes('result'))) {
+        slides.push({
+          type: 'list',
+          title: 'Labs',
+          items: rows.map(r => Object.values(r).filter(v => v).join(': '))
+        });
+      }
+      // Generic list
+      else {
+        slides.push({
+          type: 'list',
+          title: 'Imported Items',
+          items: rows.map(r => Object.values(r).filter(v => v).join(' | '))
+        });
+      }
+
+      return [{ id: Date.now(), created: new Date().toISOString(), modified: new Date().toISOString(), slides }];
+    }
+
+    function detectAndParse(text) {
+      text = text.trim();
+      if (!text) return null;
+
+      // Try JSON first
+      if (text.startsWith('{') || text.startsWith('[')) {
+        const result = parseJSON(text);
+        if (result) return { format: 'JSON', presentations: result };
+      }
+
+      // Try Markdown
+      if (text.includes('# ') || text.includes('## ')) {
+        const result = parseMarkdown(text);
+        if (result) return { format: 'Markdown', presentations: result };
+      }
+
+      // Try CSV
+      if (text.includes(',') && text.split('\n')[0].split(',').length > 2) {
+        const result = parseCSV(text);
+        if (result) return { format: 'CSV', presentations: result };
+      }
+
+      // Fall back to plain text
+      const result = parsePlainText(text);
+      if (result) return { format: 'Plain Text', presentations: result };
+
+      return null;
+    }
+
+    function importPresentation(text) {
+      const result = detectAndParse(text);
+      if (!result || !result.presentations.length) {
+        showToast('❌ Could not parse import data');
+        return;
+      }
+
+      result.presentations.forEach(p => {
+        p.id = Date.now() + Math.random();
+        p.created = p.created || new Date().toISOString();
+        p.modified = new Date().toISOString();
+        state.saved.push(p);
+      });
+
+      save();
+      showToast(`✅ Imported ${result.presentations.length} presentation(s) from ${result.format}`);
+      setState({ showImport: false, importText: '' });
+    }
+
+    function handleFileImport(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        state.importText = e.target.result;
+        render();
+      };
+      reader.readAsText(file);
     }
 
     // ============ PRESENTATION FUNCTIONS ============
@@ -615,9 +881,16 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
           </div>
 
           <!-- New Presentation -->
-          <div class="px-4 mb-6">
+          <div class="px-4 mb-4">
             <button onclick="setState({showTemplates:true})" class="w-full bg-white text-blue-600 rounded-xl p-4 font-bold shadow-lg hover:shadow-xl transition">
               + New Presentation
+            </button>
+          </div>
+
+          <!-- Import Button -->
+          <div class="px-4 mb-6">
+            <button onclick="setState({showImport:true})" class="w-full bg-white/20 text-white rounded-xl p-3 font-medium hover:bg-white/30 transition flex items-center justify-center gap-2">
+              📥 Import Presentation
             </button>
           </div>
 
@@ -636,6 +909,7 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
           </div>
 
           ${state.showTemplates ? renderTemplatesModal() : ''}
+          ${state.showImport ? renderImportModal() : ''}
           ${state.showCalc ? renderCalcModal() : ''}
           ${state.showDrugs ? renderDrugsModal() : ''}
           ${state.showLabs ? renderLabsModal() : ''}
@@ -661,6 +935,100 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
                 </button>
               `).join('')}
             </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderImportModal() {
+      return `
+        <div class="fixed inset-0 bg-black/50 flex items-end z-50 animate-fadeIn" onclick="if(event.target===this)setState({showImport:false,importText:''})">
+          <div class="bg-white w-full rounded-t-2xl p-4 modal-content max-h-[85vh] overflow-auto">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="font-bold text-lg text-slate-800">📥 Import Presentation</h3>
+              <button onclick="setState({showImport:false,importText:''})" class="text-2xl text-slate-400">×</button>
+            </div>
+            
+            <!-- Supported Formats -->
+            <div class="bg-blue-50 rounded-lg p-3 mb-4 text-sm">
+              <div class="font-medium text-blue-800 mb-1">Supported formats:</div>
+              <div class="text-blue-600 text-xs space-y-1">
+                <div>📄 <b>JSON</b> - Export from this app or structured data</div>
+                <div>📝 <b>Markdown</b> - # Title, ## Slide headers</div>
+                <div>📋 <b>Plain text</b> - Sections separated by blank lines</div>
+                <div>📊 <b>CSV</b> - Medication lists, lab values</div>
+              </div>
+            </div>
+
+            <!-- File Upload -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-slate-700 mb-2">Upload File</label>
+              <input type="file" accept=".json,.md,.txt,.csv,.markdown" 
+                onchange="if(this.files[0])handleFileImport(this.files[0])"
+                class="w-full border rounded-lg p-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:bg-blue-100 file:text-blue-700">
+            </div>
+
+            <!-- Paste Area -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-slate-700 mb-2">Or paste content</label>
+              <textarea 
+                placeholder="Paste JSON, Markdown, plain text, or CSV here...
+
+Example Markdown:
+# Case: Delirium in Elderly
+
+## Patient
+85yo female with confusion
+
+## HPI
+Brought by family for 2 days of altered mental status...
+
+## Medications
+- Metoprolol 25mg daily
+- Lisinopril 10mg daily
+
+## Differential Diagnosis
+- Delirium (UTI, medication)
+- Dementia exacerbation
+- Stroke"
+                oninput="state.importText=this.value"
+                class="w-full border rounded-lg p-3 min-h-48 text-sm font-mono">${e(state.importText || '')}</textarea>
+            </div>
+
+            <!-- Quick Import Examples -->
+            <div class="mb-4">
+              <div class="text-sm font-medium text-slate-700 mb-2">Quick examples:</div>
+              <div class="flex gap-2 flex-wrap">
+                <button onclick="state.importText=\`# Delirium Case\\n\\n## Patient\\n78yo male, nursing home resident\\n\\n## Chief Complaint\\nAcute confusion x 2 days\\n\\n## HPI\\nFound by staff to be more confused than baseline. Not eating well. Low-grade fever.\\n\\n## PMH\\n- Dementia (baseline MMSE 18)\\n- HTN\\n- DM2\\n- BPH\\n\\n## Medications\\n- Metformin 500mg BID\\n- Lisinopril 10mg daily\\n- Tamsulosin 0.4mg qhs\\n- Donepezil 10mg qhs\\n\\n## Physical Exam\\nBP 138/78, HR 92, Temp 38.1, RR 18, SpO2 96%\\nConfused, inattentive. Suprapubic tenderness.\\n\\n## Labs\\n- WBC 14.2\\n- UA: positive nitrites, bacteria\\n- Cr 1.4 (baseline 1.0)\\n\\n## Assessment\\nMMSE: 12/30\\nCAM: Positive\\n\\n## Differential\\n- Delirium secondary to UTI\\n- Urosepsis\\n- Medication effect\\n\\n## Management\\nPharmacological:\\n- Ceftriaxone 1g IV daily\\n- Hold tamsulosin\\n- Low-dose haloperidol 0.5mg PRN\\n\\nNon-pharmacological:\\n- Reorientation\\n- Family at bedside\\n- Minimize tethers\\n- Sleep hygiene\`;render()" 
+                  class="px-3 py-1 bg-slate-100 rounded-full text-xs hover:bg-slate-200">Delirium case</button>
+                <button onclick="state.importText=\`Medication,Dose,Frequency,Notes\\nMetoprolol,25mg,daily,Hold if HR<60\\nLisinopril,10mg,daily,Monitor K\\nMetformin,500mg,BID,Hold if NPO\\nAspirin,81mg,daily,\\nAtorvastatin,40mg,qhs,\`;render()"
+                  class="px-3 py-1 bg-slate-100 rounded-full text-xs hover:bg-slate-200">Med list CSV</button>
+                <button onclick="state.importText=JSON.stringify({slides:[{type:'title',title:'Quick Case'},{type:'patient',title:'Patient',demographics:'80yo F',cc:'Falls'},{type:'list',title:'PMH',items:['HTN','DM2','Osteoporosis']},{type:'list',title:'Meds',items:['Metoprolol','Lisinopril','Metformin']}]},null,2);render()"
+                  class="px-3 py-1 bg-slate-100 rounded-full text-xs hover:bg-slate-200">JSON example</button>
+              </div>
+            </div>
+
+            <!-- Import Button -->
+            <button onclick="importPresentation(state.importText)" 
+              ${!state.importText ? 'disabled' : ''}
+              class="w-full bg-blue-500 text-white rounded-lg py-3 font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+              Import Presentation
+            </button>
+
+            <!-- Export Current -->
+            ${state.saved.length > 0 ? `
+              <div class="mt-4 pt-4 border-t">
+                <div class="text-sm font-medium text-slate-700 mb-2">Export existing:</div>
+                <div class="flex gap-2 flex-wrap">
+                  ${state.saved.slice(0, 3).map(p => `
+                    <button onclick="navigator.clipboard.writeText(JSON.stringify(p,null,2));showToast('Copied to clipboard!')" 
+                      class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs hover:bg-green-200">
+                      📤 ${e((p.slides[0]?.title || 'Untitled').substring(0, 15))}
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
           </div>
         </div>
       `;
