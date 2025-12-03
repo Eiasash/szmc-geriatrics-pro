@@ -46,11 +46,11 @@
 
   <script>
     // ============ SZMC GERIATRICS PRO v4.0 ============
-    const VERSION = '4.3';
+    const VERSION = '4.4';
     
     // State
     let state = {
-      view: 'home', // home, editor, present, calc, ref
+      view: 'home', // home, editor, present, calc, ref, ai
       pres: null,
       slide: 0,
       saved: [],
@@ -76,7 +76,15 @@
       timer: 0,
       timerOn: false,
       darkMode: false,
-      recentAction: null
+      recentAction: null,
+      // Enhanced AI features
+      aiHistory: [],
+      aiTemplates: [],
+      aiCategory: 'clinical',
+      showAIHistory: false,
+      showAITemplates: false,
+      isListening: false,
+      patientContext: null
     };
 
     // Load saved data
@@ -87,6 +95,8 @@
         state.saved = data.presentations || [];
         state.apiKey = data.apiKey || '';
         state.darkMode = data.darkMode || false;
+        state.aiHistory = data.aiHistory || [];
+        state.aiTemplates = data.aiTemplates || [];
       }
     } catch(e) { console.error('Load error:', e); }
 
@@ -96,7 +106,9 @@
         localStorage.setItem('szmc-pro-v4', JSON.stringify({
           presentations: state.saved,
           apiKey: state.apiKey,
-          darkMode: state.darkMode
+          darkMode: state.darkMode,
+          aiHistory: state.aiHistory.slice(-50), // Keep last 50 conversations
+          aiTemplates: state.aiTemplates
         }));
       } catch(e) { console.error('Save error:', e); }
     }
@@ -1092,14 +1104,15 @@ Potassium,20mEq,daily,Keep K >4.0`;
     async function sendAI() {
       if (!state.aiInput.trim() || state.aiLoading) return;
       if (!state.apiKey) {
-        state.aiChat.push({ role: 'assistant', content: '⚠️ Please add your Anthropic API key in Settings first.' });
+        state.aiChat.push({ role: 'assistant', content: '⚠️ Please add your Anthropic API key in Settings first.', time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
         render();
         return;
       }
 
       const userMsg = state.aiInput.trim();
+      const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
       state.aiInput = '';
-      state.aiChat.push({ role: 'user', content: userMsg });
+      state.aiChat.push({ role: 'user', content: userMsg, time: timestamp });
       state.aiLoading = true;
       render();
 
@@ -1215,12 +1228,18 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
           }
         }
 
-        state.aiChat.push({ role: 'assistant', content: aiResponse });
+        state.aiChat.push({ role: 'assistant', content: aiResponse, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
       } catch(e) {
-        state.aiChat.push({ role: 'assistant', content: `⚠️ Error: ${e.message}` });
+        state.aiChat.push({ role: 'assistant', content: `⚠️ Error: ${e.message}`, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
       }
 
       state.aiLoading = false;
+
+      // Auto-save conversation to history (every 4 messages)
+      if (state.aiChat.length % 4 === 0 && state.aiChat.length > 0) {
+        saveCurrentAIConversation();
+      }
+
       render();
       setTimeout(() => {
         const box = document.getElementById('aiChatBox');
@@ -1388,10 +1407,11 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
     // ============ RENDER FUNCTIONS ============
     function render() {
       const app = document.getElementById('app');
-      
+
       switch(state.view) {
         case 'home': app.innerHTML = renderHome(); break;
         case 'editor': app.innerHTML = renderEditor(); break;
+        case 'ai': app.innerHTML = renderAIAssistant(); break;
         default: app.innerHTML = renderHome();
       }
     }
@@ -1422,7 +1442,11 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
 
           <!-- Quick Tools -->
           <div class="px-4 mb-6">
-            <div class="grid grid-cols-4 gap-2 mb-2">
+            <div class="grid grid-cols-5 gap-2 mb-2">
+              <button onclick="setState({view:'ai'})" class="bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl p-3 text-center hover:from-purple-400 hover:to-blue-400 transition shadow-lg">
+                <div class="text-2xl">🧠</div>
+                <div class="text-xs mt-1 font-medium">AI</div>
+              </button>
               <button onclick="setState({showCalc:true})" class="bg-white/20 rounded-xl p-3 text-center hover:bg-white/30 transition">
                 <div class="text-2xl">🧮</div>
                 <div class="text-xs mt-1">Calc</div>
@@ -1437,7 +1461,7 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
               </button>
               <button onclick="setState({showEmergency:true})" class="bg-red-500/90 rounded-xl p-3 text-center hover:bg-red-500 transition">
                 <div class="text-2xl">🚨</div>
-                <div class="text-xs mt-1">Emergency</div>
+                <div class="text-xs mt-1">Emerg</div>
               </button>
             </div>
             <button onclick="setState({showSettings:true})" class="w-full bg-white/10 rounded-xl p-2 text-center hover:bg-white/20 transition text-xs">
@@ -2505,6 +2529,355 @@ Example Markdown:
           </div>
         </div>
       `;
+    }
+
+    // ============ AI ASSISTANT PAGE ============
+    const AI_QUICK_ACTIONS = {
+      clinical: [
+        { id: 'ddx', icon: '🔍', label: 'Differential Dx', prompt: 'Generate a comprehensive differential diagnosis considering geriatric-specific etiologies, atypical presentations in elderly, and reversible causes.' },
+        { id: 'meds', icon: '💊', label: 'Med Review', prompt: 'Review medications for Beers criteria violations, drug-drug interactions, renal/hepatic dosing needs, anticholinergic burden, and deprescribing opportunities.' },
+        { id: 'plan', icon: '📋', label: 'Mgmt Plan', prompt: 'Generate a comprehensive management plan with pharmacological interventions (geriatric-appropriate dosing), non-pharmacological strategies, and disposition considerations.' },
+        { id: 'workup', icon: '🔬', label: 'Workup', prompt: 'What additional workup should be ordered? Consider age-appropriate labs, imaging with contrast considerations, and specialist consultations.' },
+        { id: 'delirium', icon: '🧠', label: 'Delirium W/U', prompt: 'This patient may have delirium. Generate a systematic delirium workup including CAM assessment, common precipitants to evaluate (DIMS-VOID), and reversible causes.' },
+        { id: 'falls', icon: '🚶', label: 'Falls Risk', prompt: 'Assess fall risk factors and generate a comprehensive falls prevention plan including medication review, PT/OT recommendations, and environmental modifications.' },
+      ],
+      assessment: [
+        { id: 'frailty', icon: '👴', label: 'Frailty', prompt: 'Assess frailty status using Clinical Frailty Scale criteria. Identify frailty markers present and implications for treatment goals and prognosis.' },
+        { id: 'function', icon: '🏠', label: 'Functional Status', prompt: 'Assess functional status including ADLs, IADLs, mobility, and recommend appropriate geriatric assessments and rehabilitation needs.' },
+        { id: 'cognition', icon: '🧩', label: 'Cognition', prompt: 'Evaluate cognitive status. Recommend appropriate screening tools (MMSE, MoCA, Mini-Cog) and next steps for cognitive impairment workup.' },
+        { id: 'nutrition', icon: '🍽️', label: 'Nutrition', prompt: 'Assess nutritional status using MNA criteria. Identify risk factors for malnutrition and recommend interventions.' },
+        { id: 'goals', icon: '🎯', label: 'Goals of Care', prompt: 'Help frame a goals of care discussion considering prognosis, functional trajectory, and patient values. Suggest discussion points.' },
+        { id: 'discharge', icon: '🏥', label: 'Discharge Plan', prompt: 'Create a comprehensive discharge plan including medication reconciliation, follow-up needs, home services, and transition of care considerations.' },
+      ],
+      teaching: [
+        { id: 'teaching', icon: '📚', label: 'Teaching Points', prompt: 'Identify 4-5 key teaching points from this case focusing on geriatric principles, evidence-based guidelines, and clinical pearls.' },
+        { id: 'evidence', icon: '📖', label: 'Evidence', prompt: 'What is the current evidence and guidelines relevant to this case? Cite specific recommendations and their quality of evidence.' },
+        { id: 'pearls', icon: '💎', label: 'Clinical Pearls', prompt: 'What are the clinical pearls and pitfalls for this presentation? Focus on geriatric-specific considerations.' },
+        { id: 'questions', icon: '❓', label: 'Pimping Q\'s', prompt: 'Generate 5 teaching questions (with answers) that an attending might ask about this case, ranging from basic to advanced.' },
+        { id: 'summary', icon: '📝', label: 'Case Summary', prompt: 'Generate a concise case summary suitable for sign-out or presentation, including one-liner, key findings, and active issues.' },
+        { id: 'improve', icon: '✨', label: 'Improve', prompt: 'Review the entire presentation and suggest improvements. What information is missing? What could be presented better?' },
+      ],
+      safety: [
+        { id: 'beers', icon: '⚠️', label: 'Beers Check', prompt: 'Check all medications against Beers Criteria. List any potentially inappropriate medications with specific concerns and safer alternatives.' },
+        { id: 'stopp', icon: '🛑', label: 'STOPP/START', prompt: 'Apply STOPP/START criteria. Identify medications to potentially stop and medications that may be indicated but missing.' },
+        { id: 'renal', icon: '💧', label: 'Renal Dosing', prompt: 'Review all medications for renal dosing appropriateness. Provide specific dose adjustments needed based on kidney function.' },
+        { id: 'interactions', icon: '⚡', label: 'Interactions', prompt: 'Check for significant drug-drug interactions, QT prolongation risks, and additive effects (sedation, anticholinergic, bleeding).' },
+        { id: 'acb', icon: '🧪', label: 'ACB Score', prompt: 'Calculate Anticholinergic Cognitive Burden (ACB) score for current medications. Identify high-ACB medications and alternatives.' },
+        { id: 'cascade', icon: '🌊', label: 'Rx Cascade', prompt: 'Identify potential prescribing cascades where one medication may be treating side effects of another.' },
+      ]
+    };
+
+    function renderAIAssistant() {
+      const categories = [
+        { id: 'clinical', icon: '🩺', label: 'Clinical' },
+        { id: 'assessment', icon: '📊', label: 'Assessment' },
+        { id: 'teaching', icon: '📚', label: 'Teaching' },
+        { id: 'safety', icon: '⚠️', label: 'Safety' }
+      ];
+
+      const currentActions = AI_QUICK_ACTIONS[state.aiCategory] || AI_QUICK_ACTIONS.clinical;
+
+      // Format messages with basic markdown
+      const formatAIMessage = (text) => {
+        return text
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.+?)\*/g, '<em>$1</em>')
+          .replace(/^• /gm, '<span class="text-blue-500">•</span> ')
+          .replace(/^- /gm, '<span class="text-blue-500">•</span> ')
+          .replace(/^(\d+)\. /gm, '<span class="text-blue-500 font-medium">$1.</span> ')
+          .replace(/`(.+?)`/g, '<code class="bg-slate-200 px-1 rounded text-sm">$1</code>')
+          .replace(/\n/g, '<br>');
+      };
+
+      const msgs = state.aiChat.map(m => `
+        <div class="${m.role === 'user' ? 'text-right' : ''} animate-fadeIn">
+          <div class="inline-block rounded-2xl p-4 text-sm max-w-[90%] ${m.role === 'user' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' : 'bg-white shadow-md text-slate-800 border'}">
+            ${m.role === 'user' ? e(m.content) : formatAIMessage(m.content)}
+          </div>
+          <div class="text-xs text-slate-400 mt-1 ${m.role === 'user' ? 'text-right' : ''}">${m.time || ''}</div>
+        </div>
+      `).join('');
+
+      const historyItems = state.aiHistory.slice(-10).reverse().map((h, i) => `
+        <button onclick="loadAIHistory(${state.aiHistory.length - 1 - i})" class="w-full text-left p-3 hover:bg-slate-50 rounded-lg transition border-b last:border-0">
+          <div class="font-medium text-slate-800 text-sm truncate">${e(h.title || h.messages[0]?.content?.substring(0, 40) || 'Conversation')}</div>
+          <div class="text-xs text-slate-400">${new Date(h.date).toLocaleDateString()} • ${h.messages?.length || 0} messages</div>
+        </button>
+      `).join('') || '<p class="text-center text-slate-400 py-4">No saved conversations</p>';
+
+      return `
+        <div class="min-h-screen bg-gradient-to-b from-slate-100 to-slate-200 flex flex-col">
+          <!-- Header -->
+          <div class="bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 text-white p-4 shadow-lg">
+            <div class="flex items-center justify-between">
+              <button onclick="setState({view:'home'})" class="text-2xl p-2 hover:bg-white/20 rounded-lg transition">←</button>
+              <div class="text-center flex-1">
+                <div class="font-bold text-lg flex items-center justify-center gap-2">
+                  <span class="text-2xl">🧠</span> Geriatrics AI Assistant
+                </div>
+                <div class="text-xs text-blue-200">${state.apiKey ? 'Connected to Claude' : 'API key required'}</div>
+              </div>
+              <div class="flex gap-1">
+                <button onclick="setState({showAIHistory:true})" class="p-2 hover:bg-white/20 rounded-lg transition" title="History">📜</button>
+                <button onclick="exportAIConversation()" class="p-2 hover:bg-white/20 rounded-lg transition" title="Export">📤</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Category Tabs -->
+          <div class="bg-white shadow-sm sticky top-0 z-10">
+            <div class="flex justify-around p-2">
+              ${categories.map(c => `
+                <button onclick="setState({aiCategory:'${c.id}'})"
+                  class="flex-1 py-2 px-3 rounded-lg text-sm font-medium transition ${state.aiCategory === c.id ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}">
+                  <span class="block text-lg">${c.icon}</span>
+                  <span class="text-xs">${c.label}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Quick Actions Grid -->
+          <div class="p-3 bg-white/50">
+            <div class="grid grid-cols-3 gap-2">
+              ${currentActions.map(a => `
+                <button onclick="aiQuickAction('${a.id}')"
+                  class="bg-white rounded-xl p-3 shadow-sm hover:shadow-md transition text-center border border-slate-200 hover:border-blue-300">
+                  <div class="text-xl mb-1">${a.icon}</div>
+                  <div class="text-xs font-medium text-slate-700">${a.label}</div>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Patient Context Banner -->
+          ${state.pres ? `
+            <div class="mx-3 mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-blue-500">📋</span>
+                <div>
+                  <div class="text-sm font-medium text-blue-800">${e(state.pres.slides[0]?.title || 'Current Case')}</div>
+                  <div class="text-xs text-blue-600">${state.pres.slides.length} slides loaded</div>
+                </div>
+              </div>
+              <button onclick="setState({pres:null, patientContext:null})" class="text-xs text-blue-600 hover:text-blue-800">Clear</button>
+            </div>
+          ` : `
+            <div class="mx-3 mt-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <div class="flex items-center gap-2 text-amber-700">
+                <span>💡</span>
+                <span class="text-sm">Open a case presentation for context-aware AI responses</span>
+              </div>
+            </div>
+          `}
+
+          <!-- Chat Area -->
+          <div id="aiChatBox" class="flex-1 overflow-auto p-4 space-y-4 min-h-64">
+            ${state.aiChat.length === 0 ? `
+              <div class="bg-white rounded-2xl p-6 shadow-md border">
+                <div class="text-center mb-4">
+                  <div class="text-4xl mb-2">🩺</div>
+                  <h3 class="font-bold text-lg text-slate-800">Geriatrics AI Assistant</h3>
+                  <p class="text-sm text-slate-500">Your clinical decision support companion</p>
+                </div>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                  <div class="bg-blue-50 rounded-lg p-3">
+                    <div class="font-medium text-blue-800 mb-1">🔍 Clinical Support</div>
+                    <div class="text-xs text-blue-600">DDx, workups, management plans</div>
+                  </div>
+                  <div class="bg-green-50 rounded-lg p-3">
+                    <div class="font-medium text-green-800 mb-1">💊 Medication Safety</div>
+                    <div class="text-xs text-green-600">Beers, STOPP/START, interactions</div>
+                  </div>
+                  <div class="bg-purple-50 rounded-lg p-3">
+                    <div class="font-medium text-purple-800 mb-1">📊 Assessments</div>
+                    <div class="text-xs text-purple-600">Frailty, cognition, function</div>
+                  </div>
+                  <div class="bg-orange-50 rounded-lg p-3">
+                    <div class="font-medium text-orange-800 mb-1">📚 Teaching</div>
+                    <div class="text-xs text-orange-600">Cases, pearls, evidence</div>
+                  </div>
+                </div>
+                ${!state.apiKey ? `
+                  <div class="mt-4 bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                    <div class="text-red-600 font-medium">⚠️ API Key Required</div>
+                    <button onclick="setState({view:'home', showSettings:true})" class="mt-2 px-4 py-1 bg-red-100 text-red-700 rounded-full text-sm hover:bg-red-200 transition">
+                      Add API Key in Settings
+                    </button>
+                  </div>
+                ` : ''}
+              </div>
+            ` : msgs}
+            ${state.aiLoading ? `
+              <div class="flex items-center gap-3 text-slate-500">
+                <div class="typing bg-white rounded-full p-3 shadow-sm">
+                  <span></span><span></span><span></span>
+                </div>
+                <span class="text-sm">AI is thinking...</span>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Input Area -->
+          <div class="bg-white border-t p-4 safe-bottom shadow-lg">
+            <div class="flex gap-2 items-end">
+              <button onclick="toggleVoiceInput()"
+                class="p-3 rounded-xl transition ${state.isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}"
+                title="Voice input">
+                🎤
+              </button>
+              <div class="flex-1 relative">
+                <textarea id="aiInput"
+                  value="${e(state.aiInput)}"
+                  oninput="state.aiInput=this.value;autoResizeTextarea(this)"
+                  onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendAI()}"
+                  placeholder="Ask about your patient, medications, differential, or any clinical question..."
+                  rows="1"
+                  class="w-full border-2 border-slate-200 rounded-xl px-4 py-3 pr-12 resize-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+                  style="max-height: 120px; overflow-y: auto;"
+                >${e(state.aiInput)}</textarea>
+              </div>
+              <button onclick="sendAI()" ${state.aiLoading || !state.aiInput.trim() ? 'disabled' : ''}
+                class="p-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-600 hover:to-purple-600 transition shadow-md">
+                ${state.aiLoading ? '...' : '➤'}
+              </button>
+            </div>
+            <div class="flex justify-between mt-2 text-xs text-slate-400">
+              <span>Press Enter to send, Shift+Enter for new line</span>
+              <button onclick="state.aiChat=[];render()" class="text-red-400 hover:text-red-600">Clear chat</button>
+            </div>
+          </div>
+
+          <!-- History Modal -->
+          ${state.showAIHistory ? `
+            <div class="fixed inset-0 bg-black/50 flex items-end z-50 animate-fadeIn" onclick="if(event.target===this)setState({showAIHistory:false})">
+              <div class="bg-white w-full rounded-t-2xl max-h-[70vh] flex flex-col modal-content">
+                <div class="p-4 border-b flex justify-between items-center">
+                  <h3 class="font-bold text-lg">📜 Conversation History</h3>
+                  <button onclick="setState({showAIHistory:false})" class="text-2xl text-slate-400">×</button>
+                </div>
+                <div class="flex-1 overflow-auto p-2">
+                  ${historyItems}
+                </div>
+                <div class="p-3 border-t">
+                  <button onclick="clearAIHistory()" class="w-full py-2 text-red-500 hover:bg-red-50 rounded-lg transition text-sm">
+                    🗑️ Clear All History
+                  </button>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+
+          ${state.showCalc ? renderCalcModal() : ''}
+          ${state.showDrugs ? renderDrugsModal() : ''}
+          ${state.showLabs ? renderLabsModal() : ''}
+        </div>
+        ${state.recentAction ? `<div class="fixed bottom-24 left-4 right-4 bg-green-500 text-white p-3 rounded-xl text-center animate-fadeIn z-50">${e(state.recentAction)}</div>` : ''}
+      `;
+    }
+
+    function aiQuickAction(actionId) {
+      const allActions = [...AI_QUICK_ACTIONS.clinical, ...AI_QUICK_ACTIONS.assessment, ...AI_QUICK_ACTIONS.teaching, ...AI_QUICK_ACTIONS.safety];
+      const action = allActions.find(a => a.id === actionId);
+      if (action) {
+        state.aiInput = action.prompt;
+        render();
+        setTimeout(() => sendAI(), 50);
+      }
+    }
+
+    function autoResizeTextarea(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    }
+
+    function toggleVoiceInput() {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        showToast('Voice input not supported in this browser');
+        return;
+      }
+
+      if (state.isListening) {
+        if (window.recognition) {
+          window.recognition.stop();
+        }
+        setState({ isListening: false });
+        return;
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      window.recognition = new SpeechRecognition();
+      window.recognition.continuous = false;
+      window.recognition.interimResults = true;
+      window.recognition.lang = 'en-US';
+
+      window.recognition.onstart = () => setState({ isListening: true });
+      window.recognition.onend = () => setState({ isListening: false });
+      window.recognition.onerror = (e) => {
+        console.error('Speech recognition error:', e);
+        setState({ isListening: false });
+        showToast('Voice input error: ' + e.error);
+      };
+      window.recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map(result => result[0].transcript)
+          .join('');
+        state.aiInput = transcript;
+        render();
+      };
+
+      window.recognition.start();
+    }
+
+    function exportAIConversation() {
+      if (state.aiChat.length === 0) {
+        showToast('No conversation to export');
+        return;
+      }
+
+      const content = state.aiChat.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n---\n\n');
+      const title = state.pres?.slides[0]?.title || 'AI Conversation';
+      const blob = new Blob([`# ${title}\n\nDate: ${new Date().toLocaleString()}\n\n---\n\n${content}`], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ai-conversation-${Date.now()}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Conversation exported!');
+    }
+
+    function saveCurrentAIConversation() {
+      if (state.aiChat.length < 2) return;
+
+      const conversation = {
+        date: Date.now(),
+        title: state.pres?.slides[0]?.title || state.aiChat[0]?.content?.substring(0, 40) || 'Conversation',
+        messages: [...state.aiChat],
+        context: state.pres ? { title: state.pres.slides[0]?.title } : null
+      };
+
+      state.aiHistory.push(conversation);
+      save();
+    }
+
+    function loadAIHistory(index) {
+      const conversation = state.aiHistory[index];
+      if (conversation) {
+        state.aiChat = [...conversation.messages];
+        state.showAIHistory = false;
+        render();
+        showToast('Conversation loaded');
+      }
+    }
+
+    function clearAIHistory() {
+      if (confirm('Clear all conversation history?')) {
+        state.aiHistory = [];
+        save();
+        setState({ showAIHistory: false });
+        showToast('History cleared');
+      }
     }
 
     function renderAIModal() {
