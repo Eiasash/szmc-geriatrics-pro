@@ -46,7 +46,7 @@
 
   <script>
     // ============ SZMC GERIATRICS PRO v4.0 ============
-    const VERSION = '5.0';
+    const VERSION = '5.3';
     
     // State
     let state = {
@@ -90,7 +90,14 @@
       showApplyPanel: false,
       aiTargetSlide: 0,
       aiTargetField: 'items',
-      editableAIContent: ''
+      editableAIContent: '',
+      // QA + API helpers
+      showQA: false,
+      qaResults: null,
+      apiStatus: null,
+      // Safety sweeps
+      showSafety: false,
+      safetyResults: null
     };
 
     // Load saved data
@@ -118,6 +125,74 @@
         }));
       } catch(e) { console.error('Save error:', e); }
     }
+
+    const EVIDENCE_LIBRARY = [
+      {
+        id: 'delirium2024',
+        title: 'Delirium (AGS 2024 & PADIS updated)',
+        year: '2024',
+        summary: 'Emphasize multicomponent prevention, early mobilization, sleep hygiene, and judicious use of antipsychotics only for severe distress or safety. Incorporate CAM-ICU/CAM for monitoring and medication stewardship (avoid benzos/anticholinergics).',
+        keyPoints: [
+          'Use DIMS-VOID screen for precipitants and treat pain, infection, and withdrawal aggressively',
+          'Prioritize non-pharmacologic bundle: orientation cues, glasses/hearing aids, mobilization 3x/day, quiet nights',
+          'Reserve low-dose antipsychotics for immediate risk; reassess daily and de-escalate',
+          'Document baseline cognition and functional trajectory to guide disposition and goals-of-care'
+        ],
+        sources: 'AGS Guidelines 2023/2024; PADIS ICU updates'
+      },
+      {
+        id: 'falls2024',
+        title: 'Falls & Mobility (AGS/BGS 2024)',
+        year: '2024',
+        summary: 'Risk stratification should integrate orthostatics, medication burden, vision/hearing, and home hazards. Exercise + strength/balance training (OTAGO/Tai Chi) with vitamin D for deficiency and deprescribing sedatives.' ,
+        keyPoints: [
+          'Orthostatic vitals on admission and after medication changes',
+          'Deprescribe high-risk meds: benzos, Z-drugs, anticholinergics, alpha-blockers, rapid antihypertensives',
+          'PT/OT assessment within 48h; add hip protectors and assistive device training when recurrent falls',
+          'Address sarcopenia with protein 1.2–1.5g/kg/day and resistance work 2–3x/week'
+        ],
+        sources: 'AGS Clinical Practice 2024; British Geriatrics Society Falls Update'
+      },
+      {
+        id: 'osteoporosis2025',
+        title: 'Fragility Fractures & Osteoporosis',
+        year: '2025',
+        summary: 'Post-fracture secondary prevention should be initiated in-hospital when possible. Choose parenteral bisphosphonate or anabolic therapy for very high risk; reassess after 3-5 years; ensure calcium/vit D repletion and fall mitigation.',
+        keyPoints: [
+          'T-score ≤ -2.5 or FRAX major ≥20%/hip ≥3% warrants therapy; consider anabolic agent if multiple fragility fractures',
+          'Renal dosing: avoid IV zoledronic acid if eGFR <35; consider denosumab with hypocalcemia monitoring',
+          'Start calcium 1200mg elemental + vitamin D3 800-1000 IU/day unless contraindicated',
+          'Plan drug holiday after 3-5y of bisphosphonates if low-moderate risk; continue if very high risk'
+        ],
+        sources: 'Endocrine Society 2024 addendum; IOF 2025 position statement'
+      },
+      {
+        id: 'afib2024',
+        title: 'Atrial Fibrillation in Older Adults',
+        year: '2024',
+        summary: 'Stroke prevention prioritized unless absolute contraindication. Prefer DOACs with creatinine clearance-based dosing; integrate CHA₂DS₂-VASc, HAS-BLED, and frailty to personalize therapy.',
+        keyPoints: [
+          'Use DOAC dose adjustments: apixaban 2.5mg BID if ≥2 of age ≥80, weight ≤60kg, Cr ≥1.5; avoid underdosing',
+          'Falls risk alone rarely outweighs anticoag benefit; pair with fall prevention bundle',
+          'Rate control first-line; cautious beta-blocker/CCB titration with orthostatic monitoring',
+          'Consider left atrial appendage occlusion when anticoagulation contraindicated'
+        ],
+        sources: 'ACC/AHA/ACCP/HRS 2023/2024 updates'
+      },
+      {
+        id: 'uti2025',
+        title: 'UTI & Antimicrobial Stewardship',
+        year: '2025',
+        summary: 'Avoid treating asymptomatic bacteriuria except pregnancy/urologic procedures. Narrow antibiotics to 5–7 days for uncomplicated lower UTI; avoid fluoroquinolones when safer options exist; dose-adjust for renal function.',
+        keyPoints: [
+          'Confirm symptoms (dysuria, frequency, urgency) + UA before treating; avoid culture for asymptomatic patients',
+          'Use nitrofurantoin if eGFR ≥30; avoid for pyelonephritis or poor renal function',
+          'Document stewardship plan: start-narrow-stop with reassessment at 48-72h',
+          'Hydration, catheter review/removal, and delirium monitoring in inpatients'
+        ],
+        sources: 'IDSA 2024 stewardship pathways; NICE 2025 UTI update'
+      }
+    ];
 
     // ============ TEMPLATES ============
     const templates = {
@@ -1129,17 +1204,23 @@ Potassium,20mEq,daily,Keep K >4.0`;
         presContext += `Current slide (${state.slide + 1}): ${JSON.stringify(state.pres.slides[state.slide], null, 2)}`;
       }
 
+      const evidenceDigest = EVIDENCE_LIBRARY.map(ev => `${ev.title} (${ev.year}): ${ev.summary}`).join('\n- ');
+
       const systemPrompt = `You are an AI assistant that helps create and modify presentation slides.
 
 CURRENT CONTEXT:
 ${presContext}
 
+EVIDENCE CHEAT SHEET (2024-2025):
+- ${evidenceDigest}
+
 INSTRUCTIONS:
-When the user asks you to generate or modify content, respond with the content in a clear format.
+Use up-to-date guideline-level evidence (2023-2025) and clearly separate recommendations from rationale. Prefer concise bullet lists, highlight geriatric dosing/contraindications, and flag safety issues.
 - For list items, use bullet points (• or -)
-- For text content, provide clear paragraphs
-- Be concise and professional
-- Generate content that can be directly used in slides
+- For text content, provide crisp paragraphs or mini checklists
+- Be concise, clinical, and slide-ready
+- If suggesting medications, include dose ranges and renal/hepatic notes when relevant
+- If recommending follow-up, include timelines
 
 If asked to generate items for a list (like DDx, medications, teaching points), provide them as a bullet list.
 If asked to generate content, provide clear text.
@@ -1246,6 +1327,212 @@ DO NOT include any code blocks or JSON. Just provide the content directly.`;
       state.aiInput = commands[cmd] || '';
       render();
       setTimeout(() => sendAI(), 50);
+    }
+
+    async function testAPIKey() {
+      if (!state.apiKey) {
+        showToast('Add your Anthropic key first');
+        return;
+      }
+
+      setState({ apiStatus: 'Checking key...' });
+      try {
+        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': state.apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({
+            model: 'claude-3-5-sonnet-20240620',
+            max_tokens: 20,
+            messages: [{ role: 'user', content: 'Reply READY if you can hear me.' }]
+          })
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.error?.message || `API error ${resp.status}`);
+        }
+
+        const data = await resp.json();
+        const ok = data.content?.[0]?.text?.toLowerCase().includes('ready');
+        setState({ apiStatus: ok ? '✅ Key works' : '⚠️ Unexpected response (check model access)' });
+        showToast(ok ? 'API connected' : 'Key responded, verify model access');
+      } catch (e) {
+        console.error(e);
+        setState({ apiStatus: `⚠️ ${e.message}` });
+        showToast('API check failed');
+      }
+    }
+
+    function summarizePresentation(pres = state.pres) {
+      if (!pres) return 'No presentation loaded';
+      const bullets = pres.slides.map((s, i) => `${i + 1}. ${s.title || s.type}: ${
+        s.content?.slice(0, 100) || s.items?.slice(0, 3)?.join('; ') || s.demographics || ''
+      }`).join('\n');
+      return `Name: ${pres.name || pres.slides[0]?.title || 'Untitled'}\nSlides: ${pres.slides.length}\n${bullets}`;
+    }
+
+    function auditPresentation() {
+      if (!state.pres) return;
+      const p = state.pres;
+      const issues = [];
+      const warnings = [];
+      let score = 100;
+
+      if (!p.slides?.length) {
+        issues.push('No slides found. Start from a template.');
+        score -= 40;
+      }
+
+      const requiredFields = [
+        { type: 'patient', field: 'demographics', msg: 'Add demographics (age/sex) to the Patient slide.' },
+        { type: 'patient', field: 'cc', msg: 'Add a chief complaint.' },
+        { type: 'content', title: 'HPI', field: 'content', msg: 'HPI is empty. Add a succinct story.' },
+        { type: 'list', title: 'Medications', field: 'items', msg: 'List current medications.' },
+        { type: 'exam', field: 'findings', msg: 'Document key physical exam findings.' },
+        { type: 'list', title: 'Differential Diagnosis', field: 'items', msg: 'Add a differential diagnosis list.' },
+        { type: 'treatment', field: 'pharm', msg: 'Pharmacological plan missing.' },
+        { type: 'treatment', field: 'nonpharm', msg: 'Non-pharmacologic plan missing.' },
+      ];
+
+      requiredFields.forEach(req => {
+        const slide = p.slides.find(s => s.type === req.type && (!req.title || s.title === req.title));
+        if (!slide || !(slide[req.field]?.length)) {
+          issues.push(req.msg);
+          score -= 5;
+        }
+      });
+
+      p.slides.forEach((s, idx) => {
+        if (['content', 'list', 'treatment'].includes(s.type)) {
+          const lengthScore = (s.content || s.pharm || s.nonpharm || (s.items || []).join(' ')).length;
+          if (!lengthScore) {
+            issues.push(`Slide ${idx + 1} (${s.title || s.type}) is empty.`);
+            score -= 3;
+          }
+        }
+
+        if (s.type === 'exam' && (!s.vitals || Object.values(s.vitals).every(v => !v))) {
+          warnings.push('Vitals missing in Physical Exam.');
+          score -= 2;
+        }
+      });
+
+      const evidenceMatch = EVIDENCE_LIBRARY.find(ev => p.slides.some(sl => (sl.content || '').toLowerCase().includes(ev.title.toLowerCase())));
+      if (!evidenceMatch) {
+        warnings.push('No guideline references detected. Use AI “Evidence” quick actions to cite 2024-2025 guidance.');
+        score -= 3;
+      }
+
+      score = Math.max(0, Math.min(100, score));
+
+      setState({
+        qaResults: {
+          score,
+          issues,
+          warnings,
+          summary: summarizePresentation(p)
+        },
+        showQA: true
+      });
+    }
+
+    function runSafetyScan() {
+      if (!state.pres) {
+        showToast('Open a case to scan');
+        return;
+      }
+
+      const critical = [];
+      const watch = [];
+
+      const parseNum = (val) => {
+        if (!val) return null;
+        const n = parseFloat(String(val).replace(/[^0-9.\-]/g, ''));
+        return isNaN(n) ? null : n;
+      };
+
+      state.pres.slides.forEach((s, idx) => {
+        const title = s.title || `Slide ${idx + 1}`;
+
+        // Vital sign sweeps
+        if (s.vitals) {
+          const bpMatch = String(s.vitals.BP || '').match(/(\d{2,3})\s*\/\s*(\d{2,3})/);
+          if (bpMatch) {
+            const sbp = +bpMatch[1];
+            if (sbp < 90 || sbp > 180) critical.push(`${title}: BP ${s.vitals.BP} needs urgent review`);
+          }
+          const hr = parseNum(s.vitals.HR);
+          if (hr && (hr > 120 || hr < 45)) critical.push(`${title}: HR ${hr} concerning for instability`);
+          const rr = parseNum(s.vitals.RR);
+          if (rr && rr > 24) watch.push(`${title}: RR ${rr} - consider hypoxia/pain/anxiety`);
+          const temp = parseNum(s.vitals.Temp);
+          if (temp && temp >= 38.5) watch.push(`${title}: Fever ${temp}°C - ensure cultures/abx if indicated`);
+          const spo2 = parseNum(s.vitals.SpO2);
+          if (spo2 && spo2 < 90) critical.push(`${title}: SpO2 ${spo2}% - apply O2/ABG?`);
+          else if (spo2 && spo2 < 93) watch.push(`${title}: SpO2 ${spo2}% - monitor closely`);
+        }
+
+        // Lab pattern sweeps (basic electrolytes)
+        if (s.items && (title.toLowerCase().includes('lab') || title.toLowerCase().includes('bmp'))) {
+          s.items.forEach(line => {
+            const lower = line.toLowerCase();
+            const na = lower.match(/na[^\d]*(\d{2,3})/);
+            const k = lower.match(/k[^\d]*(\d\.\d|\d{1,2})/);
+            const cr = lower.match(/(cr|creatinine)[^\d]*(\d\.\d|\d{1,2})/);
+            if (na) {
+              const v = +na[1];
+              if (v < 130 || v > 150) critical.push(`${title}: Sodium ${v} - adjust fluids and meds`);
+            }
+            if (k) {
+              const v = +k[1];
+              if (v < 3 || v > 5.5) critical.push(`${title}: Potassium ${v} - replete/telemetry`);
+            }
+            if (cr) {
+              const v = +cr[2];
+              if (v >= 2) watch.push(`${title}: Creatinine ${v} - ensure renal dosing and volume status`);
+            }
+          });
+        }
+
+        // Medication sweeps
+        if (s.items && (s.type === 'list' || title.toLowerCase().includes('med'))) {
+          const meds = s.items.map(m => m.toLowerCase());
+          if (meds.length >= 10) watch.push(`${title}: Polypharmacy (${meds.length} meds) - deprescribe high-risk agents`);
+
+          meds.forEach(med => {
+            if (/(diazepam|clonazepam|alprazolam|lorazepam|zolpidem)/.test(med)) {
+              watch.push(`${title}: Sedative/benzodiazepine detected (${med}) - falls/delirium risk`);
+            }
+            if (/(diphenhydramine|chlorpheniramine|oxybutynin|meclizine)/.test(med)) {
+              watch.push(`${title}: Anticholinergic (${med}) - consider ACB reduction`);
+            }
+            if (/warfarin/.test(med) && meds.some(x => /(nsaid|ibuprofen|naproxen)/.test(x))) {
+              critical.push(`${title}: Warfarin + NSAID combo - bleeding risk`);
+            }
+            if (/spironolactone/.test(med) && meds.some(x => /acei|lisinopril|arb|losartan/.test(x))) {
+              watch.push(`${title}: Dual RAAS blockade risk with spironolactone/ACEi-ARB`);
+            }
+          });
+        }
+      });
+
+      const summary = `${critical.length} critical / ${watch.length} watch items`;
+      setState({ safetyResults: { critical, watch, summary }, showSafety: true });
+    }
+
+    function injectEvidence(evId) {
+      const ev = EVIDENCE_LIBRARY.find(e => e.id === evId);
+      if (!ev) return;
+      const ctx = summarizePresentation();
+      const prompt = `Use ${ev.title} (${ev.year}) guidance to update this case. Patient/context:\n${ctx}\nEvidence summary:${ev.summary}\nKey points:${ev.keyPoints.join('; ')}\nReturn slide-ready bullets with dosing, monitoring, and citations.`;
+      state.aiInput = prompt;
+      setState({ showAI: true });
+      setTimeout(() => sendAI(), 80);
     }
 
     // ============ CALCULATORS ============
@@ -1618,16 +1905,20 @@ Example Markdown:
             <div class="space-y-4">
               <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1">Anthropic API Key (for AI features)</label>
-                <input type="password" value="${e(state.apiKey)}" 
-                  oninput="state.apiKey=this.value;save()" 
-                  placeholder="sk-ant-..." 
+                <input type="password" value="${e(state.apiKey)}"
+                  oninput="state.apiKey=this.value;save()"
+                  placeholder="sk-ant-..."
                   class="w-full border rounded-lg p-3 text-slate-800">
-                <p class="text-xs text-slate-500 mt-1">Get your key from console.anthropic.com</p>
+                <div class="flex items-center justify-between text-xs text-slate-500 mt-1">
+                  <span>Get your key from console.anthropic.com</span>
+                  <button onclick="testAPIKey()" class="text-blue-600 font-medium">Test key →</button>
+                </div>
+                ${state.apiStatus ? `<div class="mt-2 text-sm ${state.apiStatus.includes('✅') ? 'text-green-600' : 'text-orange-600'}">${e(state.apiStatus)}</div>` : ''}
               </div>
-              
+
               <div class="border-t pt-4">
                 <h4 class="font-medium text-slate-700 mb-2">Data Management</h4>
-                <button onclick="if(confirm('Export all data?')){const d=JSON.stringify(state.saved);navigator.clipboard.writeText(d);showToast('Copied to clipboard!')}" 
+                <button onclick="if(confirm('Export all data?')){const d=JSON.stringify(state.saved);navigator.clipboard.writeText(d);showToast('Copied to clipboard!')}"
                   class="w-full bg-blue-50 text-blue-700 rounded-lg p-3 mb-2">
                   📤 Export All Presentations
                 </button>
@@ -1641,6 +1932,92 @@ Example Markdown:
                 <p>SZMC Geriatrics Pro v${VERSION}</p>
                 <p>Built for Shaare Zedek Medical Center</p>
               </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderQAModal() {
+      const r = state.qaResults || { issues: [], warnings: [], score: 0, summary: '' };
+      const badge = r.score >= 85 ? 'bg-green-100 text-green-700' : r.score >= 60 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700';
+      const prompt = `Use this QA report to improve the slides. Score: ${r.score}. Issues: ${r.issues.join('; ')}. Warnings: ${r.warnings.join('; ')}. Presentation summary: ${r.summary}`;
+      const promptSafe = JSON.stringify(prompt);
+
+      return `
+        <div class="fixed inset-0 bg-black/50 flex items-end z-50 animate-fadeIn" onclick="if(event.target===this)setState({showQA:false})">
+          <div class="bg-white w-full rounded-t-2xl p-5 modal-content max-h-[80vh] overflow-auto">
+            <div class="flex items-start justify-between mb-3">
+              <div>
+                <div class="text-sm text-slate-500">Presentation QA</div>
+                <div class="flex items-center gap-3">
+                  <div class="text-3xl font-bold">${r.score}</div>
+                  <span class="text-xs ${badge} px-2 py-1 rounded-full">Readiness score</span>
+                </div>
+              </div>
+              <button onclick="setState({showQA:false})" class="text-2xl text-slate-400">×</button>
+            </div>
+
+            <div class="bg-slate-50 rounded-lg p-3 text-xs text-slate-600 mb-3">
+              <div class="font-medium text-slate-800 mb-1">Snapshot</div>
+              <pre class="whitespace-pre-wrap text-[11px]">${e(r.summary)}</pre>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="bg-red-50 rounded-lg p-3">
+                <div class="font-semibold text-red-700 mb-2">Critical fixes</div>
+                ${r.issues.length ? `<ul class="list-disc list-inside text-sm text-red-800 space-y-1">${r.issues.map(i => `<li>${e(i)}</li>`).join('')}</ul>` : '<p class="text-sm text-red-700">No critical gaps detected.</p>'}
+              </div>
+              <div class="bg-amber-50 rounded-lg p-3">
+                <div class="font-semibold text-amber-700 mb-2">Warnings</div>
+                ${r.warnings.length ? `<ul class="list-disc list-inside text-sm text-amber-800 space-y-1">${r.warnings.map(i => `<li>${e(i)}</li>`).join('')}</ul>` : '<p class="text-sm text-amber-700">No warnings detected.</p>'}
+              </div>
+            </div>
+
+            <div class="mt-4 flex flex-col gap-2">
+              <button onclick="state.aiInput=${promptSafe}; setState({showAI:true, showQA:false}); setTimeout(()=>sendAI(),80)" class="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg py-3 font-medium shadow">⚡ Ask AI to fix these</button>
+              <button onclick="state.aiInput='Convert this entire case into 6 bullet slides with evidence citations and monitoring plans.'; setState({showAI:true, showQA:false}); setTimeout(()=>sendAI(),80)" class="w-full bg-slate-900 text-white rounded-lg py-3 font-medium">🎬 Auto-build speaker deck</button>
+              <button onclick="setState({showQA:false})" class="w-full bg-slate-100 text-slate-700 rounded-lg py-3 font-medium">Close</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSafetyModal() {
+      const r = state.safetyResults || { critical: [], watch: [], summary: '' };
+      const prompt = `You are a geriatric safety officer. Critical: ${r.critical.join('; ')}. Watch: ${r.watch.join('; ')}. Provide slide-ready fixes with medication substitutions, monitoring, and disposition triggers.`;
+      const promptSafe = JSON.stringify(prompt);
+
+      return `
+        <div class="fixed inset-0 bg-black/50 flex items-end z-50 animate-fadeIn" onclick="if(event.target===this)setState({showSafety:false})">
+          <div class="bg-white w-full rounded-t-2xl p-5 modal-content max-h-[80vh] overflow-auto">
+            <div class="flex items-start justify-between mb-3">
+              <div>
+                <div class="text-sm text-slate-500">Safety sweep</div>
+                <div class="flex items-center gap-2">
+                  <div class="text-2xl font-bold text-rose-600">${r.summary || 'No scan'}</div>
+                  <span class="text-xs bg-rose-100 text-rose-700 px-2 py-1 rounded-full">Vitals • Labs • Meds</span>
+                </div>
+              </div>
+              <button onclick="setState({showSafety:false})" class="text-2xl text-slate-400">×</button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="bg-red-50 rounded-lg p-3">
+                <div class="font-semibold text-red-700 mb-2 flex items-center gap-2">🚨 Critical</div>
+                ${r.critical?.length ? `<ul class="list-disc list-inside text-sm text-red-800 space-y-1">${r.critical.map(i => `<li>${e(i)}</li>`).join('')}</ul>` : '<p class="text-sm text-red-700">No red flags detected.</p>'}
+              </div>
+              <div class="bg-amber-50 rounded-lg p-3">
+                <div class="font-semibold text-amber-700 mb-2 flex items-center gap-2">👀 Watch</div>
+                ${r.watch?.length ? `<ul class="list-disc list-inside text-sm text-amber-800 space-y-1">${r.watch.map(i => `<li>${e(i)}</li>`).join('')}</ul>` : '<p class="text-sm text-amber-700">No watch items.</p>'}
+              </div>
+            </div>
+
+            <div class="mt-4 flex flex-col gap-2">
+              <button onclick="state.aiInput=${promptSafe}; setState({showAI:true, showSafety:false}); setTimeout(()=>sendAI(),80)" class="w-full bg-gradient-to-r from-rose-500 to-orange-500 text-white rounded-lg py-3 font-medium shadow">🤖 Ask AI to patch safety gaps</button>
+              <button onclick="runSafetyScan()" class="w-full bg-slate-900 text-white rounded-lg py-3 font-medium">🔁 Re-run scan</button>
+              <button onclick="setState({showSafety:false})" class="w-full bg-slate-100 text-slate-700 rounded-lg py-3 font-medium">Close</button>
             </div>
           </div>
         </div>
@@ -2349,7 +2726,11 @@ Example Markdown:
                 <div class="font-bold truncate">${e(state.pres.slides[0]?.title)}</div>
                 <div class="text-xs text-blue-200">Slide ${state.slide + 1} / ${state.pres.slides.length}</div>
               </div>
-              <button onclick="setState({showAI:true})" class="text-2xl">🧠</button>
+              <div class="flex items-center gap-2">
+                <button onclick="auditPresentation()" class="text-xl bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg">✅</button>
+                <button onclick="runSafetyScan()" class="text-xl bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg">🛡️</button>
+                <button onclick="setState({showAI:true})" class="text-2xl">🧠</button>
+              </div>
             </div>
           </div>
 
@@ -2393,6 +2774,8 @@ Example Markdown:
           ${state.showCalc ? renderCalcModal() : ''}
           ${state.showDrugs ? renderDrugsModal() : ''}
           ${state.showLabs ? renderLabsModal() : ''}
+          ${state.showQA && state.qaResults ? renderQAModal() : ''}
+          ${state.showSafety && state.safetyResults ? renderSafetyModal() : ''}
         </div>
         ${state.recentAction ? `<div class="fixed bottom-20 left-4 right-4 bg-green-500 text-white p-3 rounded-xl text-center animate-fadeIn z-50">${e(state.recentAction)}</div>` : ''}
       `;
@@ -2524,6 +2907,8 @@ Example Markdown:
         { id: 'workup', icon: '🔬', label: 'Workup', prompt: 'What additional workup should be ordered? Consider age-appropriate labs, imaging with contrast considerations, and specialist consultations.' },
         { id: 'delirium', icon: '🧠', label: 'Delirium W/U', prompt: 'This patient may have delirium. Generate a systematic delirium workup including CAM assessment, common precipitants to evaluate (DIMS-VOID), and reversible causes.' },
         { id: 'falls', icon: '🚶', label: 'Falls Risk', prompt: 'Assess fall risk factors and generate a comprehensive falls prevention plan including medication review, PT/OT recommendations, and environmental modifications.' },
+        { id: 'handoff', icon: '🧾', label: 'Handoff', prompt: 'Draft an SBAR-style handoff with overnight watch items, contingency plans, and caregiver communication notes.' },
+        { id: 'triage', icon: '🏥', label: 'Triage', prompt: 'Identify what must be done in the next 60 minutes vs next 6 hours. Include safety labs, consults, and monitoring orders.' },
       ],
       assessment: [
         { id: 'frailty', icon: '👴', label: 'Frailty', prompt: 'Assess frailty status using Clinical Frailty Scale criteria. Identify frailty markers present and implications for treatment goals and prognosis.' },
@@ -2541,6 +2926,14 @@ Example Markdown:
         { id: 'summary', icon: '📝', label: 'Case Summary', prompt: 'Generate a concise case summary suitable for sign-out or presentation, including one-liner, key findings, and active issues.' },
         { id: 'improve', icon: '✨', label: 'Improve', prompt: 'Review the entire presentation and suggest improvements. What information is missing? What could be presented better?' },
       ],
+      slides: [
+        { id: 'rewrite', icon: '📝', label: 'Rewrite slide', prompt: 'Rewrite the current slide into 5 crisp bullets with citations from the 2024-2025 evidence library. Preserve clinical accuracy and geriatric dosing cautions.' },
+        { id: 'notes', icon: '🎤', label: 'Speaker notes', prompt: 'Draft 60-second speaker notes for this slide with key transitions, risk/safety reminders, and monitoring steps.' },
+        { id: 'qa', icon: '✅', label: 'Fix QA issues', prompt: 'Use the QA report to generate exact edits for missing fields (titles, items, findings, plans). Provide bullet replacements only.' },
+        { id: 'onepager', icon: '📑', label: '1-slide recap', prompt: 'Condense the entire case into a single slide with problem list, top 3 interventions, follow-up timeline, and citations.' },
+        { id: 'storyboard', icon: '🎯', label: 'Storyboard', prompt: 'Rebuild this presentation into a 6-8 slide deck (title, patient, HPI, exam, data, plan, follow-up) with suggested titles and bullets.' },
+        { id: 'handoffcard', icon: '🪪', label: 'Handoff card', prompt: 'Create a single “overnight card” with one-liner, safety watch points, pending studies, and when to call attending.' },
+      ],
       safety: [
         { id: 'beers', icon: '⚠️', label: 'Beers Check', prompt: 'Check all medications against Beers Criteria. List any potentially inappropriate medications with specific concerns and safer alternatives.' },
         { id: 'stopp', icon: '🛑', label: 'STOPP/START', prompt: 'Apply STOPP/START criteria. Identify medications to potentially stop and medications that may be indicated but missing.' },
@@ -2548,6 +2941,14 @@ Example Markdown:
         { id: 'interactions', icon: '⚡', label: 'Interactions', prompt: 'Check for significant drug-drug interactions, QT prolongation risks, and additive effects (sedation, anticholinergic, bleeding).' },
         { id: 'acb', icon: '🧪', label: 'ACB Score', prompt: 'Calculate Anticholinergic Cognitive Burden (ACB) score for current medications. Identify high-ACB medications and alternatives.' },
         { id: 'cascade', icon: '🌊', label: 'Rx Cascade', prompt: 'Identify potential prescribing cascades where one medication may be treating side effects of another.' },
+      ],
+      evidence: [
+        { id: 'guideline', icon: '📑', label: 'Guideline Recap', prompt: 'Summarize guideline-grade recommendations (2023-2025) relevant to this case, with strength of evidence and key citations.' },
+        { id: 'dosing', icon: '💉', label: 'Dosing Guardrails', prompt: 'Create a dosing and monitoring table for proposed meds including renal/hepatic adjustments and geriatrics cautions.' },
+        { id: 'followup', icon: '⏳', label: 'Follow-up', prompt: 'Outline follow-up intervals, monitoring labs, and when to escalate care based on the most recent society guidelines.' },
+        { id: 'quality', icon: '🏥', label: 'Quality Metrics', prompt: 'List quality/safety metrics (antibiotic timeout, fall bundle, delirium prevention) to track for this patient using up-to-date standards.' },
+        { id: 'equity', icon: '🤝', label: 'Communication', prompt: 'Draft shared-decision talking points incorporating literacy, cultural considerations, and goals-of-care for older adults.' },
+        { id: 'slide', icon: '🧾', label: 'Slide Ready', prompt: 'Convert the current slide into concise bullet points with citations and monitoring parameters that fit on a single teaching slide.' },
       ]
     };
 
@@ -2556,10 +2957,18 @@ Example Markdown:
         { id: 'clinical', icon: '🩺', label: 'Clinical' },
         { id: 'assessment', icon: '📊', label: 'Assessment' },
         { id: 'teaching', icon: '📚', label: 'Teaching' },
-        { id: 'safety', icon: '⚠️', label: 'Safety' }
+        { id: 'slides', icon: '🖼️', label: 'Slides' },
+        { id: 'safety', icon: '⚠️', label: 'Safety' },
+        { id: 'evidence', icon: '📖', label: 'Evidence' }
       ];
 
       const currentActions = AI_QUICK_ACTIONS[state.aiCategory] || AI_QUICK_ACTIONS.clinical;
+      const evidenceButtons = EVIDENCE_LIBRARY.map(ev => `
+        <button onclick="injectEvidence('${ev.id}')" class="px-3 py-2 bg-white border border-slate-200 rounded-lg text-left shadow-sm hover:shadow-md text-xs">
+          <div class="font-semibold text-slate-800">${e(ev.title)}</div>
+          <div class="text-[11px] text-slate-500">${ev.year} • ${e(ev.summary.substring(0, 70))}...</div>
+        </button>
+      `).join('');
 
       // Format messages with basic markdown
       const formatAIMessage = (text) => {
@@ -2630,6 +3039,47 @@ Example Markdown:
                   <div class="text-xl mb-1">${a.icon}</div>
                   <div class="text-xs font-medium text-slate-700">${a.label}</div>
                 </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Evidence injectors -->
+          <div class="px-3 pb-3">
+            <div class="text-xs text-slate-500 mb-2 flex items-center gap-2">
+              <span class="text-blue-600">📖</span> 2024-2025 evidence quick inserts
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+              ${evidenceButtons}
+            </div>
+          </div>
+
+          <!-- Evidence Library -->
+          <div class="px-3 pb-3">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <span>📖</span> Evidence Packs (2024-2025)
+              </div>
+              <div class="text-xs text-slate-500">Tap to auto-fill AI or drop on slides</div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+              ${EVIDENCE_LIBRARY.map(ev => `
+                <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-blue-300 transition">
+                  <div class="flex items-start justify-between gap-2">
+                    <div>
+                      <div class="text-sm font-bold text-slate-800">${e(ev.title)}</div>
+                      <div class="text-xs text-blue-600">${e(ev.year)}</div>
+                    </div>
+                    <span class="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">Guideline</span>
+                  </div>
+                  <p class="text-xs text-slate-600 mt-2">${e(ev.summary)}</p>
+                  <ul class="text-xs text-slate-700 mt-2 list-disc list-inside space-y-1">
+                    ${ev.keyPoints.slice(0,3).map(p => `<li>${e(p)}</li>`).join('')}
+                  </ul>
+                  <div class="flex gap-2 mt-3">
+                    <button onclick="seedEvidencePrompt('${ev.id}')" class="flex-1 bg-blue-600 text-white text-xs py-2 rounded-lg hover:bg-blue-700">Ask with evidence</button>
+                    <button onclick="pushEvidenceToChat('${ev.id}')" class="flex-1 border border-blue-200 text-blue-700 text-xs py-2 rounded-lg hover:bg-blue-50">Add summary</button>
+                  </div>
+                </div>
               `).join('')}
             </div>
           </div>
@@ -2761,13 +3211,50 @@ Example Markdown:
     }
 
     function aiQuickAction(actionId) {
-      const allActions = [...AI_QUICK_ACTIONS.clinical, ...AI_QUICK_ACTIONS.assessment, ...AI_QUICK_ACTIONS.teaching, ...AI_QUICK_ACTIONS.safety];
+      const allActions = [
+        ...AI_QUICK_ACTIONS.clinical,
+        ...AI_QUICK_ACTIONS.assessment,
+        ...AI_QUICK_ACTIONS.teaching,
+        ...(AI_QUICK_ACTIONS.slides || []),
+        ...AI_QUICK_ACTIONS.safety,
+        ...(AI_QUICK_ACTIONS.evidence || [])
+      ];
       const action = allActions.find(a => a.id === actionId);
       if (action) {
         state.aiInput = action.prompt;
         render();
         setTimeout(() => sendAI(), 50);
       }
+    }
+
+    function buildEvidenceText(ev) {
+      const bulletPoints = ev.keyPoints.map(p => `- ${p}`).join('\n');
+      return `${ev.title} (${ev.year})\n${ev.summary}\nKey recommendations:\n${bulletPoints}\nSources: ${ev.sources}`;
+    }
+
+    function pushEvidenceToChat(id) {
+      const ev = EVIDENCE_LIBRARY.find(e => e.id === id);
+      if (!ev) return;
+      const text = buildEvidenceText(ev);
+      state.lastAIContent = text;
+      state.editableAIContent = text;
+      state.aiChat.push({ role: 'assistant', content: text, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) });
+      render();
+      setTimeout(() => {
+        const box = document.getElementById('aiChatBox');
+        if (box) box.scrollTop = box.scrollHeight;
+      }, 50);
+      showToast('Evidence summary ready to apply');
+    }
+
+    function seedEvidencePrompt(id) {
+      const ev = EVIDENCE_LIBRARY.find(e => e.id === id);
+      if (!ev) return;
+      const slide = state.pres?.slides?.[state.slide];
+      const contextLine = slide ? `Current slide: ${slide.title || 'Untitled'}; focus on ${slide.type || 'content'}.` : 'No active slide loaded.';
+      state.aiInput = `Using ${ev.title} (${ev.year}) evidence: ${ev.summary}. Key points: ${ev.keyPoints.join('; ')}. ${contextLine} Create slide-ready bullets with monitoring parameters and geriatric cautions.`;
+      render();
+      setTimeout(() => sendAI(), 50);
     }
 
     function autoResizeTextarea(textarea) {
