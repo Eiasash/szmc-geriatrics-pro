@@ -380,6 +380,18 @@
           { name: 'Morse', cutoff: '≥25', interpretation: 'Fall risk' },
           { name: 'Braden', cutoff: '≤18', interpretation: 'Pressure injury risk' },
           { name: 'MNA-SF', cutoff: '<8', interpretation: 'Malnourished' }
+        ],
+        dosing: [
+          { drug: 'Opioids', start: 'Start 25-50% of adult dose', note: 'Titrate slowly, monitor for sedation' },
+          { drug: 'Benzodiazepines', start: 'Start 50% of adult dose', note: 'Short-acting preferred (lorazepam)' },
+          { drug: 'Antipsychotics', start: 'Start 25-50% of adult dose', note: 'Monitor QTc, EPS risk higher' },
+          { drug: 'Antidepressants', start: 'Start 50% of adult dose', note: 'SSRIs preferred, watch for hyponatremia' },
+          { drug: 'Anticoagulants', start: 'Standard dosing, adjust for renal/weight', note: 'DOACs may need dose reduction' },
+          { drug: 'Antihypertensives', start: 'Start low, titrate slowly', note: 'Target SBP 130-150 in frail elderly' },
+          { drug: 'Diabetic medications', start: 'Start conservative, avoid hypoglycemia', note: 'A1c target 7.5-8% in frail' },
+          { drug: 'Antibiotics', start: 'Adjust for renal function', note: 'Check CrCl before dosing' },
+          { drug: 'Gabapentinoids', start: 'Start 100mg daily, titrate slowly', note: 'Renal adjust, sedation risk' },
+          { drug: 'Statins', start: 'Consider lower intensity in >75yo', note: 'Balance benefits vs polypharmacy' }
         ]
       }
     };
@@ -1110,13 +1122,13 @@ Actions: update (replace), append (add to)
 Fields: title, content, items, vitals, pharm, nonpharm, findings, scores
 
 ## BEERS CRITERIA - AVOID:
-${KNOWLEDGE.beers.slice(0, 6).map(d => `• ${d.drug}: ${d.risk}`).join('\n')}
+${KNOWLEDGE.geriatrics.beers.slice(0, 6).map(d => `• ${d.drug}: ${d.risk}`).join('\n')}
 
 ## GERIATRIC DOSING:
-${KNOWLEDGE.dosing.slice(0, 8).map(d => `• ${d.drug}: ${d.start}`).join('\n')}
+${KNOWLEDGE.geriatrics.dosing.slice(0, 8).map(d => `• ${d.drug}: ${d.start}`).join('\n')}
 
 ## ASSESSMENT CUTOFFS:
-${KNOWLEDGE.assessments.slice(0, 8).map(a => `• ${a.name}: ${a.cutoff}`).join('\n')}
+${KNOWLEDGE.geriatrics.assessments.slice(0, 8).map(a => `• ${a.name}: ${a.cutoff}`).join('\n')}
 
 ## CONTEXT:
 ${buildContext()}
@@ -1905,8 +1917,9 @@ Example Markdown:
             <div class="flex gap-1 mb-4 overflow-x-auto pb-2">
               <button onclick="document.getElementById('drug-interactions').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs whitespace-nowrap">⚠️ Interactions</button>
               <button onclick="document.getElementById('drug-renal').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs whitespace-nowrap">💧 Renal Dosing</button>
+              <button onclick="document.getElementById('drug-geri-dosing').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs whitespace-nowrap">👴 Geriatric Dosing</button>
               <button onclick="document.getElementById('drug-abx').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs whitespace-nowrap">🦠 Antibiotics</button>
-              <button onclick="document.getElementById('drug-beers').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs whitespace-nowrap">👴 Beers</button>
+              <button onclick="document.getElementById('drug-beers').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs whitespace-nowrap">⚠️ Beers</button>
             </div>
             
             <!-- Drug Interactions -->
@@ -1952,6 +1965,20 @@ Example Markdown:
               </div>
             </div>
             
+            <!-- Geriatric Dosing -->
+            <div id="drug-geri-dosing" class="mb-6">
+              <h4 class="font-bold text-purple-600 mb-2 sticky top-0 bg-white py-1">👴 Geriatric Dosing (Start Low, Go Slow)</h4>
+              <div class="space-y-2">
+                ${KNOWLEDGE.geriatrics.dosing.map(d => `
+                  <div class="bg-purple-50 rounded-lg p-2 text-sm">
+                    <div class="font-medium text-purple-800">${d.drug}</div>
+                    <div class="text-purple-700 text-xs"><b>Start:</b> ${d.start}</div>
+                    <div class="text-slate-500 text-xs">${d.note}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            
             <!-- Antibiotics -->
             <div id="drug-abx" class="mb-6">
               <h4 class="font-bold text-green-600 mb-2 sticky top-0 bg-white py-1">🦠 Empiric Antibiotic Guide</h4>
@@ -1969,7 +1996,7 @@ Example Markdown:
             
             <!-- Beers Criteria -->
             <div id="drug-beers" class="mb-4">
-              <h4 class="font-bold text-orange-600 mb-2 sticky top-0 bg-white py-1">👴 Beers Criteria (Avoid in Elderly)</h4>
+              <h4 class="font-bold text-orange-600 mb-2 sticky top-0 bg-white py-1">⚠️ Beers Criteria (Avoid in Elderly)</h4>
               <div class="space-y-2">
                 ${KNOWLEDGE.geriatrics.beers.map(d => `
                   <div class="bg-orange-50 rounded-lg p-2 text-sm">
