@@ -9,6 +9,16 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- File parsing libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script>
+    // Set PDF.js worker
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
   <style>
     * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
     body { font-family: system-ui, -apple-system, sans-serif; overscroll-behavior: none; }
@@ -36,7 +46,7 @@
 
   <script>
     // ============ SZMC GERIATRICS PRO v4.0 ============
-    const VERSION = '4.2';
+    const VERSION = '4.3';
     
     // State
     let state = {
@@ -60,6 +70,7 @@
       calcRes: null,
       showDrugs: false,
       showLabs: false,
+      showEmergency: false,
       showTemplates: false,
       presentMode: false,
       timer: 0,
@@ -648,12 +659,308 @@
     }
 
     function handleFileImport(file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        state.importText = e.target.result;
+      if (!file) return;
+      
+      const ext = file.name.split('.').pop().toLowerCase();
+      const statusEl = document.getElementById('importStatus');
+      if (statusEl) statusEl.textContent = `Reading ${file.name}...`;
+
+      // Handle different file types
+      if (ext === 'pdf') {
+        handlePDFImport(file);
+      } else if (ext === 'pptx') {
+        handlePPTXImport(file);
+      } else if (ext === 'docx' || ext === 'doc') {
+        handleDOCXImport(file);
+      } else if (ext === 'html' || ext === 'htm') {
+        handleHTMLImport(file);
+      } else {
+        // Text-based files (json, md, txt, csv, tsv)
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          state.importText = e.target.result;
+          if (statusEl) statusEl.textContent = `✓ Loaded ${file.name}`;
+          render();
+        };
+        reader.onerror = () => {
+          if (statusEl) statusEl.textContent = `❌ Error reading file`;
+          showToast('❌ Error reading file');
+        };
+        reader.readAsText(file);
+      }
+    }
+
+    async function handlePDFImport(file) {
+      const statusEl = document.getElementById('importStatus');
+      try {
+        if (statusEl) statusEl.textContent = 'Parsing PDF...';
+        
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map(item => item.str).join(' ');
+          fullText += pageText + '\\n\\n---PAGE BREAK---\\n\\n';
+        }
+        
+        state.importText = fullText.replace(/---PAGE BREAK---/g, '\\n\\n');
+        if (statusEl) statusEl.textContent = `✓ Extracted ${pdf.numPages} pages from PDF`;
         render();
-      };
-      reader.readAsText(file);
+      } catch (err) {
+        console.error('PDF parse error:', err);
+        if (statusEl) statusEl.textContent = '❌ Could not parse PDF';
+        showToast('❌ PDF parsing failed - try a different file');
+      }
+    }
+
+    async function handlePPTXImport(file) {
+      const statusEl = document.getElementById('importStatus');
+      try {
+        if (statusEl) statusEl.textContent = 'Parsing PowerPoint...';
+        
+        const arrayBuffer = await file.arrayBuffer();
+        const zip = await JSZip.loadAsync(arrayBuffer);
+        
+        // Get slide content
+        const slides = [];
+        const slideFiles = Object.keys(zip.files).filter(f => f.match(/ppt\\/slides\\/slide\\d+\\.xml/)).sort();
+        
+        for (const slideFile of slideFiles) {
+          const content = await zip.file(slideFile).async('string');
+          // Extract text from XML
+          const textMatches = content.match(/<a:t>([^<]*)<\\/a:t>/g) || [];
+          const slideText = textMatches.map(m => m.replace(/<\\/?a:t>/g, '')).filter(t => t.trim());
+          
+          if (slideText.length > 0) {
+            slides.push({
+              title: slideText[0] || '',
+              content: slideText.slice(1).join('\\n')
+            });
+          }
+        }
+        
+        // Convert to markdown format
+        let mdText = '';
+        slides.forEach((slide, i) => {
+          if (i === 0) {
+            mdText += '# ' + slide.title + '\\n\\n' + slide.content + '\\n\\n';
+          } else {
+            mdText += '## ' + slide.title + '\\n\\n' + slide.content + '\\n\\n';
+          }
+        });
+        
+        state.importText = mdText || 'Could not extract text from PowerPoint';
+        if (statusEl) statusEl.textContent = `✓ Extracted ${slides.length} slides from PPTX`;
+        render();
+      } catch (err) {
+        console.error('PPTX parse error:', err);
+        if (statusEl) statusEl.textContent = '❌ Could not parse PPTX';
+        showToast('❌ PPTX parsing failed');
+      }
+    }
+
+    async function handleDOCXImport(file) {
+      const statusEl = document.getElementById('importStatus');
+      try {
+        if (statusEl) statusEl.textContent = 'Parsing Word document...';
+        
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        
+        state.importText = result.value || 'Could not extract text';
+        if (statusEl) statusEl.textContent = `✓ Extracted text from DOCX`;
+        render();
+      } catch (err) {
+        console.error('DOCX parse error:', err);
+        if (statusEl) statusEl.textContent = '❌ Could not parse DOCX';
+        showToast('❌ DOCX parsing failed');
+      }
+    }
+
+    async function handleHTMLImport(file) {
+      const statusEl = document.getElementById('importStatus');
+      try {
+        if (statusEl) statusEl.textContent = 'Parsing HTML...';
+        
+        const text = await file.text();
+        // Create a DOM parser to extract text
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+        
+        // Remove scripts and styles
+        doc.querySelectorAll('script, style, noscript').forEach(el => el.remove());
+        
+        // Try to extract structured content
+        let mdText = '';
+        
+        // Get title
+        const title = doc.querySelector('title')?.textContent || doc.querySelector('h1')?.textContent;
+        if (title) mdText += '# ' + title.trim() + '\\n\\n';
+        
+        // Get headers and their content
+        doc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, td').forEach(el => {
+          const tag = el.tagName.toLowerCase();
+          const text = el.textContent.trim();
+          if (!text) return;
+          
+          if (tag === 'h1') mdText += '# ' + text + '\\n\\n';
+          else if (tag === 'h2') mdText += '## ' + text + '\\n\\n';
+          else if (tag === 'h3') mdText += '### ' + text + '\\n\\n';
+          else if (tag === 'li') mdText += '- ' + text + '\\n';
+          else if (tag === 'p' || tag === 'td') mdText += text + '\\n\\n';
+        });
+        
+        state.importText = mdText || doc.body?.textContent || 'Could not extract text';
+        if (statusEl) statusEl.textContent = `✓ Extracted content from HTML`;
+        render();
+      } catch (err) {
+        console.error('HTML parse error:', err);
+        if (statusEl) statusEl.textContent = '❌ Could not parse HTML';
+        showToast('❌ HTML parsing failed');
+      }
+    }
+
+    // Example loaders
+    function loadExampleDelirium() {
+      state.importText = `# Delirium Case
+
+## Patient
+78yo male, nursing home resident
+
+## Chief Complaint
+Acute confusion x 2 days
+
+## HPI
+Found by staff to be more confused than baseline. Not eating well. Low-grade fever.
+
+## PMH
+- Dementia (baseline MMSE 18)
+- HTN
+- DM2
+- BPH
+
+## Medications
+- Metformin 500mg BID
+- Lisinopril 10mg daily
+- Tamsulosin 0.4mg qhs
+- Donepezil 10mg qhs
+
+## Physical Exam
+BP 138/78, HR 92, Temp 38.1, RR 18, SpO2 96%
+Confused, inattentive. Suprapubic tenderness.
+
+## Labs
+- WBC 14.2
+- UA: positive nitrites, bacteria
+- Cr 1.4 (baseline 1.0)
+
+## Assessment
+MMSE: 12/30
+CAM: Positive
+
+## Differential
+- Delirium secondary to UTI
+- Urosepsis
+- Medication effect
+
+## Management
+Pharmacological:
+- Ceftriaxone 1g IV daily
+- Hold tamsulosin
+- Low-dose haloperidol 0.5mg PRN
+
+Non-pharmacological:
+- Reorientation
+- Family at bedside
+- Minimize tethers
+- Sleep hygiene`;
+      render();
+    }
+
+    function loadExampleFalls() {
+      state.importText = `# Falls Evaluation
+
+## Patient
+82yo female, lives alone
+
+## Chief Complaint
+Found on floor by daughter this morning
+
+## HPI
+Patient unsure how she fell. Denies LOC, chest pain, palpitations. Last remembers watching TV. Some hip pain.
+
+## PMH
+- HTN
+- Osteoporosis
+- Mild cognitive impairment
+- Cataracts
+
+## Medications
+- Amlodipine 10mg daily
+- Trazodone 50mg qhs
+- Meclizine 25mg PRN
+- Calcium/Vit D
+
+## Physical Exam
+BP 142/78 sitting, 118/70 standing (orthostatic!)
+HR 68 regular
+Gait unsteady, uses furniture
+
+## Labs
+- CBC normal
+- BMP: K 3.2 (low)
+- TSH normal
+- Vit D 18
+
+## Assessment
+Morse Fall Scale: 55 (high risk)
+TUG: 18 seconds
+
+## Differential
+- Orthostatic hypotension (amlodipine)
+- Medication effect (trazodone, meclizine)
+- Vitamin D deficiency
+- Hypokalemia
+
+## Management
+- Stop meclizine
+- Reduce amlodipine to 5mg
+- K supplementation
+- Vitamin D 2000 IU daily
+- PT evaluation
+- Home safety assessment`;
+      render();
+    }
+
+    function loadExampleMedList() {
+      state.importText = `Medication,Dose,Frequency,Notes
+Metoprolol,25mg,daily,Hold if HR<60
+Lisinopril,10mg,daily,Monitor K and Cr
+Metformin,500mg,BID,Hold if NPO
+Aspirin,81mg,daily,GI protection
+Atorvastatin,40mg,qhs,Monitor LFTs
+Omeprazole,20mg,daily,Consider de-escalation
+Furosemide,40mg,daily,Monitor electrolytes
+Potassium,20mEq,daily,Keep K >4.0`;
+      render();
+    }
+
+    function exportPresentation(idx) {
+      const p = state.saved[idx];
+      if (!p) return;
+      
+      const json = JSON.stringify(p, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (p.slides[0]?.title || 'presentation').replace(/[^a-z0-9]/gi, '_') + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('📤 Exported!');
     }
 
     // ============ PRESENTATION FUNCTIONS ============
@@ -683,6 +990,24 @@
       state.slide = 0;
       state.view = 'editor';
       render();
+    }
+
+    function openPresentationByIndex(idx) {
+      const p = state.saved[idx];
+      if (p) openPresentation(p);
+    }
+
+    function deletePresentationByIndex(idx) {
+      if (!confirm('Delete this presentation?')) return;
+      const p = state.saved[idx];
+      state.saved.splice(idx, 1);
+      if (state.pres?.id === p?.id) {
+        state.pres = null;
+        state.view = 'home';
+      }
+      save();
+      render();
+      showToast('🗑️ Deleted');
     }
 
     function deletePresentation(id) {
@@ -1060,15 +1385,19 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
     }
 
     function renderHome() {
-      const savedList = state.saved.length > 0 ? state.saved.map(p => `
+      const savedList = state.saved.length > 0 ? state.saved.map((p, idx) => {
+        const title = p.slides[0]?.title || p.slides[0]?.demographics || 'Untitled Case';
+        const subtitle = p.slides[0]?.subtitle || p.slides[0]?.cc || '';
+        return `
         <div class="bg-white rounded-xl p-4 shadow-sm flex justify-between items-center mb-3">
-          <div onclick="openPresentation(state.saved.find(x=>x.id===${p.id}))" class="flex-1 cursor-pointer">
-            <div class="font-bold">${e(p.slides[0]?.title || 'Untitled')}</div>
-            <div class="text-sm text-slate-500">${p.slides.length} slides • ${new Date(p.modified || p.created).toLocaleDateString()}</div>
+          <div onclick="openPresentationByIndex(${idx})" class="flex-1 cursor-pointer min-w-0">
+            <div class="font-bold text-slate-800 truncate">${e(title)}</div>
+            ${subtitle ? `<div class="text-sm text-slate-600 truncate">${e(subtitle)}</div>` : ''}
+            <div class="text-xs text-slate-400">${p.slides.length} slides • ${new Date(p.modified || p.created).toLocaleDateString()}</div>
           </div>
-          <button onclick="deletePresentation(${p.id})" class="text-red-400 p-2">🗑️</button>
+          <button onclick="event.stopPropagation();deletePresentationByIndex(${idx})" class="text-red-400 p-2 hover:text-red-600">🗑️</button>
         </div>
-      `).join('') : '<p class="text-center text-blue-200 py-4">No presentations yet</p>';
+      `}).join('') : '<p class="text-center text-blue-200 py-4">No presentations yet</p>';
 
       return `
         <div class="min-h-screen gradient-szmc text-white">
@@ -1081,24 +1410,27 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
 
           <!-- Quick Tools -->
           <div class="px-4 mb-6">
-            <div class="flex gap-2">
-              <button onclick="setState({showCalc:true})" class="flex-1 bg-white/20 rounded-xl p-3 text-center hover:bg-white/30 transition">
+            <div class="grid grid-cols-4 gap-2 mb-2">
+              <button onclick="setState({showCalc:true})" class="bg-white/20 rounded-xl p-3 text-center hover:bg-white/30 transition">
                 <div class="text-2xl">🧮</div>
-                <div class="text-xs mt-1">Calculators</div>
+                <div class="text-xs mt-1">Calc</div>
               </button>
-              <button onclick="setState({showDrugs:true})" class="flex-1 bg-white/20 rounded-xl p-3 text-center hover:bg-white/30 transition">
+              <button onclick="setState({showDrugs:true})" class="bg-white/20 rounded-xl p-3 text-center hover:bg-white/30 transition">
                 <div class="text-2xl">💊</div>
                 <div class="text-xs mt-1">Drugs</div>
               </button>
-              <button onclick="setState({showLabs:true})" class="flex-1 bg-white/20 rounded-xl p-3 text-center hover:bg-white/30 transition">
+              <button onclick="setState({showLabs:true})" class="bg-white/20 rounded-xl p-3 text-center hover:bg-white/30 transition">
                 <div class="text-2xl">🧪</div>
                 <div class="text-xs mt-1">Labs</div>
               </button>
-              <button onclick="setState({showSettings:true})" class="flex-1 bg-white/20 rounded-xl p-3 text-center hover:bg-white/30 transition">
-                <div class="text-2xl">⚙️</div>
-                <div class="text-xs mt-1">Settings</div>
+              <button onclick="setState({showEmergency:true})" class="bg-red-500/90 rounded-xl p-3 text-center hover:bg-red-500 transition">
+                <div class="text-2xl">🚨</div>
+                <div class="text-xs mt-1">Emergency</div>
               </button>
             </div>
+            <button onclick="setState({showSettings:true})" class="w-full bg-white/10 rounded-xl p-2 text-center hover:bg-white/20 transition text-xs">
+              ⚙️ Settings & API Key
+            </button>
           </div>
 
           <!-- New Presentation -->
@@ -1134,6 +1466,7 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
           ${state.showCalc ? renderCalcModal() : ''}
           ${state.showDrugs ? renderDrugsModal() : ''}
           ${state.showLabs ? renderLabsModal() : ''}
+          ${state.showEmergency ? renderEmergencyModal() : ''}
           ${state.showSettings ? renderSettingsModal() : ''}
         </div>
         ${state.recentAction ? `<div class="fixed bottom-4 left-4 right-4 bg-green-500 text-white p-3 rounded-xl text-center animate-fadeIn">${e(state.recentAction)}</div>` : ''}
@@ -1172,21 +1505,27 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
             
             <!-- Supported Formats -->
             <div class="bg-blue-50 rounded-lg p-3 mb-4 text-sm">
-              <div class="font-medium text-blue-800 mb-1">Supported formats:</div>
-              <div class="text-blue-600 text-xs space-y-1">
-                <div>📄 <b>JSON</b> - Export from this app or structured data</div>
-                <div>📝 <b>Markdown</b> - # Title, ## Slide headers</div>
-                <div>📋 <b>Plain text</b> - Sections separated by blank lines</div>
-                <div>📊 <b>CSV</b> - Medication lists, lab values</div>
+              <div class="font-medium text-blue-800 mb-2">Supported formats:</div>
+              <div class="grid grid-cols-2 gap-1 text-blue-600 text-xs">
+                <div>📄 <b>JSON</b> - Native format</div>
+                <div>📝 <b>Markdown</b> - # Headers</div>
+                <div>📋 <b>Plain text</b> - Auto-detect</div>
+                <div>📊 <b>CSV/TSV</b> - Lists, labs</div>
+                <div>🎨 <b>PPTX</b> - PowerPoint</div>
+                <div>🌐 <b>HTML</b> - Web pages</div>
+                <div>📑 <b>PDF</b> - Documents</div>
+                <div>📁 <b>DOCX</b> - Word docs</div>
               </div>
             </div>
 
             <!-- File Upload -->
             <div class="mb-4">
               <label class="block text-sm font-medium text-slate-700 mb-2">Upload File</label>
-              <input type="file" accept=".json,.md,.txt,.csv,.markdown" 
-                onchange="if(this.files[0])handleFileImport(this.files[0])"
+              <input type="file" id="importFileInput"
+                accept=".json,.md,.txt,.csv,.tsv,.markdown,.pptx,.html,.htm,.pdf,.docx,.doc"
+                onchange="handleFileImport(this.files[0])"
                 class="w-full border rounded-lg p-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:bg-blue-100 file:text-blue-700">
+              <div id="importStatus" class="text-xs text-slate-500 mt-1"></div>
             </div>
 
             <!-- Paste Area -->
@@ -1196,36 +1535,28 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
                 placeholder="Paste JSON, Markdown, plain text, or CSV here...
 
 Example Markdown:
-# Case: Delirium in Elderly
+# Case: Delirium
 
 ## Patient
 85yo female with confusion
 
 ## HPI
-Brought by family for 2 days of altered mental status...
+2 days of altered mental status...
 
 ## Medications
 - Metoprolol 25mg daily
-- Lisinopril 10mg daily
-
-## Differential Diagnosis
-- Delirium (UTI, medication)
-- Dementia exacerbation
-- Stroke"
+- Lisinopril 10mg daily"
                 oninput="state.importText=this.value"
-                class="w-full border rounded-lg p-3 min-h-48 text-sm font-mono">${e(state.importText || '')}</textarea>
+                class="w-full border rounded-lg p-3 min-h-32 text-sm font-mono">${e(state.importText || '')}</textarea>
             </div>
 
-            <!-- Quick Import Examples -->
+            <!-- Quick Examples -->
             <div class="mb-4">
               <div class="text-sm font-medium text-slate-700 mb-2">Quick examples:</div>
               <div class="flex gap-2 flex-wrap">
-                <button onclick="state.importText=\`# Delirium Case\\n\\n## Patient\\n78yo male, nursing home resident\\n\\n## Chief Complaint\\nAcute confusion x 2 days\\n\\n## HPI\\nFound by staff to be more confused than baseline. Not eating well. Low-grade fever.\\n\\n## PMH\\n- Dementia (baseline MMSE 18)\\n- HTN\\n- DM2\\n- BPH\\n\\n## Medications\\n- Metformin 500mg BID\\n- Lisinopril 10mg daily\\n- Tamsulosin 0.4mg qhs\\n- Donepezil 10mg qhs\\n\\n## Physical Exam\\nBP 138/78, HR 92, Temp 38.1, RR 18, SpO2 96%\\nConfused, inattentive. Suprapubic tenderness.\\n\\n## Labs\\n- WBC 14.2\\n- UA: positive nitrites, bacteria\\n- Cr 1.4 (baseline 1.0)\\n\\n## Assessment\\nMMSE: 12/30\\nCAM: Positive\\n\\n## Differential\\n- Delirium secondary to UTI\\n- Urosepsis\\n- Medication effect\\n\\n## Management\\nPharmacological:\\n- Ceftriaxone 1g IV daily\\n- Hold tamsulosin\\n- Low-dose haloperidol 0.5mg PRN\\n\\nNon-pharmacological:\\n- Reorientation\\n- Family at bedside\\n- Minimize tethers\\n- Sleep hygiene\`;render()" 
-                  class="px-3 py-1 bg-slate-100 rounded-full text-xs hover:bg-slate-200">Delirium case</button>
-                <button onclick="state.importText=\`Medication,Dose,Frequency,Notes\\nMetoprolol,25mg,daily,Hold if HR<60\\nLisinopril,10mg,daily,Monitor K\\nMetformin,500mg,BID,Hold if NPO\\nAspirin,81mg,daily,\\nAtorvastatin,40mg,qhs,\`;render()"
-                  class="px-3 py-1 bg-slate-100 rounded-full text-xs hover:bg-slate-200">Med list CSV</button>
-                <button onclick="state.importText=JSON.stringify({slides:[{type:'title',title:'Quick Case'},{type:'patient',title:'Patient',demographics:'80yo F',cc:'Falls'},{type:'list',title:'PMH',items:['HTN','DM2','Osteoporosis']},{type:'list',title:'Meds',items:['Metoprolol','Lisinopril','Metformin']}]},null,2);render()"
-                  class="px-3 py-1 bg-slate-100 rounded-full text-xs hover:bg-slate-200">JSON example</button>
+                <button onclick="loadExampleDelirium()" class="px-3 py-1 bg-slate-100 rounded-full text-xs hover:bg-slate-200">Delirium case</button>
+                <button onclick="loadExampleFalls()" class="px-3 py-1 bg-slate-100 rounded-full text-xs hover:bg-slate-200">Falls case</button>
+                <button onclick="loadExampleMedList()" class="px-3 py-1 bg-slate-100 rounded-full text-xs hover:bg-slate-200">Med list CSV</button>
               </div>
             </div>
 
@@ -1241,8 +1572,8 @@ Brought by family for 2 days of altered mental status...
               <div class="mt-4 pt-4 border-t">
                 <div class="text-sm font-medium text-slate-700 mb-2">Export existing:</div>
                 <div class="flex gap-2 flex-wrap">
-                  ${state.saved.slice(0, 3).map(p => `
-                    <button onclick="navigator.clipboard.writeText(JSON.stringify(p,null,2));showToast('Copied to clipboard!')" 
+                  ${state.saved.slice(0, 3).map((p, i) => `
+                    <button onclick="exportPresentation(${i})" 
                       class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs hover:bg-green-200">
                       📤 ${e((p.slides[0]?.title || 'Untitled').substring(0, 15))}
                     </button>
@@ -1780,6 +2111,97 @@ Brought by family for 2 days of altered mental status...
                     <div class="text-slate-500">${f.normal || ''} ${f.note || ''}</div>
                   </div>
                 `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderEmergencyModal() {
+      return `
+        <div class="fixed inset-0 bg-black/50 flex items-end z-50 animate-fadeIn" onclick="if(event.target===this)setState({showEmergency:false})">
+          <div class="bg-white w-full rounded-t-2xl p-4 modal-content max-h-[90vh] overflow-auto">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="font-bold text-lg text-red-600">🚨 Emergency Protocols</h3>
+              <button onclick="setState({showEmergency:false})" class="text-2xl text-slate-400">×</button>
+            </div>
+            
+            <div class="space-y-4">
+              ${KNOWLEDGE.emergencies.map(em => `
+                <div class="bg-red-50 border-l-4 border-red-500 rounded-r-lg p-3">
+                  <div class="font-bold text-red-700 text-lg mb-2">${em.condition}</div>
+                  ${em.ecg ? `<div class="text-xs text-red-600 mb-1"><b>ECG:</b> ${em.ecg}</div>` : ''}
+                  ${em.criteria ? `<div class="text-xs text-red-600 mb-1"><b>Criteria:</b> ${em.criteria}</div>` : ''}
+                  ${em.symptoms ? `<div class="text-xs text-red-600 mb-1"><b>Symptoms:</b> ${em.symptoms}</div>` : ''}
+                  ${em.signs ? `<div class="text-xs text-red-600 mb-1"><b>Signs:</b> ${em.signs}</div>` : ''}
+                  <div class="bg-white rounded p-2 mt-2">
+                    <div class="text-xs font-bold text-green-700 mb-1">IMMEDIATE ACTIONS:</div>
+                    <pre class="text-xs text-slate-700 whitespace-pre-wrap font-sans">${em.immediate || em.hour1}</pre>
+                  </div>
+                  ${em.contraindications ? `<div class="text-xs text-orange-600 mt-2"><b>⚠️ Contraindications:</b> ${em.contraindications}</div>` : ''}
+                  ${em.avoid ? `<div class="text-xs text-orange-600 mt-2"><b>⚠️ Avoid:</b> ${em.avoid}</div>` : ''}
+                  ${em.note ? `<div class="text-xs text-slate-500 mt-1 italic">${em.note}</div>` : ''}
+                </div>
+              `).join('')}
+            </div>
+            
+            <!-- Quick Reference Cards -->
+            <div class="mt-6 pt-4 border-t">
+              <h4 class="font-bold text-slate-700 mb-3">⚡ Quick Reference</h4>
+              
+              <!-- ACLS Drugs -->
+              <div class="bg-blue-50 rounded-lg p-3 mb-3">
+                <div class="font-bold text-blue-700 mb-2">ACLS Drugs</div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div><b>Epinephrine:</b> 1mg IV q3-5min</div>
+                  <div><b>Amiodarone:</b> 300mg, then 150mg</div>
+                  <div><b>Lidocaine:</b> 1-1.5mg/kg</div>
+                  <div><b>Atropine:</b> 0.5mg q3-5min (max 3mg)</div>
+                  <div><b>Adenosine:</b> 6mg, 12mg, 12mg</div>
+                  <div><b>Calcium gluconate:</b> 1-2g IV</div>
+                  <div><b>Bicarb:</b> 1mEq/kg</div>
+                  <div><b>Magnesium:</b> 1-2g IV</div>
+                </div>
+              </div>
+              
+              <!-- Vasopressors -->
+              <div class="bg-purple-50 rounded-lg p-3 mb-3">
+                <div class="font-bold text-purple-700 mb-2">Vasopressors</div>
+                <div class="text-xs space-y-1">
+                  <div><b>Norepinephrine:</b> 0.1-0.5 mcg/kg/min (1st line sepsis)</div>
+                  <div><b>Vasopressin:</b> 0.03-0.04 U/min (adjunct)</div>
+                  <div><b>Dopamine:</b> 5-20 mcg/kg/min (2nd line)</div>
+                  <div><b>Phenylephrine:</b> 0.5-5 mcg/kg/min (pure α)</div>
+                  <div><b>Dobutamine:</b> 2-20 mcg/kg/min (cardiogenic)</div>
+                </div>
+              </div>
+              
+              <!-- Reversal Agents -->
+              <div class="bg-green-50 rounded-lg p-3 mb-3">
+                <div class="font-bold text-green-700 mb-2">Reversal Agents</div>
+                <div class="text-xs space-y-1">
+                  <div><b>Warfarin:</b> Vit K 10mg IV + 4F-PCC 25-50 U/kg</div>
+                  <div><b>Heparin:</b> Protamine 1mg per 100U heparin</div>
+                  <div><b>Dabigatran:</b> Idarucizumab 5g IV</div>
+                  <div><b>Xa inhibitors:</b> Andexanet or 4F-PCC</div>
+                  <div><b>Opioids:</b> Naloxone 0.4-2mg IV/IM/IN</div>
+                  <div><b>Benzos:</b> Flumazenil 0.2mg IV (caution!)</div>
+                  <div><b>Beta-blockers:</b> Glucagon 3-10mg IV</div>
+                  <div><b>CCB:</b> Calcium, glucagon, high-dose insulin</div>
+                </div>
+              </div>
+              
+              <!-- RSI Drugs -->
+              <div class="bg-orange-50 rounded-lg p-3">
+                <div class="font-bold text-orange-700 mb-2">RSI Drugs</div>
+                <div class="text-xs space-y-1">
+                  <div><b>Etomidate:</b> 0.3mg/kg (hemodynamically stable)</div>
+                  <div><b>Ketamine:</b> 1-2mg/kg (bronchospasm, hypotension)</div>
+                  <div><b>Propofol:</b> 1-2mg/kg (caution in hypotension)</div>
+                  <div><b>Succinylcholine:</b> 1-1.5mg/kg (avoid in hyperK!)</div>
+                  <div><b>Rocuronium:</b> 1-1.2mg/kg (can reverse with sugammadex)</div>
+                </div>
               </div>
             </div>
           </div>
