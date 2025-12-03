@@ -4,7 +4,7 @@
 
 Built for Shaare Zedek Medical Center (SZMC), Jerusalem - Geriatrics Fellowship
 
-![Version](https://img.shields.io/badge/version-4.1-blue)
+![Version](https://img.shields.io/badge/version-5.3-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## 🌐 Live Demo
@@ -68,10 +68,14 @@ Acute confusion x 2 days
 - Assessment cutoffs (MMSE, MoCA, CAM, GDS, MNA, CFS, etc.)
 
 ### 🧠 AI Assistant (Optional)
-- Automatic slide modification
+- Automatic slide modification and speaker notes
 - Generate DDx, teaching points, management plans
 - Medication review (Beers criteria check)
-- Requires Anthropic API key
+- Evidence packs (2024-2025) with quick inject buttons and slide-ready summaries
+- Presentation QA → “Ask AI to fix” workflow
+- API key tester inside Settings
+- Coaching tab (hooks, timelines, tough Q&A) plus safety rails and 24h checklist generators
+- Slide-ready monitoring grids, handoff cards, and expanded 2025 guideline packs
 
 ## 🚀 Quick Start
 
