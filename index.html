@@ -36,7 +36,7 @@
 
   <script>
     // ============ SZMC GERIATRICS PRO v4.0 ============
-    const VERSION = '4.1';
+    const VERSION = '4.2';
     
     // State
     let state = {
@@ -139,72 +139,236 @@
       }
     };
 
-    // ============ GERIATRICS KNOWLEDGE ============
+    // ============ CLINICAL KNOWLEDGE DATABASE ============
     const KNOWLEDGE = {
-      beers: [
-        { drug: 'Diphenhydramine', risk: 'Anticholinergic → confusion, falls', alt: 'Melatonin 0.5-1mg' },
-        { drug: 'Benzodiazepines', risk: 'Falls, cognitive impairment, dependence', alt: 'Trazodone 25mg, Mirtazapine 7.5mg' },
-        { drug: 'Zolpidem', risk: 'Falls, confusion, complex behaviors', alt: 'Sleep hygiene, Melatonin' },
-        { drug: 'TCAs (Amitriptyline)', risk: 'Anticholinergic, orthostasis, cardiac', alt: 'SSRI, SNRI' },
-        { drug: 'Muscle relaxants', risk: 'Anticholinergic, sedation', alt: 'Physical therapy, topical' },
-        { drug: 'PPIs >8 weeks', risk: 'C. diff, fractures, B12, hypoMg', alt: 'H2 blocker PRN, step down' },
-        { drug: 'NSAIDs', risk: 'GI bleed, AKI, CV events', alt: 'Acetaminophen, topical NSAIDs' },
-        { drug: 'Metoclopramide', risk: 'EPS, tardive dyskinesia', alt: 'Ondansetron' },
-        { drug: 'First-gen antihistamines', risk: 'Anticholinergic', alt: 'Second-gen (loratadine)' },
-        { drug: 'Sliding scale insulin alone', risk: 'Hypoglycemia, poor control', alt: 'Basal insulin regimen' }
+      // DRUG INTERACTIONS - HIGH YIELD
+      interactions: [
+        { drugs: 'Warfarin + NSAIDs', risk: 'Major GI bleed (3-6x risk)', action: 'Avoid. Use acetaminophen.' },
+        { drugs: 'ACEi/ARB + K-sparing diuretics', risk: 'Severe hyperkalemia', action: 'Monitor K closely, avoid if CKD' },
+        { drugs: 'Metformin + IV contrast', risk: 'Lactic acidosis (rare but fatal)', action: 'Hold 48h, check Cr before restart' },
+        { drugs: 'Fluoroquinolones + QT drugs', risk: 'Torsades de pointes', action: 'Avoid combo, monitor QTc' },
+        { drugs: 'SSRIs + Triptans', risk: 'Serotonin syndrome', action: 'Use with caution, educate patient' },
+        { drugs: 'Clarithromycin + Statins', risk: 'Rhabdomyolysis', action: 'Hold statin or use azithromycin' },
+        { drugs: 'Methotrexate + TMP-SMX', risk: 'Bone marrow suppression', action: 'Avoid - use alternative abx' },
+        { drugs: 'Lithium + NSAIDs/ACEi/diuretics', risk: 'Lithium toxicity', action: 'Monitor levels, avoid if possible' },
+        { drugs: 'Digoxin + Amiodarone', risk: 'Digoxin toxicity', action: 'Reduce digoxin dose 50%' },
+        { drugs: 'Clopidogrel + PPIs', risk: 'Reduced antiplatelet effect', action: 'Use pantoprazole if needed' },
+        { drugs: 'Warfarin + Abx (any)', risk: 'INR changes', action: 'Check INR in 3-5 days' },
+        { drugs: 'Potassium + ACEi + Spironolactone', risk: 'Life-threatening hyperK', action: 'Triple whammy - avoid' }
       ],
-      dosing: [
-        { drug: 'Gabapentin', start: '100mg qhs', notes: 'CrCl<60: reduce 50%' },
-        { drug: 'Pregabalin', start: '25-50mg', notes: 'CrCl<60: reduce dose' },
-        { drug: 'Trazodone', start: '25mg qhs', notes: 'Max 100mg for sleep' },
-        { drug: 'Mirtazapine', start: '7.5mg qhs', notes: 'Increases appetite' },
-        { drug: 'Sertraline', start: '25mg', notes: 'SSRI of choice in elderly' },
-        { drug: 'Quetiapine', start: '12.5-25mg', notes: 'Only for delirium/psychosis' },
-        { drug: 'Haloperidol', start: '0.5mg', notes: 'Avoid in Parkinson/LBD' },
-        { drug: 'Metoprolol', start: '12.5mg', notes: 'Watch HR, orthostasis' },
-        { drug: 'Lisinopril', start: '2.5-5mg', notes: 'Monitor K, Cr' },
-        { drug: 'Amlodipine', start: '2.5mg', notes: 'Peripheral edema' },
-        { drug: 'Furosemide', start: '20mg', notes: 'Monitor electrolytes' },
-        { drug: 'Metformin', start: '500mg', notes: 'Hold if CrCl<30, contrast' }
+
+      // RENAL DOSING - COMMON DRUGS
+      renalDosing: [
+        { drug: 'Metformin', normal: '500-1000mg BID', gfr60: 'Max 1000mg/day', gfr30: 'AVOID', gfr15: 'CONTRAINDICATED' },
+        { drug: 'Gabapentin', normal: '300-600mg TID', gfr60: '200-300mg TID', gfr30: '100-300mg BID', gfr15: '100-300mg daily' },
+        { drug: 'Enoxaparin (tx)', normal: '1mg/kg BID', gfr60: 'No change', gfr30: '1mg/kg DAILY', gfr15: 'Use UFH' },
+        { drug: 'Ciprofloxacin', normal: '500mg BID', gfr60: 'No change', gfr30: '250-500mg q12-24h', gfr15: '250mg q18-24h' },
+        { drug: 'Levofloxacin', normal: '750mg daily', gfr60: 'No change', gfr30: '750mg q48h', gfr15: '500mg q48h' },
+        { drug: 'Vancomycin', normal: '15-20mg/kg q8-12h', gfr60: 'q12h', gfr30: 'q24h', gfr15: 'q48-72h + levels' },
+        { drug: 'Gentamicin', normal: '5-7mg/kg daily', gfr60: 'Extend interval', gfr30: 'q24-48h + levels', gfr15: 'Avoid if possible' },
+        { drug: 'Morphine', normal: 'Standard dosing', gfr60: 'Reduce 25%', gfr30: 'Reduce 50%', gfr15: 'Avoid - active metabolites' },
+        { drug: 'Colchicine (acute)', normal: '1.2mg then 0.6mg', gfr60: 'No change', gfr30: '0.6mg x1, no repeat x14d', gfr15: '0.3mg x1' },
+        { drug: 'Allopurinol', normal: '300mg daily', gfr60: '200mg daily', gfr30: '100mg daily', gfr15: '100mg q48h' },
+        { drug: 'Dabigatran', normal: '150mg BID', gfr60: 'No change', gfr30: '75mg BID', gfr15: 'AVOID' },
+        { drug: 'Apixaban', normal: '5mg BID', gfr60: 'No change', gfr30: 'No change*', gfr15: '2.5mg BID if HD' },
+        { drug: 'Rivaroxaban', normal: '20mg daily', gfr60: 'No change', gfr30: '15mg daily', gfr15: 'AVOID' }
       ],
-      assessments: [
-        { name: 'MMSE', range: '/30', cutoff: '≤23 impaired', notes: 'Education affects score' },
-        { name: 'MoCA', range: '/30', cutoff: '≤25 impaired', notes: '+1 if edu <12yr' },
-        { name: 'GDS-15', range: '/15', cutoff: '≥5 depression', notes: 'Yes/No questions' },
-        { name: 'PHQ-9', range: '/27', cutoff: '≥10 moderate', notes: 'Tracks severity' },
-        { name: 'CAM', range: '4 criteria', cutoff: '1+2+(3or4)', notes: 'Delirium screen' },
-        { name: '4AT', range: '/12', cutoff: '≥4 delirium', notes: 'Rapid screen' },
-        { name: 'MNA-SF', range: '/14', cutoff: '<8 malnourished', notes: '8-11 at risk' },
-        { name: 'MUST', range: '0-6+', cutoff: '≥2 high risk', notes: 'Malnutrition screen' },
-        { name: 'TUG', range: 'seconds', cutoff: '>12s fall risk', notes: 'Timed up and go' },
-        { name: 'Morse', range: '/125', cutoff: '≥25 fall risk', notes: 'Inpatient falls' },
-        { name: 'Braden', range: '/23', cutoff: '≤18 pressure risk', notes: 'Lower = higher risk' },
-        { name: 'CFS', range: '/9', cutoff: '≥5 frail', notes: '1-4 fit to vulnerable' },
-        { name: 'FRAIL', range: '/5', cutoff: '≥3 frail', notes: '1-2 pre-frail' },
-        { name: 'ADL', range: '/6', cutoff: 'Functional status', notes: 'Basic activities' },
-        { name: 'IADL', range: '/8', cutoff: 'Functional status', notes: 'Complex activities' }
+
+      // CRITICAL VALUES
+      criticalLabs: [
+        { test: 'Potassium', critical: '<2.5 or >6.5', action: 'STAT ECG, treat immediately' },
+        { test: 'Sodium', critical: '<120 or >160', action: 'Slow correction (0.5 mEq/L/hr), avoid ODS' },
+        { test: 'Glucose', critical: '<50 or >500', action: 'D50 or insulin, check gap' },
+        { test: 'Calcium (total)', critical: '<6.5 or >13', action: 'ECG, IV calcium gluconate or fluids+bisphosphonate' },
+        { test: 'Magnesium', critical: '<1.0 or >4.0', action: 'IV Mg or hold Mg/dialysis' },
+        { test: 'pH', critical: '<7.2 or >7.6', action: 'ABG, treat underlying cause' },
+        { test: 'Lactate', critical: '>4', action: 'Sepsis workup, fluid resuscitation' },
+        { test: 'Troponin', critical: 'Any elevation', action: 'ACS protocol, cardiology consult' },
+        { test: 'Hemoglobin', critical: '<7 (or <8 if ACS)', action: 'Type & screen, transfuse' },
+        { test: 'Platelets', critical: '<20 or >1000', action: 'Hold procedures, heme consult' },
+        { test: 'INR', critical: '>5 (or any if bleeding)', action: 'Hold warfarin, Vit K, consider PCC' },
+        { test: 'WBC', critical: '<1.0 or >30', action: 'Neutropenic precautions or leukocytosis workup' }
       ],
+
+      // COMPREHENSIVE LAB REFERENCE
       labs: {
         cbc: [
-          { test: 'WBC', normal: '4.5-11.0', unit: '×10⁹/L', note: 'Blunted in elderly infection' },
-          { test: 'Hgb (M)', normal: '13.5-17.5', unit: 'g/dL', note: 'Anemia common, investigate' },
-          { test: 'Hgb (F)', normal: '12.0-16.0', unit: 'g/dL', note: '' },
-          { test: 'Platelets', normal: '150-400', unit: '×10⁹/L', note: '' },
-          { test: 'MCV', normal: '80-100', unit: 'fL', note: 'High: B12, Low: Fe' }
+          { test: 'WBC', normal: '4.5-11.0', unit: '×10⁹/L', high: 'Infection, inflammation, leukemia, stress', low: 'Bone marrow suppression, sepsis, viral' },
+          { test: 'Hemoglobin', normal: 'M:13.5-17.5, F:12-16', unit: 'g/dL', high: 'Polycythemia, dehydration', low: 'Anemia - check MCV' },
+          { test: 'Platelets', normal: '150-400', unit: '×10⁹/L', high: 'Reactive, myeloproliferative', low: 'ITP, TTP, HIT, marrow failure' },
+          { test: 'MCV', normal: '80-100', unit: 'fL', high: 'B12/folate def, alcohol, hypothyroid', low: 'Iron def, thalassemia, chronic disease' },
+          { test: 'RDW', normal: '11.5-14.5', unit: '%', high: 'Mixed deficiency, early iron def', low: 'Usually normal' }
         ],
         bmp: [
-          { test: 'Na', normal: '136-145', unit: 'mEq/L', note: 'Hyponatremia common' },
-          { test: 'K', normal: '3.5-5.0', unit: 'mEq/L', note: 'Watch with ACEi, K-sparing' },
-          { test: 'Cr', normal: '0.7-1.3', unit: 'mg/dL', note: 'Underestimates CKD' },
-          { test: 'BUN', normal: '7-20', unit: 'mg/dL', note: 'Elevated with dehydration' },
-          { test: 'Glucose', normal: '70-100', unit: 'mg/dL', note: 'Relax targets if frail' }
+          { test: 'Sodium', normal: '136-145', unit: 'mEq/L', high: 'Dehydration, DI, salt excess', low: 'SIADH, CHF, cirrhosis, diuretics' },
+          { test: 'Potassium', normal: '3.5-5.0', unit: 'mEq/L', high: 'AKI, ACEi, K-sparing, hemolysis', low: 'Diuretics, GI loss, alkalosis' },
+          { test: 'Chloride', normal: '98-106', unit: 'mEq/L', high: 'Non-AG acidosis, dehydration', low: 'Vomiting, diuretics' },
+          { test: 'Bicarb (CO2)', normal: '22-29', unit: 'mEq/L', high: 'Metabolic alkalosis, compensation', low: 'Metabolic acidosis' },
+          { test: 'BUN', normal: '7-20', unit: 'mg/dL', high: 'Dehydration, GI bleed, AKI', low: 'Liver disease, malnutrition' },
+          { test: 'Creatinine', normal: '0.7-1.3', unit: 'mg/dL', high: 'AKI, CKD', low: 'Low muscle mass' },
+          { test: 'Glucose', normal: '70-100', unit: 'mg/dL', high: 'DM, stress, steroids', low: 'Insulin excess, sepsis, liver failure' }
+        ],
+        lft: [
+          { test: 'AST', normal: '10-40', unit: 'U/L', high: 'Hepatocellular injury, MI, muscle', pattern: 'AST>ALT = alcohol, cirrhosis' },
+          { test: 'ALT', normal: '7-56', unit: 'U/L', high: 'Hepatocellular injury (more specific)', pattern: 'ALT>AST = viral, NAFLD' },
+          { test: 'Alk Phos', normal: '44-147', unit: 'U/L', high: 'Cholestasis, bone disease', pattern: 'With GGT = liver; alone = bone' },
+          { test: 'Bilirubin (total)', normal: '0.1-1.2', unit: 'mg/dL', high: 'Hemolysis (indirect), obstruction (direct)', pattern: 'Check direct/indirect ratio' },
+          { test: 'Albumin', normal: '3.5-5.0', unit: 'g/dL', low: 'Liver disease, malnutrition, inflammation', pattern: 'Chronic marker, t½ = 20 days' },
+          { test: 'GGT', normal: '9-48', unit: 'U/L', high: 'Cholestasis, alcohol, enzyme induction', pattern: 'Confirms hepatic source of ALP' }
+        ],
+        coags: [
+          { test: 'PT/INR', normal: '11-13.5s / 0.9-1.1', use: 'Extrinsic path, warfarin monitoring', high: 'Warfarin, liver disease, Vit K def' },
+          { test: 'PTT', normal: '25-35s', use: 'Intrinsic path, heparin monitoring', high: 'Heparin, factor deficiency, lupus anticoag' },
+          { test: 'Fibrinogen', normal: '200-400', unit: 'mg/dL', low: 'DIC, liver failure', high: 'Acute phase reactant' },
+          { test: 'D-dimer', normal: '<500', unit: 'ng/mL', high: 'VTE, DIC, inflammation, post-op', note: 'Age-adjusted: age × 10 if >50' }
+        ],
+        cardiac: [
+          { test: 'Troponin', normal: '<0.04', unit: 'ng/mL', high: 'MI, PE, myocarditis, renal failure', timing: 'Rises 3-6h, peaks 12-24h' },
+          { test: 'BNP', normal: '<100', unit: 'pg/mL', high: 'CHF, cor pulmonale, ACS', low: 'Obesity falsely lowers', gray: '100-400 = gray zone' },
+          { test: 'NT-proBNP', normal: '<300', unit: 'pg/mL', high: 'CHF (more sensitive in elderly/CKD)', note: 'Age-adjusted cutoffs exist' }
+        ],
+        thyroid: [
+          { test: 'TSH', normal: '0.4-4.0', unit: 'mIU/L', high: 'Primary hypothyroid', low: 'Hyperthyroid, pituitary disease' },
+          { test: 'Free T4', normal: '0.8-1.8', unit: 'ng/dL', note: 'Interpret with TSH', pattern: 'Low TSH + High T4 = hyperthyroid' },
+          { test: 'Free T3', normal: '2.3-4.2', unit: 'pg/mL', note: 'Most active form', pattern: 'Check in hyperthyroid workup' }
         ],
         other: [
-          { test: 'TSH', normal: '0.4-4.0', unit: 'mIU/L', note: 'Higher OK in elderly' },
-          { test: 'B12', normal: '>200', unit: 'pg/mL', note: 'Deficiency common' },
-          { test: 'Vit D', normal: '30-100', unit: 'ng/mL', note: 'Supplement if <30' },
-          { test: 'HbA1c', normal: '<5.7%', unit: '', note: 'Target 7-8% if frail' },
-          { test: 'Albumin', normal: '3.5-5.0', unit: 'g/dL', note: 'Nutrition, inflammation' }
+          { test: 'Lactate', normal: '<2.0', unit: 'mmol/L', high: 'Sepsis, hypoperfusion, metformin', action: '>4 = severe, high mortality' },
+          { test: 'Procalcitonin', normal: '<0.25', unit: 'ng/mL', high: 'Bacterial infection (not viral)', use: 'Abx stewardship, serial trending' },
+          { test: 'CRP', normal: '<10', unit: 'mg/L', high: 'Inflammation, infection', use: 'Non-specific, trend over time' },
+          { test: 'ESR', normal: 'M:<15, F:<20', unit: 'mm/hr', high: 'Inflammation, infection, malignancy', note: 'Age/2 (men) or (age+10)/2 (women)' },
+          { test: 'Ferritin', normal: '12-300', unit: 'ng/mL', low: 'Iron deficiency', high: 'Inflammation, hemochromatosis, malignancy' },
+          { test: 'B12', normal: '200-900', unit: 'pg/mL', low: 'Pernicious anemia, vegan diet, metformin', note: 'Check MMA if borderline' },
+          { test: 'Folate', normal: '>3', unit: 'ng/mL', low: 'Malnutrition, alcohol, malabsorption', note: 'RBC folate more accurate' },
+          { test: 'Ammonia', normal: '15-45', unit: 'µg/dL', high: 'Hepatic encephalopathy, urea cycle defects', note: 'Keep on ice, process quickly' }
+        ]
+      },
+
+      // CLINICAL CALCULATORS FORMULAS
+      formulas: {
+        anionGap: { formula: 'Na - (Cl + HCO3)', normal: '8-12', note: 'Adjust for albumin: add 2.5 for each 1 g/dL below 4' },
+        correctedNa: { formula: 'Na + 0.024 × (Glucose - 100)', note: 'For hyperglycemia' },
+        correctedCa: { formula: 'Ca + 0.8 × (4 - Albumin)', note: 'For hypoalbuminemia' },
+        aaGradient: { formula: '(713 × FiO2) - (PaCO2/0.8) - PaO2', normal: '<10-15 (age/4 + 4)', note: 'Increased = V/Q mismatch, shunt' },
+        fena: { formula: '(UNa × PCr) / (PNa × UCr) × 100', prerenal: '<1%', intrinsic: '>2%', note: 'Invalid if diuretics' },
+        feUrea: { formula: '(Urea_urine × Cr_plasma) / (Urea_plasma × Cr_urine) × 100', prerenal: '<35%', note: 'Use if on diuretics' },
+        maddrey: { formula: '4.6 × (PT - control) + Bilirubin', cutoff: '>32 = severe, consider steroids' },
+        meldNa: { formula: 'Complex - use calculator', note: 'Liver transplant priority' },
+        chadsvasc: { formula: 'C1 H1 A2 D1 S2 V1 A1 Sc1', max: 9, note: '0=low, 1=low-mod, ≥2=anticoagulate' },
+        hasbled: { formula: 'H A S B L E D', max: 9, note: '≥3 = high bleed risk, caution with anticoag' },
+        wellsDVT: { formula: 'Clinical criteria', low: '≤0', moderate: '1-2', high: '≥3' },
+        wellsPE: { formula: 'Clinical criteria', unlikely: '≤4', likely: '>4' },
+        perc: { formula: '8 criteria - all must be negative', note: 'If all negative, PE ruled out without D-dimer' },
+        curb65: { formula: 'C U R B 65', scores: '0-1:outpt, 2:admit, ≥3:ICU consider' },
+        heart: { formula: 'H E A R T', low: '0-3', mod: '4-6', high: '7-10' },
+        timi: { formula: '7 criteria for ACS', risk: 'Higher = more events at 14d' }
+      },
+
+      // EMERGENCY PROTOCOLS
+      emergencies: [
+        { 
+          condition: 'Hyperkalemia (K >6.0)',
+          ecg: 'Peaked T, wide QRS, sine wave',
+          immediate: '1. Calcium gluconate 1g IV (stabilize membrane)\n2. Insulin 10U + D50 (shift K)\n3. Albuterol nebs\n4. Kayexalate or Lokelma\n5. Dialysis if refractory',
+          avoid: 'Succinylcholine, K-sparing diuretics'
+        },
+        {
+          condition: 'Hypoglycemia (<70)',
+          symptoms: 'Tremor, sweats, confusion, seizure, coma',
+          immediate: '1. If conscious: 15-20g fast carbs\n2. If unconscious: D50 25-50mL IV\n3. Glucagon 1mg IM if no IV\n4. Recheck q15min\n5. Identify cause',
+          note: 'Goal >100 before meals'
+        },
+        {
+          condition: 'DKA',
+          criteria: 'Glucose >250, pH <7.3, HCO3 <18, ketones+',
+          immediate: '1. Fluids: NS 1-1.5L/hr × 2h\n2. Insulin: 0.1 U/kg/hr\n3. Potassium: add when K <5.3\n4. Monitor q1-2h\n5. Transition when gap closed',
+          note: 'Close anion gap, not glucose'
+        },
+        {
+          condition: 'Acute MI (STEMI)',
+          immediate: 'MONA-B:\n1. Morphine (if pain)\n2. Oxygen (if SpO2 <90%)\n3. Nitro SL (unless RV infarct)\n4. Aspirin 325mg chewed\n5. P2Y12 inhibitor\n6. Heparin\n7. CATH LAB <90min',
+          contraindications: 'Nitro if: SBP<90, RV infarct, PDE5 inhibitor'
+        },
+        {
+          condition: 'Stroke (acute)',
+          immediate: '1. Time of onset\n2. NIHSS score\n3. CT head (r/o bleed)\n4. Glucose check\n5. tPA if <4.5h + eligible\n6. Thrombectomy if LVO <24h\n7. BP management',
+          tpa_contraindications: 'Recent surgery, bleed, INR>1.7, platelets<100k'
+        },
+        {
+          condition: 'Anaphylaxis',
+          immediate: '1. Epinephrine 0.3-0.5mg IM (thigh)\n2. Remove trigger\n3. Fluids\n4. Diphenhydramine 50mg IV\n5. Methylpred 125mg IV\n6. Observe 4-6h (biphasic)\n7. EpiPen rx at discharge',
+          note: 'Repeat epi q5-15min if needed'
+        },
+        {
+          condition: 'Sepsis / Septic Shock',
+          criteria: 'qSOFA ≥2: RR≥22, SBP≤100, AMS',
+          hour1: '1. Lactate\n2. Blood cultures × 2\n3. Broad abx\n4. Fluids 30mL/kg if hypotensive\n5. Vasopressors if MAP<65 after fluids',
+          note: 'Every hour delay in abx = 7% mortality increase'
+        },
+        {
+          condition: 'GI Bleed (upper)',
+          immediate: '1. 2 large bore IVs\n2. Type & cross\n3. Transfuse if Hgb <7 (or <8 if ACS)\n4. PPI drip: 80mg bolus + 8mg/hr\n5. GI consult for EGD\n6. Hold anticoag/antiplatelet',
+          risk: 'Glasgow-Blatchford score for disposition'
+        },
+        {
+          condition: 'PE (massive)',
+          signs: 'Hypotension, RV strain, elevated troponin',
+          immediate: '1. Heparin bolus + drip\n2. Consider thrombolytics\n3. Consider ECMO/embolectomy\n4. Pressors if shock\n5. Avoid fluid overload',
+          note: 'Submassive: anticoag + close monitoring'
+        }
+      ],
+
+      // ANTIBIOTIC GUIDE
+      antibiotics: [
+        { indication: 'CAP (outpatient)', first: 'Amoxicillin 1g TID or Doxycycline', alt: 'Azithromycin (if no comorbid)', duration: '5 days' },
+        { indication: 'CAP (inpatient, non-severe)', first: 'Ceftriaxone + Azithro', alt: 'Levofloxacin 750mg', duration: '5 days' },
+        { indication: 'CAP (severe/ICU)', first: 'Ceftriaxone + Azithro + Vanc if MRSA risk', alt: 'Add coverage for Pseudomonas if risk', duration: '7 days' },
+        { indication: 'UTI (uncomplicated)', first: 'Nitrofurantoin 100mg BID × 5d', alt: 'TMP-SMX × 3d, Fosfomycin × 1', duration: '3-5 days' },
+        { indication: 'UTI (complicated/pyelo)', first: 'Ceftriaxone or Cipro', alt: 'TMP-SMX if susceptible', duration: '7-14 days' },
+        { indication: 'Cellulitis (non-purulent)', first: 'Cephalexin 500mg QID', alt: 'Clindamycin if PCN allergy', duration: '5-7 days' },
+        { indication: 'Cellulitis (purulent/abscess)', first: 'TMP-SMX or Doxycycline', alt: 'Clindamycin', note: 'I&D is primary treatment' },
+        { indication: 'Diverticulitis (uncomplicated)', first: 'Cipro + Metronidazole', alt: 'Augmentin alone', duration: '4-7 days' },
+        { indication: 'C. diff (non-severe)', first: 'Vancomycin 125mg PO QID', alt: 'Fidaxomicin', duration: '10 days' },
+        { indication: 'C. diff (severe/fulminant)', first: 'Vanc PO + Metronidazole IV', alt: 'Vanc enemas if ileus', note: 'Surgery consult if toxic megacolon' },
+        { indication: 'Meningitis (empiric)', first: 'Ceftriaxone + Vanc + Ampicillin (if >50yo)', alt: 'Add Acyclovir if HSV suspected', note: 'Dexamethasone before/with abx' },
+        { indication: 'Sepsis (unknown source)', first: 'Vanc + Pip-Tazo or Cefepime', alt: 'Meropenem if ESBL risk', note: 'De-escalate based on cultures' }
+      ],
+
+      // COMMON SYNDROMES - DIAGNOSTIC CRITERIA
+      syndromes: {
+        sirs: { criteria: '≥2 of: Temp >38 or <36, HR >90, RR >20 or PaCO2 <32, WBC >12k or <4k or >10% bands' },
+        sepsis: { criteria: 'Infection + qSOFA ≥2 (RR≥22, SBP≤100, AMS) or SOFA ≥2' },
+        ards: { criteria: 'Acute onset, bilateral infiltrates, PaO2/FiO2 ≤300, not cardiac' },
+        dic: { criteria: 'Low plt + high PT/PTT + high D-dimer + low fibrinogen + schistocytes' },
+        hus: { criteria: 'Microangiopathic hemolytic anemia + thrombocytopenia + AKI' },
+        ttp: { criteria: 'MAHA + thrombocytopenia + neuro changes + fever + renal (pentad rare)' },
+        nms: { criteria: 'Fever + rigidity + AMS + autonomic instability + recent antipsychotic' },
+        serotoninSyn: { criteria: 'Agitation + hyperthermia + hyperreflexia + clonus + recent serotonergic drug' },
+        hepatorenal: { criteria: 'Cirrhosis + AKI + no improvement with albumin + no shock/nephrotoxins' }
+      },
+
+      // GERIATRIC SPECIFICS (keeping some relevant ones)
+      geriatrics: {
+        beers: [
+          { drug: 'Diphenhydramine', risk: 'Confusion, falls, urinary retention', alt: 'Melatonin, trazodone' },
+          { drug: 'Benzodiazepines', risk: 'Falls, cognitive impairment, dependence', alt: 'Trazodone, mirtazapine, CBT-I' },
+          { drug: 'NSAIDs', risk: 'GI bleed, AKI, CHF exacerbation', alt: 'Acetaminophen, topical NSAIDs' },
+          { drug: 'Muscle relaxants', risk: 'Anticholinergic, sedation', alt: 'Physical therapy' },
+          { drug: 'PPIs >8 weeks', risk: 'C. diff, fractures, B12 deficiency, hypoMg', alt: 'H2 blocker, step-down' },
+          { drug: 'Sliding scale insulin alone', risk: 'Poor control, hypoglycemia', alt: 'Basal-bolus regimen' },
+          { drug: 'Sulfonylureas (long-acting)', risk: 'Prolonged hypoglycemia', alt: 'Shorter-acting agents' },
+          { drug: 'Anticholinergics', risk: 'Confusion, constipation, urinary retention', alt: 'Minimize anticholinergic burden' }
+        ],
+        assessments: [
+          { name: 'MMSE', cutoff: '≤23', interpretation: 'Cognitive impairment' },
+          { name: 'MoCA', cutoff: '≤25', interpretation: 'Cognitive impairment (+1 if edu<12y)' },
+          { name: 'GDS-15', cutoff: '≥5', interpretation: 'Depression screen positive' },
+          { name: 'PHQ-9', cutoff: '≥10', interpretation: 'Moderate depression' },
+          { name: 'CAM', cutoff: '1+2+(3or4)', interpretation: 'Delirium positive' },
+          { name: '4AT', cutoff: '≥4', interpretation: 'Possible delirium' },
+          { name: 'Morse', cutoff: '≥25', interpretation: 'Fall risk' },
+          { name: 'Braden', cutoff: '≤18', interpretation: 'Pressure injury risk' },
+          { name: 'MNA-SF', cutoff: '<8', interpretation: 'Malnourished' }
         ]
       }
     };
@@ -773,6 +937,100 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
           }
           break;
 
+        case 'anion':
+          if (ci.na && ci.cl && ci.hco3) {
+            let ag = +ci.na - (+ci.cl + +ci.hco3);
+            let corrAG = ag;
+            if (ci.alb) corrAG = ag + 2.5 * (4 - +ci.alb);
+            const interp = corrAG > 12 ? 'Elevated - MUDPILES' : 'Normal';
+            r = { v: ag.toFixed(0), u: ci.alb ? ` (corrected: ${corrAG.toFixed(0)})` : '', i: interp };
+          }
+          break;
+
+        case 'corrNa':
+          if (ci.na && ci.glu) {
+            const corrected = +ci.na + 0.024 * (+ci.glu - 100);
+            r = { v: corrected.toFixed(1), u: 'mEq/L', i: corrected < 135 ? 'Still hyponatremic' : corrected > 145 ? 'Hypernatremic' : 'Normal' };
+          }
+          break;
+
+        case 'corrCa':
+          if (ci.ca && ci.alb) {
+            const corrected = +ci.ca + 0.8 * (4 - +ci.alb);
+            const interp = corrected < 8.5 ? 'Hypocalcemia' : corrected > 10.5 ? 'Hypercalcemia' : 'Normal';
+            r = { v: corrected.toFixed(1), u: 'mg/dL', i: interp };
+          }
+          break;
+
+        case 'wellsDVT':
+          const dvt = (ci.cancer?1:0) + (ci.paralysis?1:0) + (ci.bedridden?1:0) + (ci.tenderness?1:0) + 
+                      (ci.swelling?1:0) + (ci.calf?1:0) + (ci.pitting?1:0) + (ci.collateral?1:0) + 
+                      (ci.prevDVT?1:0) + (ci.altDx?-2:0);
+          const dvtRisk = dvt <= 0 ? 'Low (5%)' : dvt <= 2 ? 'Moderate (17%)' : 'High (53%)';
+          const dvtAction = dvt <= 0 ? '→ D-dimer, if neg rule out' : dvt <= 2 ? '→ D-dimer or US' : '→ Ultrasound';
+          r = { v: dvt, u: 'pts', i: dvtRisk + ' ' + dvtAction };
+          break;
+
+        case 'wellsPE':
+          const pe = (ci.dvtSx?3:0) + (ci.peFirst?3:0) + (ci.hr100?1.5:0) + (ci.immob?1.5:0) + 
+                     (ci.prevVTE?1.5:0) + (ci.hemoptysis?1:0) + (ci.malignancy?1:0);
+          const peRisk = pe <= 4 ? 'Unlikely (<15%)' : 'Likely (>40%)';
+          const peAction = pe <= 4 ? '→ PERC or D-dimer' : '→ CTA';
+          r = { v: pe.toFixed(1), u: 'pts', i: peRisk + ' ' + peAction };
+          break;
+
+        case 'perc':
+          const percNeg = !ci.age50 && !ci.hr100 && !ci.spo2 && !ci.legSwell && !ci.hemoptysis && 
+                          !ci.surgery && !ci.prevVTE && !ci.estrogen;
+          r = { v: percNeg ? 'NEGATIVE' : 'Failed', u: '', i: percNeg ? '✓ PE ruled out (if low pretest)' : '→ Need D-dimer or imaging' };
+          break;
+
+        case 'curb65':
+          const curb = (ci.confusion?1:0) + (ci.urea?1:0) + (ci.rr?1:0) + (ci.bp?1:0) + (ci.age65?1:0);
+          const curbDisp = curb <= 1 ? 'Outpatient' : curb === 2 ? 'Consider admission' : curb >= 3 ? 'Admit, consider ICU' : '';
+          const curbMort = curb === 0 ? '0.6%' : curb === 1 ? '2.7%' : curb === 2 ? '6.8%' : curb === 3 ? '14%' : curb >= 4 ? '28%' : '';
+          r = { v: curb, u: '/5', i: `${curbDisp} (mortality ~${curbMort})` };
+          break;
+
+        case 'heart':
+          if (ci.history !== undefined && ci.ecg !== undefined && ci.ageScore !== undefined && ci.risk !== undefined && ci.trop !== undefined) {
+            const heart = +ci.history + +ci.ecg + +ci.ageScore + +ci.risk + +ci.trop;
+            const heartRisk = heart <= 3 ? 'Low (1.7% MACE)' : heart <= 6 ? 'Moderate (12-17% MACE)' : 'High (50%+ MACE)';
+            const heartDisp = heart <= 3 ? '→ Consider discharge' : heart <= 6 ? '→ Admit, serial troponins' : '→ Admit, early intervention';
+            r = { v: heart, u: '/10', i: heartRisk + ' ' + heartDisp };
+          }
+          break;
+
+        case 'chads':
+          const chads = (ci.chf?1:0) + (ci.htn?1:0) + (ci.age75?2:ci.age65?1:0) + (ci.dm?1:0) + (ci.stroke?2:0) + (ci.vasc?1:0) + (ci.female?1:0);
+          const chadsRisk = chads === 0 ? '0%' : chads === 1 ? '1.3%' : chads === 2 ? '2.2%' : chads === 3 ? '3.2%' : chads >= 4 ? '>4%' : '';
+          const chadsRx = chads === 0 ? 'No anticoag needed' : chads === 1 ? 'Consider anticoag' : '→ Anticoagulate';
+          r = { v: chads, u: '/9', i: `Annual stroke risk: ${chadsRisk}. ${chadsRx}` };
+          break;
+
+        case 'hasbled':
+          const hasbled = (ci.htn?1:0) + (ci.abnRenal?1:0) + (ci.abnLiver?1:0) + (ci.strokeHx?1:0) + 
+                          (ci.bleedHx?1:0) + (ci.labile?1:0) + (ci.elderly?1:0) + (ci.drugs?1:0) + (ci.alcohol?1:0);
+          const bleedRisk = hasbled >= 3 ? 'High bleeding risk' : 'Low-moderate';
+          r = { v: hasbled, u: '/9', i: hasbled >= 3 ? '⚠️ ' + bleedRisk + ' - caution with anticoag' : bleedRisk };
+          break;
+
+        case 'meld':
+          if (ci.bili && ci.cr && ci.inr && ci.na) {
+            const bili = Math.max(+ci.bili, 1);
+            const cr = ci.dialysis ? 4 : Math.min(Math.max(+ci.cr, 1), 4);
+            const inr = Math.max(+ci.inr, 1);
+            const na = Math.min(Math.max(+ci.na, 125), 137);
+            
+            const meld = 10 * (0.957 * Math.log(cr) + 0.378 * Math.log(bili) + 1.12 * Math.log(inr) + 0.643);
+            const meldNa = meld + 1.32 * (137 - na) - 0.033 * meld * (137 - na);
+            const finalMeld = Math.round(Math.min(Math.max(meldNa, 6), 40));
+            
+            const mort3m = finalMeld < 10 ? '2%' : finalMeld < 20 ? '6%' : finalMeld < 30 ? '20%' : finalMeld < 40 ? '50%' : '>70%';
+            r = { v: finalMeld, u: '', i: `3-month mortality: ~${mort3m}` };
+          }
+          break;
+
         case 'cam':
           const cam = ci.acute && ci.inattention && (ci.disorganized || ci.altered);
           r = { v: cam ? 'POSITIVE' : 'Negative', u: '', i: cam ? '⚠️ Delirium likely' : '✓ Low probability' };
@@ -782,45 +1040,8 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
           const morse = (ci.fallHx ? 25 : 0) + (ci.secDx ? 15 : 0) + 
             (ci.ambAid === 'furniture' ? 30 : ci.ambAid === 'device' ? 15 : 0) + 
             (ci.iv ? 20 : 0) + 
-            (ci.gait === 'impaired' ? 20 : ci.gait === 'weak' ? 10 : 0) + 
-            (ci.mental === 'forgets' ? 15 : 0);
-          r = { v: morse, u: 'pts', i: morse < 25 ? 'Low risk' : morse < 45 ? 'Moderate risk' : 'High risk' };
-          break;
-
-        case 'mna':
-          const mna = (+ci.food || 0) + (+ci.weight || 0) + (+ci.mobility || 0) + (+ci.stress || 0) + (+ci.neuro || 0) + (+ci.bmi || 0);
-          r = { v: mna, u: '/14', i: mna >= 12 ? 'Normal' : mna >= 8 ? 'At risk' : 'Malnourished' };
-          break;
-
-        case 'gds':
-          let gds = 0;
-          if (ci.q1 === false) gds++; // satisfied
-          if (ci.q2) gds++; // dropped activities
-          if (ci.q3) gds++; // empty
-          if (ci.q4) gds++; // bored
-          if (ci.q5 === false) gds++; // good spirits
-          if (ci.q6) gds++; // afraid
-          if (ci.q7 === false) gds++; // happy
-          if (ci.q8) gds++; // helpless
-          if (ci.q9) gds++; // stay home
-          if (ci.q10) gds++; // memory
-          if (ci.q11 === false) gds++; // wonderful
-          if (ci.q12) gds++; // worthless
-          if (ci.q13 === false) gds++; // energy
-          if (ci.q14) gds++; // hopeless
-          if (ci.q15) gds++; // better off
-          r = { v: gds, u: '/15', i: gds <= 4 ? 'Normal' : gds <= 9 ? 'Mild depression' : 'Moderate-severe depression' };
-          break;
-
-        case 'frail':
-          const frail = (ci.fatigue ? 1 : 0) + (ci.resistance ? 1 : 0) + (ci.ambulation ? 1 : 0) + (ci.illness ? 1 : 0) + (ci.weight5 ? 1 : 0);
-          r = { v: frail, u: '/5', i: frail === 0 ? 'Robust' : frail <= 2 ? 'Pre-frail' : 'Frail' };
-          break;
-
-        case 'chads':
-          const chads = (ci.chf ? 1 : 0) + (ci.htn ? 1 : 0) + (ci.age75 ? 2 : ci.age65 ? 1 : 0) + (ci.dm ? 1 : 0) + (ci.stroke ? 2 : 0) + (ci.vasc ? 1 : 0) + (ci.female ? 1 : 0);
-          const risk = chads === 0 ? '0%' : chads === 1 ? '1.3%' : chads === 2 ? '2.2%' : chads === 3 ? '3.2%' : chads >= 4 ? '>4%' : '';
-          r = { v: chads, u: '/9', i: `Annual stroke risk: ${risk}` };
+            (ci.gait === 'impaired' ? 20 : ci.gait === 'weak' ? 10 : 0);
+          r = { v: morse, u: 'pts', i: morse < 25 ? 'Low risk' : morse < 45 ? 'Moderate risk' : 'High risk - fall precautions' };
           break;
       }
 
@@ -1079,12 +1300,19 @@ Brought by family for 2 days of altered mental status...
       const calcTypes = [
         ['crcl', '💧 CrCl'],
         ['ckdepi', '🧪 eGFR'],
+        ['anion', '⚡ Anion Gap'],
+        ['wellsDVT', '🦵 Wells DVT'],
+        ['wellsPE', '🫁 Wells PE'],
+        ['perc', '✓ PERC'],
+        ['curb65', '🦠 CURB-65'],
+        ['heart', '❤️ HEART'],
+        ['chads', '💔 CHA₂DS₂'],
+        ['hasbled', '🩸 HAS-BLED'],
+        ['meld', '🫀 MELD'],
+        ['corrNa', '🧂 Na Correct'],
+        ['corrCa', '🦴 Ca Correct'],
         ['cam', '🧠 CAM'],
-        ['morse', '🚶 Morse'],
-        ['mna', '🍽️ MNA'],
-        ['gds', '😔 GDS-15'],
-        ['frail', '👴 FRAIL'],
-        ['chads', '❤️ CHA₂DS₂']
+        ['morse', '🚶 Morse']
       ];
 
       let fields = '';
@@ -1105,6 +1333,125 @@ Brought by family for 2 days of altered mental status...
             <input type="number" placeholder="Age" value="${ci.age||''}" oninput="state.calcIn.age=this.value" class="w-full border rounded-lg p-3 mb-2">
             <input type="number" step="0.1" placeholder="Creatinine (mg/dL)" value="${ci.cr||''}" oninput="state.calcIn.cr=this.value" class="w-full border rounded-lg p-3 mb-2">
             <label class="flex items-center gap-2"><input type="checkbox" ${ci.female?'checked':''} onchange="state.calcIn.female=this.checked"> Female</label>`;
+          break;
+        case 'anion':
+          fields = `
+            <h4 class="font-medium mb-2">Anion Gap</h4>
+            <input type="number" placeholder="Sodium (mEq/L)" value="${ci.na||''}" oninput="state.calcIn.na=this.value" class="w-full border rounded-lg p-3 mb-2">
+            <input type="number" placeholder="Chloride (mEq/L)" value="${ci.cl||''}" oninput="state.calcIn.cl=this.value" class="w-full border rounded-lg p-3 mb-2">
+            <input type="number" placeholder="Bicarb (mEq/L)" value="${ci.hco3||''}" oninput="state.calcIn.hco3=this.value" class="w-full border rounded-lg p-3 mb-2">
+            <input type="number" step="0.1" placeholder="Albumin (g/dL) - optional" value="${ci.alb||''}" oninput="state.calcIn.alb=this.value" class="w-full border rounded-lg p-3">
+            <p class="text-xs text-slate-500 mt-1">Corrected AG = AG + 2.5 × (4 - Albumin)</p>`;
+          break;
+        case 'corrNa':
+          fields = `
+            <h4 class="font-medium mb-2">Corrected Sodium (for hyperglycemia)</h4>
+            <input type="number" placeholder="Measured Sodium (mEq/L)" value="${ci.na||''}" oninput="state.calcIn.na=this.value" class="w-full border rounded-lg p-3 mb-2">
+            <input type="number" placeholder="Glucose (mg/dL)" value="${ci.glu||''}" oninput="state.calcIn.glu=this.value" class="w-full border rounded-lg p-3">
+            <p class="text-xs text-slate-500 mt-1">Na + 0.024 × (Glucose - 100)</p>`;
+          break;
+        case 'corrCa':
+          fields = `
+            <h4 class="font-medium mb-2">Corrected Calcium (for hypoalbuminemia)</h4>
+            <input type="number" step="0.1" placeholder="Total Calcium (mg/dL)" value="${ci.ca||''}" oninput="state.calcIn.ca=this.value" class="w-full border rounded-lg p-3 mb-2">
+            <input type="number" step="0.1" placeholder="Albumin (g/dL)" value="${ci.alb||''}" oninput="state.calcIn.alb=this.value" class="w-full border rounded-lg p-3">
+            <p class="text-xs text-slate-500 mt-1">Ca + 0.8 × (4 - Albumin)</p>`;
+          break;
+        case 'wellsDVT':
+          fields = `
+            <h4 class="font-medium mb-2">Wells Score for DVT</h4>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.cancer?'checked':''} onchange="state.calcIn.cancer=this.checked"> Active cancer (+1)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.paralysis?'checked':''} onchange="state.calcIn.paralysis=this.checked"> Paralysis/immobilization (+1)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.bedridden?'checked':''} onchange="state.calcIn.bedridden=this.checked"> Bedridden >3d or surgery <12wk (+1)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.tenderness?'checked':''} onchange="state.calcIn.tenderness=this.checked"> Tenderness along deep veins (+1)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.swelling?'checked':''} onchange="state.calcIn.swelling=this.checked"> Entire leg swelling (+1)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.calf?'checked':''} onchange="state.calcIn.calf=this.checked"> Calf >3cm larger (+1)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.pitting?'checked':''} onchange="state.calcIn.pitting=this.checked"> Pitting edema (+1)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.collateral?'checked':''} onchange="state.calcIn.collateral=this.checked"> Collateral superficial veins (+1)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.prevDVT?'checked':''} onchange="state.calcIn.prevDVT=this.checked"> Previous documented DVT (+1)</label>
+            <label class="flex items-center gap-2 p-2 bg-yellow-50 rounded"><input type="checkbox" ${ci.altDx?'checked':''} onchange="state.calcIn.altDx=this.checked"> Alternative diagnosis as likely (-2)</label>`;
+          break;
+        case 'wellsPE':
+          fields = `
+            <h4 class="font-medium mb-2">Wells Score for PE</h4>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.dvtSx?'checked':''} onchange="state.calcIn.dvtSx=this.checked"> DVT signs/symptoms (+3)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.peFirst?'checked':''} onchange="state.calcIn.peFirst=this.checked"> PE is #1 diagnosis (+3)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.hr100?'checked':''} onchange="state.calcIn.hr100=this.checked"> Heart rate >100 (+1.5)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.immob?'checked':''} onchange="state.calcIn.immob=this.checked"> Immobilization/surgery <4wk (+1.5)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.prevVTE?'checked':''} onchange="state.calcIn.prevVTE=this.checked"> Previous DVT/PE (+1.5)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.hemoptysis?'checked':''} onchange="state.calcIn.hemoptysis=this.checked"> Hemoptysis (+1)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded"><input type="checkbox" ${ci.malignancy?'checked':''} onchange="state.calcIn.malignancy=this.checked"> Malignancy (+1)</label>`;
+          break;
+        case 'perc':
+          fields = `
+            <h4 class="font-medium mb-2">PERC Rule (all must be NO to rule out PE)</h4>
+            <p class="text-xs text-slate-500 mb-2">If ALL are negative + low pretest prob → PE ruled out without D-dimer</p>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.age50?'checked':''} onchange="state.calcIn.age50=this.checked"> Age ≥50</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.hr100?'checked':''} onchange="state.calcIn.hr100=this.checked"> HR ≥100</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.spo2?'checked':''} onchange="state.calcIn.spo2=this.checked"> SpO2 <95% on RA</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.legSwell?'checked':''} onchange="state.calcIn.legSwell=this.checked"> Unilateral leg swelling</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.hemoptysis?'checked':''} onchange="state.calcIn.hemoptysis=this.checked"> Hemoptysis</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.surgery?'checked':''} onchange="state.calcIn.surgery=this.checked"> Surgery/trauma <4wk</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.prevVTE?'checked':''} onchange="state.calcIn.prevVTE=this.checked"> Prior DVT/PE</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded"><input type="checkbox" ${ci.estrogen?'checked':''} onchange="state.calcIn.estrogen=this.checked"> Hormone use (OCP/HRT)</label>`;
+          break;
+        case 'curb65':
+          fields = `
+            <h4 class="font-medium mb-2">CURB-65 (Pneumonia Severity)</h4>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.confusion?'checked':''} onchange="state.calcIn.confusion=this.checked"> <b>C</b>onfusion (new)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.urea?'checked':''} onchange="state.calcIn.urea=this.checked"> <b>U</b>rea >7 mmol/L (BUN >19)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.rr?'checked':''} onchange="state.calcIn.rr=this.checked"> <b>R</b>espiratory rate ≥30</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.bp?'checked':''} onchange="state.calcIn.bp=this.checked"> <b>B</b>lood pressure: SBP <90 or DBP ≤60</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded"><input type="checkbox" ${ci.age65?'checked':''} onchange="state.calcIn.age65=this.checked"> Age ≥<b>65</b></label>`;
+          break;
+        case 'heart':
+          fields = `
+            <h4 class="font-medium mb-2">HEART Score (Chest Pain Risk)</h4>
+            <div class="mb-2">
+              <label class="text-sm font-medium">History</label>
+              <select onchange="state.calcIn.history=+this.value" class="w-full border rounded-lg p-2 text-sm">
+                <option value="">Select...</option>
+                <option value="0" ${ci.history===0?'selected':''}>Slightly suspicious (0)</option>
+                <option value="1" ${ci.history===1?'selected':''}>Moderately suspicious (1)</option>
+                <option value="2" ${ci.history===2?'selected':''}>Highly suspicious (2)</option>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="text-sm font-medium">ECG</label>
+              <select onchange="state.calcIn.ecg=+this.value" class="w-full border rounded-lg p-2 text-sm">
+                <option value="">Select...</option>
+                <option value="0" ${ci.ecg===0?'selected':''}>Normal (0)</option>
+                <option value="1" ${ci.ecg===1?'selected':''}>Non-specific changes (1)</option>
+                <option value="2" ${ci.ecg===2?'selected':''}>Significant ST deviation (2)</option>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="text-sm font-medium">Age</label>
+              <select onchange="state.calcIn.ageScore=+this.value" class="w-full border rounded-lg p-2 text-sm">
+                <option value="">Select...</option>
+                <option value="0" ${ci.ageScore===0?'selected':''}><45 (0)</option>
+                <option value="1" ${ci.ageScore===1?'selected':''}>45-64 (1)</option>
+                <option value="2" ${ci.ageScore===2?'selected':''}>≥65 (2)</option>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="text-sm font-medium">Risk Factors (HTN, DM, smoking, obesity, FHx)</label>
+              <select onchange="state.calcIn.risk=+this.value" class="w-full border rounded-lg p-2 text-sm">
+                <option value="">Select...</option>
+                <option value="0" ${ci.risk===0?'selected':''}>None (0)</option>
+                <option value="1" ${ci.risk===1?'selected':''}>1-2 factors (1)</option>
+                <option value="2" ${ci.risk===2?'selected':''}>≥3 or known CAD/PVD/CVA (2)</option>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="text-sm font-medium">Troponin</label>
+              <select onchange="state.calcIn.trop=+this.value" class="w-full border rounded-lg p-2 text-sm">
+                <option value="">Select...</option>
+                <option value="0" ${ci.trop===0?'selected':''}>Normal (0)</option>
+                <option value="1" ${ci.trop===1?'selected':''}>1-3x normal (1)</option>
+                <option value="2" ${ci.trop===2?'selected':''}>>3x normal (2)</option>
+              </select>
+            </div>`;
           break;
         case 'cam':
           fields = `
@@ -1132,18 +1479,9 @@ Brought by family for 2 days of altered mental status...
               <option value="impaired" ${ci.gait==='impaired'?'selected':''}>Impaired (20pts)</option>
             </select>`;
           break;
-        case 'frail':
-          fields = `
-            <h4 class="font-medium mb-2">FRAIL Scale</h4>
-            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.fatigue?'checked':''} onchange="state.calcIn.fatigue=this.checked"> <b>F</b>atigue</label>
-            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.resistance?'checked':''} onchange="state.calcIn.resistance=this.checked"> <b>R</b>esistance (can't climb stairs)</label>
-            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.ambulation?'checked':''} onchange="state.calcIn.ambulation=this.checked"> <b>A</b>mbulation (can't walk 1 block)</label>
-            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.illness?'checked':''} onchange="state.calcIn.illness=this.checked"> <b>I</b>llness (>5 comorbidities)</label>
-            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded"><input type="checkbox" ${ci.weight5?'checked':''} onchange="state.calcIn.weight5=this.checked"> <b>L</b>oss of weight (>5%)</label>`;
-          break;
         case 'chads':
           fields = `
-            <h4 class="font-medium mb-2">CHA₂DS₂-VASc</h4>
+            <h4 class="font-medium mb-2">CHA₂DS₂-VASc (Stroke Risk in AFib)</h4>
             <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.chf?'checked':''} onchange="state.calcIn.chf=this.checked"> CHF (1pt)</label>
             <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.htn?'checked':''} onchange="state.calcIn.htn=this.checked"> Hypertension (1pt)</label>
             <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.age75?'checked':''} onchange="state.calcIn.age75=this.checked;if(this.checked)state.calcIn.age65=false"> Age ≥75 (2pts)</label>
@@ -1153,68 +1491,27 @@ Brought by family for 2 days of altered mental status...
             <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.vasc?'checked':''} onchange="state.calcIn.vasc=this.checked"> Vascular disease (1pt)</label>
             <label class="flex items-center gap-2 p-2 bg-slate-50 rounded"><input type="checkbox" ${ci.female?'checked':''} onchange="state.calcIn.female=this.checked"> Female (1pt)</label>`;
           break;
-        case 'mna':
+        case 'hasbled':
           fields = `
-            <h4 class="font-medium mb-2">MNA-SF (Nutrition)</h4>
-            <select onchange="state.calcIn.food=this.value" class="w-full border rounded-lg p-3 mb-2">
-              <option value="">Food intake...</option>
-              <option value="0">Severe decrease (0)</option>
-              <option value="1">Moderate decrease (1)</option>
-              <option value="2">No decrease (2)</option>
-            </select>
-            <select onchange="state.calcIn.weight=this.value" class="w-full border rounded-lg p-3 mb-2">
-              <option value="">Weight loss...</option>
-              <option value="0">>3kg (0)</option>
-              <option value="1">Don't know (1)</option>
-              <option value="2">1-3kg (2)</option>
-              <option value="3">No loss (3)</option>
-            </select>
-            <select onchange="state.calcIn.mobility=this.value" class="w-full border rounded-lg p-3 mb-2">
-              <option value="">Mobility...</option>
-              <option value="0">Bed/chair bound (0)</option>
-              <option value="1">Gets out but doesn't go out (1)</option>
-              <option value="2">Goes out (2)</option>
-            </select>
-            <select onchange="state.calcIn.stress=this.value" class="w-full border rounded-lg p-3 mb-2">
-              <option value="">Stress/illness...</option>
-              <option value="0">Yes (0)</option>
-              <option value="2">No (2)</option>
-            </select>
-            <select onchange="state.calcIn.neuro=this.value" class="w-full border rounded-lg p-3 mb-2">
-              <option value="">Neuropsych...</option>
-              <option value="0">Severe dementia/depression (0)</option>
-              <option value="1">Mild (1)</option>
-              <option value="2">None (2)</option>
-            </select>
-            <select onchange="state.calcIn.bmi=this.value" class="w-full border rounded-lg p-3">
-              <option value="">BMI...</option>
-              <option value="0"><19 (0)</option>
-              <option value="1">19-21 (1)</option>
-              <option value="2">21-23 (2)</option>
-              <option value="3">>23 (3)</option>
-            </select>`;
+            <h4 class="font-medium mb-2">HAS-BLED (Bleeding Risk)</h4>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.htn?'checked':''} onchange="state.calcIn.htn=this.checked"> <b>H</b>ypertension (SBP >160)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.abnRenal?'checked':''} onchange="state.calcIn.abnRenal=this.checked"> <b>A</b>bnormal renal function</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.abnLiver?'checked':''} onchange="state.calcIn.abnLiver=this.checked"> <b>A</b>bnormal liver function</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.strokeHx?'checked':''} onchange="state.calcIn.strokeHx=this.checked"> <b>S</b>troke history</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.bleedHx?'checked':''} onchange="state.calcIn.bleedHx=this.checked"> <b>B</b>leeding history/predisposition</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.labile?'checked':''} onchange="state.calcIn.labile=this.checked"> <b>L</b>abile INRs</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.elderly?'checked':''} onchange="state.calcIn.elderly=this.checked"> <b>E</b>lderly (>65)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded mb-1"><input type="checkbox" ${ci.drugs?'checked':''} onchange="state.calcIn.drugs=this.checked"> <b>D</b>rugs (antiplatelets, NSAIDs)</label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded"><input type="checkbox" ${ci.alcohol?'checked':''} onchange="state.calcIn.alcohol=this.checked"> Alcohol (≥8 drinks/wk)</label>`;
           break;
-        case 'gds':
+        case 'meld':
           fields = `
-            <h4 class="font-medium mb-2">GDS-15 (Depression)</h4>
-            <p class="text-xs text-slate-500 mb-2">Based on past week. Check = depressive answer.</p>
-            <div class="space-y-1 text-sm max-h-48 overflow-auto">
-              <label class="flex items-center gap-2 p-1"><input type="checkbox" ${ci.q1===false?'checked':''} onchange="state.calcIn.q1=!this.checked"> 1. Satisfied with life? (No=1)</label>
-              <label class="flex items-center gap-2 p-1"><input type="checkbox" ${ci.q2?'checked':''} onchange="state.calcIn.q2=this.checked"> 2. Dropped activities? (Yes=1)</label>
-              <label class="flex items-center gap-2 p-1"><input type="checkbox" ${ci.q3?'checked':''} onchange="state.calcIn.q3=this.checked"> 3. Feel empty? (Yes=1)</label>
-              <label class="flex items-center gap-2 p-1"><input type="checkbox" ${ci.q4?'checked':''} onchange="state.calcIn.q4=this.checked"> 4. Often bored? (Yes=1)</label>
-              <label class="flex items-center gap-2 p-1"><input type="checkbox" ${ci.q5===false?'checked':''} onchange="state.calcIn.q5=!this.checked"> 5. Good spirits? (No=1)</label>
-              <label class="flex items-center gap-2 p-1"><input type="checkbox" ${ci.q6?'checked':''} onchange="state.calcIn.q6=this.checked"> 6. Afraid something bad? (Yes=1)</label>
-              <label class="flex items-center gap-2 p-1"><input type="checkbox" ${ci.q7===false?'checked':''} onchange="state.calcIn.q7=!this.checked"> 7. Happy most of time? (No=1)</label>
-              <label class="flex items-center gap-2 p-1"><input type="checkbox" ${ci.q8?'checked':''} onchange="state.calcIn.q8=this.checked"> 8. Feel helpless? (Yes=1)</label>
-              <label class="flex items-center gap-2 p-1"><input type="checkbox" ${ci.q9?'checked':''} onchange="state.calcIn.q9=this.checked"> 9. Prefer staying home? (Yes=1)</label>
-              <label class="flex items-center gap-2 p-1"><input type="checkbox" ${ci.q10?'checked':''} onchange="state.calcIn.q10=this.checked"> 10. Memory problems? (Yes=1)</label>
-              <label class="flex items-center gap-2 p-1"><input type="checkbox" ${ci.q11===false?'checked':''} onchange="state.calcIn.q11=!this.checked"> 11. Wonderful to be alive? (No=1)</label>
-              <label class="flex items-center gap-2 p-1"><input type="checkbox" ${ci.q12?'checked':''} onchange="state.calcIn.q12=this.checked"> 12. Feel worthless? (Yes=1)</label>
-              <label class="flex items-center gap-2 p-1"><input type="checkbox" ${ci.q13===false?'checked':''} onchange="state.calcIn.q13=!this.checked"> 13. Full of energy? (No=1)</label>
-              <label class="flex items-center gap-2 p-1"><input type="checkbox" ${ci.q14?'checked':''} onchange="state.calcIn.q14=this.checked"> 14. Situation hopeless? (Yes=1)</label>
-              <label class="flex items-center gap-2 p-1"><input type="checkbox" ${ci.q15?'checked':''} onchange="state.calcIn.q15=this.checked"> 15. Most people better off? (Yes=1)</label>
-            </div>`;
+            <h4 class="font-medium mb-2">MELD-Na (Liver Disease Severity)</h4>
+            <input type="number" step="0.1" placeholder="Bilirubin (mg/dL)" value="${ci.bili||''}" oninput="state.calcIn.bili=this.value" class="w-full border rounded-lg p-3 mb-2">
+            <input type="number" step="0.1" placeholder="Creatinine (mg/dL)" value="${ci.cr||''}" oninput="state.calcIn.cr=this.value" class="w-full border rounded-lg p-3 mb-2">
+            <input type="number" step="0.1" placeholder="INR" value="${ci.inr||''}" oninput="state.calcIn.inr=this.value" class="w-full border rounded-lg p-3 mb-2">
+            <input type="number" placeholder="Sodium (mEq/L)" value="${ci.na||''}" oninput="state.calcIn.na=this.value" class="w-full border rounded-lg p-3 mb-2">
+            <label class="flex items-center gap-2"><input type="checkbox" ${ci.dialysis?'checked':''} onchange="state.calcIn.dialysis=this.checked"> On dialysis (Cr set to 4)</label>`;
           break;
       }
 
@@ -1269,29 +1566,88 @@ Brought by family for 2 days of altered mental status...
         <div class="fixed inset-0 bg-black/50 flex items-end z-50 animate-fadeIn" onclick="if(event.target===this)setState({showDrugs:false})">
           <div class="bg-white w-full rounded-t-2xl p-4 modal-content max-h-[85vh] overflow-auto">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="font-bold text-lg text-slate-800">💊 Drug Reference</h3>
+              <h3 class="font-bold text-lg text-slate-800">💊 Clinical Drug Reference</h3>
               <button onclick="setState({showDrugs:false})" class="text-2xl text-slate-400">×</button>
             </div>
             
-            <h4 class="font-bold text-red-600 mb-2">⚠️ Beers Criteria - AVOID in Elderly</h4>
-            <div class="space-y-2 mb-4">
-              ${KNOWLEDGE.beers.map(d => `
-                <div class="bg-red-50 rounded-lg p-2 text-sm">
-                  <div class="font-medium">${d.drug}</div>
-                  <div class="text-red-600 text-xs">${d.risk}</div>
-                  <div class="text-green-600 text-xs">→ ${d.alt}</div>
-                </div>
-              `).join('')}
+            <!-- Tabs -->
+            <div class="flex gap-1 mb-4 overflow-x-auto pb-2">
+              <button onclick="document.getElementById('drug-interactions').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs whitespace-nowrap">⚠️ Interactions</button>
+              <button onclick="document.getElementById('drug-renal').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs whitespace-nowrap">💧 Renal Dosing</button>
+              <button onclick="document.getElementById('drug-abx').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs whitespace-nowrap">🦠 Antibiotics</button>
+              <button onclick="document.getElementById('drug-beers').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs whitespace-nowrap">👴 Beers</button>
             </div>
             
-            <h4 class="font-bold text-blue-600 mb-2">💊 Geriatric Starting Doses</h4>
-            <div class="space-y-1">
-              ${KNOWLEDGE.dosing.map(d => `
-                <div class="flex justify-between bg-blue-50 rounded p-2 text-sm">
-                  <span class="font-medium">${d.drug}</span>
-                  <span>${d.start}</span>
-                </div>
-              `).join('')}
+            <!-- Drug Interactions -->
+            <div id="drug-interactions" class="mb-6">
+              <h4 class="font-bold text-red-600 mb-2 sticky top-0 bg-white py-1">⚠️ High-Risk Drug Interactions</h4>
+              <div class="space-y-2">
+                ${KNOWLEDGE.interactions.map(i => `
+                  <div class="bg-red-50 rounded-lg p-2 text-sm">
+                    <div class="font-medium text-red-800">${i.drugs}</div>
+                    <div class="text-red-600 text-xs">${i.risk}</div>
+                    <div class="text-green-600 text-xs font-medium">→ ${i.action}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            
+            <!-- Renal Dosing -->
+            <div id="drug-renal" class="mb-6">
+              <h4 class="font-bold text-blue-600 mb-2 sticky top-0 bg-white py-1">💧 Renal Dosing Adjustments</h4>
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                  <thead>
+                    <tr class="bg-blue-50">
+                      <th class="p-2 text-left">Drug</th>
+                      <th class="p-2">GFR >60</th>
+                      <th class="p-2">GFR 30-60</th>
+                      <th class="p-2">GFR 15-30</th>
+                      <th class="p-2">GFR <15</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${KNOWLEDGE.renalDosing.map(d => `
+                      <tr class="border-b">
+                        <td class="p-2 font-medium">${d.drug}</td>
+                        <td class="p-2 text-center">${d.normal}</td>
+                        <td class="p-2 text-center">${d.gfr60}</td>
+                        <td class="p-2 text-center ${d.gfr30.includes('AVOID') ? 'text-red-600 font-bold' : ''}">${d.gfr30}</td>
+                        <td class="p-2 text-center ${d.gfr15.includes('AVOID') || d.gfr15.includes('CONTRA') ? 'text-red-600 font-bold' : ''}">${d.gfr15}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <!-- Antibiotics -->
+            <div id="drug-abx" class="mb-6">
+              <h4 class="font-bold text-green-600 mb-2 sticky top-0 bg-white py-1">🦠 Empiric Antibiotic Guide</h4>
+              <div class="space-y-2">
+                ${KNOWLEDGE.antibiotics.map(a => `
+                  <div class="bg-green-50 rounded-lg p-2 text-sm">
+                    <div class="font-medium text-green-800">${a.indication}</div>
+                    <div class="text-green-700 text-xs"><b>1st:</b> ${a.first}</div>
+                    <div class="text-green-600 text-xs"><b>Alt:</b> ${a.alt}</div>
+                    <div class="text-slate-500 text-xs">${a.duration || a.note || ''}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            
+            <!-- Beers Criteria -->
+            <div id="drug-beers" class="mb-4">
+              <h4 class="font-bold text-orange-600 mb-2 sticky top-0 bg-white py-1">👴 Beers Criteria (Avoid in Elderly)</h4>
+              <div class="space-y-2">
+                ${KNOWLEDGE.geriatrics.beers.map(d => `
+                  <div class="bg-orange-50 rounded-lg p-2 text-sm">
+                    <div class="font-medium">${d.drug}</div>
+                    <div class="text-orange-600 text-xs">${d.risk}</div>
+                    <div class="text-green-600 text-xs">→ ${d.alt}</div>
+                  </div>
+                `).join('')}
+              </div>
             </div>
           </div>
         </div>
@@ -1307,55 +1663,124 @@ Brought by family for 2 days of altered mental status...
               <button onclick="setState({showLabs:false})" class="text-2xl text-slate-400">×</button>
             </div>
             
-            <h4 class="font-bold text-slate-700 mb-2">CBC</h4>
-            <div class="grid grid-cols-3 gap-1 mb-4 text-xs">
-              ${KNOWLEDGE.labs.cbc.map(l => `
-                <div class="bg-slate-50 rounded p-2 text-center">
-                  <div class="font-medium">${l.test}</div>
-                  <div>${l.normal}</div>
-                </div>
-              `).join('')}
+            <!-- Tabs -->
+            <div class="flex gap-1 mb-4 overflow-x-auto pb-2">
+              <button onclick="document.getElementById('lab-critical').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs whitespace-nowrap">🚨 Critical</button>
+              <button onclick="document.getElementById('lab-cbc').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs whitespace-nowrap">CBC</button>
+              <button onclick="document.getElementById('lab-bmp').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs whitespace-nowrap">BMP</button>
+              <button onclick="document.getElementById('lab-lft').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs whitespace-nowrap">LFTs</button>
+              <button onclick="document.getElementById('lab-coags').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs whitespace-nowrap">Coags</button>
+              <button onclick="document.getElementById('lab-formulas').scrollIntoView({behavior:'smooth'})" class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs whitespace-nowrap">📐 Formulas</button>
             </div>
             
-            <h4 class="font-bold text-slate-700 mb-2">BMP</h4>
-            <div class="grid grid-cols-3 gap-1 mb-4 text-xs">
-              ${KNOWLEDGE.labs.bmp.map(l => `
-                <div class="bg-slate-50 rounded p-2 text-center">
-                  <div class="font-medium">${l.test}</div>
-                  <div>${l.normal}</div>
-                </div>
-              `).join('')}
+            <!-- Critical Values -->
+            <div id="lab-critical" class="mb-6">
+              <h4 class="font-bold text-red-600 mb-2">🚨 Critical Values - Act Immediately</h4>
+              <div class="space-y-1">
+                ${KNOWLEDGE.criticalLabs.map(l => `
+                  <div class="bg-red-50 rounded p-2 text-sm flex justify-between items-start">
+                    <div>
+                      <span class="font-medium">${l.test}</span>
+                      <span class="text-red-600 ml-2">${l.critical}</span>
+                    </div>
+                    <div class="text-xs text-red-700 text-right max-w-[50%]">${l.action}</div>
+                  </div>
+                `).join('')}
+              </div>
             </div>
             
-            <h4 class="font-bold text-slate-700 mb-2">Other</h4>
-            <div class="grid grid-cols-3 gap-1 mb-4 text-xs">
-              ${KNOWLEDGE.labs.other.map(l => `
-                <div class="bg-slate-50 rounded p-2 text-center">
-                  <div class="font-medium">${l.test}</div>
-                  <div>${l.normal}</div>
-                </div>
-              `).join('')}
+            <!-- CBC -->
+            <div id="lab-cbc" class="mb-6">
+              <h4 class="font-bold text-blue-600 mb-2">CBC</h4>
+              <div class="space-y-1">
+                ${KNOWLEDGE.labs.cbc.map(l => `
+                  <div class="bg-blue-50 rounded p-2 text-xs">
+                    <div class="flex justify-between">
+                      <span class="font-medium">${l.test}</span>
+                      <span>${l.normal} ${l.unit}</span>
+                    </div>
+                    <div class="text-slate-600 mt-1">↑ ${l.high} | ↓ ${l.low}</div>
+                  </div>
+                `).join('')}
+              </div>
             </div>
             
-            <div class="bg-orange-50 rounded-lg p-3">
-              <h4 class="font-bold text-orange-700 mb-1">🧓 Geriatric Notes</h4>
-              <ul class="text-xs text-orange-600 space-y-1">
-                <li>• WBC may be blunted in infection</li>
-                <li>• Cr underestimates CKD - use eGFR</li>
-                <li>• D-dimer: age-adjusted = age × 10 if >50</li>
-                <li>• Relax HbA1c targets (7-8%) in frail</li>
-                <li>• Low albumin: malnutrition or inflammation</li>
-              </ul>
+            <!-- BMP -->
+            <div id="lab-bmp" class="mb-6">
+              <h4 class="font-bold text-green-600 mb-2">BMP</h4>
+              <div class="space-y-1">
+                ${KNOWLEDGE.labs.bmp.map(l => `
+                  <div class="bg-green-50 rounded p-2 text-xs">
+                    <div class="flex justify-between">
+                      <span class="font-medium">${l.test}</span>
+                      <span>${l.normal} ${l.unit}</span>
+                    </div>
+                    <div class="text-slate-600 mt-1">↑ ${l.high} | ↓ ${l.low}</div>
+                  </div>
+                `).join('')}
+              </div>
             </div>
             
-            <h4 class="font-bold text-slate-700 mt-4 mb-2">📊 Assessment Cutoffs</h4>
-            <div class="grid grid-cols-2 gap-1 text-xs">
-              ${KNOWLEDGE.assessments.slice(0, 10).map(a => `
-                <div class="bg-purple-50 rounded p-2">
-                  <div class="font-medium">${a.name}</div>
-                  <div class="text-purple-600">${a.cutoff}</div>
-                </div>
-              `).join('')}
+            <!-- LFTs -->
+            <div id="lab-lft" class="mb-6">
+              <h4 class="font-bold text-yellow-600 mb-2">LFTs / Hepatic</h4>
+              <div class="space-y-1">
+                ${KNOWLEDGE.labs.lft.map(l => `
+                  <div class="bg-yellow-50 rounded p-2 text-xs">
+                    <div class="flex justify-between">
+                      <span class="font-medium">${l.test}</span>
+                      <span>${l.normal} ${l.unit}</span>
+                    </div>
+                    <div class="text-slate-600 mt-1">${l.pattern || l.high}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            
+            <!-- Coags -->
+            <div id="lab-coags" class="mb-6">
+              <h4 class="font-bold text-purple-600 mb-2">Coagulation</h4>
+              <div class="space-y-1">
+                ${KNOWLEDGE.labs.coags.map(l => `
+                  <div class="bg-purple-50 rounded p-2 text-xs">
+                    <div class="flex justify-between">
+                      <span class="font-medium">${l.test}</span>
+                      <span>${l.normal}</span>
+                    </div>
+                    <div class="text-slate-600 mt-1">${l.use || l.high}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            
+            <!-- Cardiac -->
+            <div class="mb-6">
+              <h4 class="font-bold text-red-500 mb-2">Cardiac Markers</h4>
+              <div class="space-y-1">
+                ${KNOWLEDGE.labs.cardiac.map(l => `
+                  <div class="bg-red-50 rounded p-2 text-xs">
+                    <div class="flex justify-between">
+                      <span class="font-medium">${l.test}</span>
+                      <span>${l.normal} ${l.unit}</span>
+                    </div>
+                    <div class="text-slate-600 mt-1">${l.high} ${l.timing || l.note || ''}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            
+            <!-- Formulas -->
+            <div id="lab-formulas" class="mb-4">
+              <h4 class="font-bold text-slate-600 mb-2">📐 Clinical Formulas</h4>
+              <div class="space-y-2">
+                ${Object.entries(KNOWLEDGE.formulas).slice(0, 8).map(([key, f]) => `
+                  <div class="bg-slate-50 rounded p-2 text-xs">
+                    <div class="font-medium capitalize">${key.replace(/([A-Z])/g, ' $1')}</div>
+                    <div class="font-mono text-slate-700">${f.formula}</div>
+                    <div class="text-slate-500">${f.normal || ''} ${f.note || ''}</div>
+                  </div>
+                `).join('')}
+              </div>
             </div>
           </div>
         </div>
