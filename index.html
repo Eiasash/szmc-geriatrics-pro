@@ -46,7 +46,7 @@
 
   <script>
     // ============ SZMC GERIATRICS PRO v4.0 ============
-    const VERSION = '4.4';
+    const VERSION = '4.5';
     
     // State
     let state = {
@@ -84,7 +84,11 @@
       showAIHistory: false,
       showAITemplates: false,
       isListening: false,
-      patientContext: null
+      patientContext: null,
+      // AI suggestion review system
+      pendingSuggestion: null, // { type, targetSlide, field, value, description, originalPrompt }
+      showAIUpload: false,
+      aiUploadTarget: null // which slide to upload data to
     };
 
     // Load saved data
@@ -1172,24 +1176,24 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
         const data = await response.json();
         let aiResponse = data.content[0]?.text || 'No response';
 
-        // Parse and apply slide commands
+        // Parse slide commands and store as pending suggestion (don't auto-apply)
         const cmdMatch = aiResponse.match(/```slidemod\s*([\s\S]*?)```/);
         if (cmdMatch && state.pres) {
           try {
             const cmd = JSON.parse(cmdMatch[1].trim());
             let targetSlide = state.slide;
-            
+
             const shortcuts = {
               ddx: 'differential', meds: 'medication', teaching: 'teaching',
               plan: 'management', exam: 'exam', labs: 'lab', hpi: 'hpi',
               assessment: 'assessment', current: null
             };
-            
+
             if (cmd.slide === 'current') {
               targetSlide = state.slide;
             } else if (shortcuts[cmd.slide] !== undefined) {
               if (shortcuts[cmd.slide]) {
-                const idx = state.pres.slides.findIndex(s => 
+                const idx = state.pres.slides.findIndex(s =>
                   s.title?.toLowerCase().includes(shortcuts[cmd.slide])
                 );
                 if (idx >= 0) targetSlide = idx;
@@ -1199,29 +1203,19 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
             }
 
             if (targetSlide >= 0 && targetSlide < state.pres.slides.length) {
-              const slide = state.pres.slides[targetSlide];
-              
-              if (cmd.action === 'update') {
-                if (cmd.field === 'items' && Array.isArray(cmd.value)) {
-                  slide.items = cmd.value;
-                } else if (cmd.field === 'vitals' && typeof cmd.value === 'object') {
-                  slide.vitals = { ...slide.vitals, ...cmd.value };
-                } else if (cmd.field === 'scores' && typeof cmd.value === 'object') {
-                  slide.scores = { ...slide.scores, ...cmd.value };
-                } else {
-                  slide[cmd.field] = cmd.value;
-                }
-              } else if (cmd.action === 'append') {
-                if (cmd.field === 'items') {
-                  slide.items = [...(slide.items || []), ...(Array.isArray(cmd.value) ? cmd.value : [cmd.value])];
-                } else if (typeof slide[cmd.field] === 'string') {
-                  slide[cmd.field] += '\n' + cmd.value;
-                }
-              }
-              
-              savePres();
-              aiResponse = aiResponse.replace(/```slidemod[\s\S]*?```/g, '').trim();
-              aiResponse += `\n\n✅ Slide ${targetSlide + 1} (${state.pres.slides[targetSlide].title}) updated!`;
+              // Store as pending suggestion instead of auto-applying
+              const cleanedResponse = aiResponse.replace(/```slidemod[\s\S]*?```/g, '').trim();
+              state.pendingSuggestion = {
+                type: cmd.action,
+                targetSlide: targetSlide,
+                field: cmd.field,
+                value: cmd.value,
+                slideTitle: state.pres.slides[targetSlide].title,
+                description: cleanedResponse,
+                originalPrompt: userMsg,
+                cmd: cmd
+              };
+              aiResponse = cleanedResponse + `\n\n📋 **Suggestion Ready** - Review the proposed changes below and click Implement to apply.`;
             }
           } catch(e) {
             console.error('Slidemod error:', e);
@@ -1245,6 +1239,115 @@ Be concise and actionable. Include slidemod commands when asked to modify slides
         const box = document.getElementById('aiChatBox');
         if (box) box.scrollTop = box.scrollHeight;
       }, 100);
+    }
+
+    // Implement the pending AI suggestion
+    function implementSuggestion() {
+      if (!state.pendingSuggestion || !state.pres) return;
+
+      const sugg = state.pendingSuggestion;
+      const slide = state.pres.slides[sugg.targetSlide];
+
+      if (sugg.type === 'update') {
+        if (sugg.field === 'items' && Array.isArray(sugg.value)) {
+          slide.items = sugg.value;
+        } else if (sugg.field === 'vitals' && typeof sugg.value === 'object') {
+          slide.vitals = { ...slide.vitals, ...sugg.value };
+        } else if (sugg.field === 'scores' && typeof sugg.value === 'object') {
+          slide.scores = { ...slide.scores, ...sugg.value };
+        } else {
+          slide[sugg.field] = sugg.value;
+        }
+      } else if (sugg.type === 'append') {
+        if (sugg.field === 'items') {
+          slide.items = [...(slide.items || []), ...(Array.isArray(sugg.value) ? sugg.value : [sugg.value])];
+        } else if (typeof slide[sugg.field] === 'string') {
+          slide[sugg.field] += '\n' + sugg.value;
+        }
+      }
+
+      savePres();
+      state.aiChat.push({
+        role: 'assistant',
+        content: `✅ **Changes Applied!** Slide ${sugg.targetSlide + 1} (${sugg.slideTitle}) has been updated.`,
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+      });
+      state.pendingSuggestion = null;
+      render();
+    }
+
+    // Reject the pending AI suggestion
+    function rejectSuggestion() {
+      if (!state.pendingSuggestion) return;
+
+      state.aiChat.push({
+        role: 'assistant',
+        content: '❌ Changes rejected. No modifications were made.',
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+      });
+      state.pendingSuggestion = null;
+      render();
+    }
+
+    // Request an alternative suggestion
+    function suggestAlternative() {
+      if (!state.pendingSuggestion) return;
+
+      const originalPrompt = state.pendingSuggestion.originalPrompt;
+      state.pendingSuggestion = null;
+      state.aiInput = `Please suggest a different approach for: "${originalPrompt}". Provide an alternative solution.`;
+      render();
+      setTimeout(() => sendAI(), 50);
+    }
+
+    // Handle data upload to modify presentation
+    function handleAIDataUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        let content = '';
+        const fileName = file.name.toLowerCase();
+
+        if (fileName.endsWith('.txt') || fileName.endsWith('.csv') || fileName.endsWith('.json')) {
+          content = e.target.result;
+        } else if (fileName.endsWith('.docx')) {
+          try {
+            const result = await mammoth.extractRawText({ arrayBuffer: e.target.result });
+            content = result.value;
+          } catch (err) {
+            content = 'Error reading DOCX file: ' + err.message;
+          }
+        } else if (fileName.endsWith('.pdf')) {
+          try {
+            const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(e.target.result) }).promise;
+            let text = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const textContent = await page.getTextContent();
+              text += textContent.items.map(item => item.str).join(' ') + '\n';
+            }
+            content = text;
+          } catch (err) {
+            content = 'Error reading PDF file: ' + err.message;
+          }
+        } else {
+          content = e.target.result;
+        }
+
+        // Send the content to AI for processing
+        state.aiInput = `I'm uploading data from file "${file.name}" to help update the presentation. Please analyze this data and suggest appropriate modifications to the relevant slides:\n\n${content.substring(0, 3000)}${content.length > 3000 ? '\n\n[Content truncated...]' : ''}`;
+        state.showAIUpload = false;
+        render();
+        setTimeout(() => sendAI(), 50);
+      };
+
+      if (file.name.endsWith('.txt') || file.name.endsWith('.csv') || file.name.endsWith('.json')) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsArrayBuffer(file);
+      }
     }
 
     function aiCommand(cmd) {
@@ -2887,6 +2990,41 @@ Example Markdown:
         </div>
       `).join('');
 
+      // Render pending suggestion preview
+      const suggestionPreview = state.pendingSuggestion ? `
+        <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 mb-3">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-lg">📋</span>
+            <span class="font-bold text-amber-800">Pending Changes</span>
+          </div>
+          <div class="text-sm text-slate-700 mb-2">
+            <strong>Target:</strong> Slide ${state.pendingSuggestion.targetSlide + 1} - ${e(state.pendingSuggestion.slideTitle)}
+          </div>
+          <div class="text-sm text-slate-700 mb-2">
+            <strong>Action:</strong> ${state.pendingSuggestion.type === 'update' ? 'Replace' : 'Append to'} ${state.pendingSuggestion.field}
+          </div>
+          <div class="bg-white rounded-lg p-3 border border-amber-100 max-h-32 overflow-auto mb-3">
+            <div class="text-xs font-medium text-slate-500 mb-1">Preview:</div>
+            <div class="text-sm text-slate-800 whitespace-pre-wrap">${Array.isArray(state.pendingSuggestion.value)
+              ? state.pendingSuggestion.value.map(item => '• ' + e(item)).join('\n')
+              : e(typeof state.pendingSuggestion.value === 'object'
+                ? JSON.stringify(state.pendingSuggestion.value, null, 2)
+                : state.pendingSuggestion.value)}</div>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button onclick="implementSuggestion()" class="flex-1 min-w-[100px] px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2">
+              ✓ Implement
+            </button>
+            <button onclick="rejectSuggestion()" class="flex-1 min-w-[100px] px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2">
+              ✕ Reject
+            </button>
+            <button onclick="suggestAlternative()" class="flex-1 min-w-[100px] px-4 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2">
+              ↻ Try Different
+            </button>
+          </div>
+        </div>
+      ` : '';
+
       return `
         <div class="fixed inset-0 bg-black/50 flex items-end z-50 animate-fadeIn" onclick="if(event.target===this)setState({showAI:false})">
           <div class="bg-white w-full rounded-t-2xl max-h-[85vh] flex flex-col modal-content">
@@ -2895,11 +3033,11 @@ Example Markdown:
                 <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-xl">🧠</div>
                 <div>
                   <div class="font-bold text-slate-800">Geriatrics AI</div>
-                  <div class="text-xs text-slate-500">Auto-modifies slides</div>
+                  <div class="text-xs text-slate-500">Review before applying changes</div>
                 </div>
               </div>
               <div class="flex gap-2">
-                <button onclick="state.aiChat=[];render()" class="text-sm text-slate-500">Clear</button>
+                <button onclick="state.aiChat=[];state.pendingSuggestion=null;render()" class="text-sm text-slate-500">Clear</button>
                 <button onclick="setState({showAI:false})" class="text-2xl text-slate-400">×</button>
               </div>
             </div>
@@ -2916,20 +3054,27 @@ Example Markdown:
                 <button onclick="aiCommand('workup')" class="flex-shrink-0 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-xs">🔬 Workup</button>
                 <button onclick="aiCommand('gaps')" class="flex-shrink-0 px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-full text-xs">⚠️ Gaps</button>
                 <button onclick="aiCommand('improve')" class="flex-shrink-0 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-xs">✨ Improve</button>
-                <button onclick="setState({showAI:false,showDrugs:true})" class="flex-shrink-0 px-3 py-1.5 bg-red-50 text-red-700 rounded-full text-xs border border-red-200">📖 Drugs</button>
+                <label class="flex-shrink-0 px-3 py-1.5 bg-cyan-100 text-cyan-700 rounded-full text-xs cursor-pointer hover:bg-cyan-200">
+                  📤 Upload Data
+                  <input type="file" accept=".txt,.csv,.json,.docx,.pdf" onchange="handleAIDataUpload(event)" class="hidden">
+                </label>
               </div>
             </div>
 
+            <!-- Pending Suggestion Preview -->
+            ${suggestionPreview ? `<div class="p-3 border-b">${suggestionPreview}</div>` : ''}
+
             <!-- Chat -->
-            <div id="aiChatBox" class="flex-1 overflow-auto p-4 space-y-3 min-h-48 max-h-72">
+            <div id="aiChatBox" class="flex-1 overflow-auto p-4 space-y-3 min-h-48 ${state.pendingSuggestion ? 'max-h-40' : 'max-h-72'}">
               ${state.aiChat.length === 0 ? `
                 <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 text-sm text-slate-600">
-                  <div class="font-medium text-slate-800 mb-2">🩺 I can modify your slides automatically:</div>
+                  <div class="font-medium text-slate-800 mb-2">🩺 AI-Powered Slide Editing:</div>
                   <ul class="space-y-1 text-xs">
-                    <li>• "Generate DDx" → Updates differential slide</li>
-                    <li>• "Add teaching points" → Updates teaching slide</li>
-                    <li>• "Review meds" → Checks Beers, interactions</li>
-                    <li>• "Create plan" → Updates management slide</li>
+                    <li>• Ask AI to generate content - review before applying</li>
+                    <li>• Use <strong>Implement</strong> to apply suggested changes</li>
+                    <li>• Use <strong>Reject</strong> to discard suggestions</li>
+                    <li>• Use <strong>Try Different</strong> for alternative ideas</li>
+                    <li>• <strong>Upload Data</strong> (PDF, DOCX, TXT) to enhance slides</li>
                   </ul>
                   ${!state.apiKey ? '<p class="mt-2 text-orange-600">⚠️ Add API key in Settings to enable AI</p>' : ''}
                 </div>
@@ -2940,10 +3085,10 @@ Example Markdown:
             <!-- Input -->
             <div class="p-4 border-t">
               <div class="flex gap-2">
-                <input id="aiInput" value="${e(state.aiInput)}" oninput="state.aiInput=this.value" 
-                  onkeypress="if(event.key==='Enter')sendAI()" 
-                  placeholder="Ask anything..." class="flex-1 border rounded-xl px-4 py-3">
-                <button onclick="sendAI()" ${state.aiLoading ? 'disabled' : ''} 
+                <input id="aiInput" value="${e(state.aiInput)}" oninput="state.aiInput=this.value"
+                  onkeypress="if(event.key==='Enter')sendAI()"
+                  placeholder="Ask AI to generate content..." class="flex-1 border rounded-xl px-4 py-3">
+                <button onclick="sendAI()" ${state.aiLoading ? 'disabled' : ''}
                   class="bg-blue-500 text-white rounded-xl px-5 font-medium disabled:opacity-50">
                   ${state.aiLoading ? '...' : 'Send'}
                 </button>
