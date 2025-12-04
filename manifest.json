@@ -1,22 +1,19 @@
 {
-  "name": "SZMC Auditor v14",
+  "name": "SZMC Auditor v14.1",
   "short_name": "SZMC Audit",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f0f2f5",
   "theme_color": "#e74c3c",
   "orientation": "any",
-  "description": "Geriatric Clinical Decision Support & Safety Auditor",
+  "description": "Geriatric Clinical Decision Support & Safety Auditor - Mobile Optimized",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3774/3774299.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/3774/3774299.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["medical", "health", "productivity"]
 }
