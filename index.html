@@ -73,6 +73,7 @@
       showEmergency: false,
       showTemplates: false,
       presentMode: false,
+      patternAlerts: {},
       timer: 0,
       timerOn: false,
       darkMode: false,
@@ -107,6 +108,7 @@
         state.darkMode = data.darkMode || false;
         state.aiHistory = data.aiHistory || [];
         state.aiTemplates = data.aiTemplates || [];
+        state.saved = state.saved.map(normalizePresentation);
       }
     } catch(e) { console.error('Load error:', e); }
 
@@ -518,6 +520,126 @@
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    function createSlideId() {
+      return 'sl-' + Math.random().toString(36).slice(2, 8) + '-' + Date.now().toString(36);
+    }
+
+    function ensureSlideIds(slides = []) {
+      slides.forEach(slide => {
+        if (!slide.id) slide.id = createSlideId();
+      });
+    }
+
+    function buildPatternAlerts(slides = []) {
+      const alerts = {};
+      const patterns = [
+        {
+          id: 'falls',
+          label: 'Falls risk cues',
+          calcType: 'morse',
+          linkLabel: 'Morse',
+          terms: ['fall', 'falls', 'falling', 'orthostatic', 'orthostatics', 'unsteady']
+        },
+        {
+          id: 'delirium',
+          label: 'Delirium screen',
+          calcType: 'cam',
+          linkLabel: 'CAM',
+          terms: ['confusion', 'delirium', 'encephalopathy', 'altered', 'cam', 'inattention']
+        },
+        {
+          id: 'frailty',
+          label: 'Frailty cues',
+          link: 'https://www.mdcalc.com/calc/10245/frail-scale',
+          linkLabel: 'FRAIL',
+          terms: ['frail', 'frailty', 'weight loss', 'sarcopenia', 'slow gait']
+        },
+        {
+          id: 'anticholinergic',
+          label: 'Anticholinergic burden',
+          link: 'https://www.mdcalc.com/calc/3894/anticholinergic-cognitive-burden-scale-acb',
+          linkLabel: 'ACB',
+          terms: ['anticholinergic', 'oxybutynin', 'diphenhydramine', 'meclizine', 'amitriptyline']
+        }
+      ];
+
+      slides.forEach(slide => {
+        const slideText = [
+          slide.title,
+          slide.subtitle,
+          slide.content,
+          slide.demographics,
+          slide.cc,
+          slide.codeStatus,
+          slide.presenter,
+          slide.date,
+          slide.findings,
+          slide.pharm,
+          slide.nonpharm,
+          ...(slide.items || []),
+          ...(slide.headers || []),
+          ...((slide.rows || []).flat ? slide.rows.flat() : []),
+          ...Object.values(slide.scores || {}),
+          ...Object.values(slide.vitals || {})
+        ].join(' ').toLowerCase();
+
+        patterns.forEach(pat => {
+          if (pat.terms.some(term => slideText.includes(term.toLowerCase()))) {
+            alerts[slide.id] = alerts[slide.id] || [];
+            alerts[slide.id].push({
+              id: pat.id,
+              label: pat.label,
+              calcType: pat.calcType,
+              link: pat.link,
+              linkLabel: pat.linkLabel
+            });
+          }
+        });
+      });
+
+      return alerts;
+    }
+
+    function runPatternAlertSmokeTest() {
+      const sampleSlides = [
+        { id: 's1', title: 'Recurrent falls with orthostatics', content: '' },
+        { id: 's2', title: 'New confusion and delirium risk', content: '' },
+        { id: 's3', title: 'Marked frailty and weight loss', content: '' },
+        { id: 's4', title: 'Anticholinergic medications: oxybutynin', content: '' }
+      ];
+
+      const alerts = buildPatternAlerts(sampleSlides);
+
+      console.assert(alerts.s1?.some(a => a.id === 'falls'), 'Falls alert not detected');
+      console.assert(alerts.s2?.some(a => a.id === 'delirium'), 'Delirium alert not detected');
+      console.assert(alerts.s3?.some(a => a.id === 'frailty'), 'Frailty alert not detected');
+      console.assert(alerts.s4?.some(a => a.id === 'anticholinergic'), 'Anticholinergic alert not detected');
+    }
+
+    function normalizePresentation(p) {
+      if (!p || !Array.isArray(p.slides)) return p;
+      ensureSlideIds(p.slides);
+      p.patternAlerts = p.patternAlerts || buildPatternAlerts(p.slides);
+      return p;
+    }
+
+    function refreshPatternAlerts() {
+      if (!state.pres?.slides) return;
+      ensureSlideIds(state.pres.slides);
+      state.patternAlerts = buildPatternAlerts(state.pres.slides);
+      state.pres.patternAlerts = state.patternAlerts;
+    }
+
+    function openPatternLink(calcType, link) {
+      if (calcType) {
+        setState({ showCalc: true, calcType });
+        return;
+      }
+      if (link) window.open(link, '_blank');
+    }
+
+    runPatternAlertSmokeTest();
+
     function setState(updates) {
       Object.assign(state, updates);
       render();
@@ -778,7 +900,7 @@
         p.id = Date.now() + Math.random();
         p.created = p.created || new Date().toISOString();
         p.modified = new Date().toISOString();
-        state.saved.push(p);
+        state.saved.push(normalizePresentation(p));
       });
 
       save();
@@ -1103,7 +1225,10 @@ Potassium,20mEq,daily,Keep K >4.0`;
         template: templateKey,
         slides: JSON.parse(JSON.stringify(template.slides))
       };
-      
+
+      normalizePresentation(newPres);
+      state.patternAlerts = newPres.patternAlerts;
+
       state.saved.push(newPres);
       state.pres = newPres;
       state.slide = 0;
@@ -1114,7 +1239,8 @@ Potassium,20mEq,daily,Keep K >4.0`;
     }
 
     function openPresentation(p) {
-      state.pres = p;
+      state.pres = normalizePresentation(p);
+      state.patternAlerts = state.pres.patternAlerts || {};
       state.slide = 0;
       state.view = 'editor';
       render();
@@ -1131,6 +1257,7 @@ Potassium,20mEq,daily,Keep K >4.0`;
       state.saved.splice(idx, 1);
       if (state.pres?.id === p?.id) {
         state.pres = null;
+        state.patternAlerts = {};
         state.view = 'home';
       }
       save();
@@ -1143,6 +1270,7 @@ Potassium,20mEq,daily,Keep K >4.0`;
       state.saved = state.saved.filter(p => p.id !== id);
       if (state.pres?.id === id) {
         state.pres = null;
+        state.patternAlerts = {};
         state.view = 'home';
       }
       save();
@@ -1151,6 +1279,7 @@ Potassium,20mEq,daily,Keep K >4.0`;
 
     function savePres() {
       if (!state.pres) return;
+      refreshPatternAlerts();
       state.pres.modified = new Date().toISOString();
       state.saved = state.saved.map(p => p.id === state.pres.id ? state.pres : p);
       save();
@@ -1165,7 +1294,7 @@ Potassium,20mEq,daily,Keep K >4.0`;
 
     function addSlide(type) {
       if (!state.pres) return;
-      const newSlide = { type, title: 'New Slide', content: '', items: [] };
+      const newSlide = { id: createSlideId(), type, title: 'New Slide', content: '', items: [] };
       state.pres.slides.splice(state.slide + 1, 0, newSlide);
       state.slide++;
       savePres();
@@ -2526,12 +2655,17 @@ Example Markdown:
       const s = state.pres.slides[state.slide];
       
       // Slide thumbnails
-      const thumbs = state.pres.slides.map((sl, i) => `
-        <button onclick="setState({slide:${i}})" 
-          class="flex-shrink-0 px-3 py-2 rounded-lg text-xs whitespace-nowrap transition ${i === state.slide ? 'bg-blue-500 text-white shadow' : 'bg-white shadow-sm'}">
-          ${i + 1}. ${e(sl.title.substring(0, 12))}${sl.title.length > 12 ? '...' : ''}
-        </button>
-      `).join('');
+      const thumbs = state.pres.slides.map((sl, i) => {
+        const alerts = state.patternAlerts?.[sl.id] || [];
+        const badge = alerts.length ? `<span class="ml-2 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full ${i === state.slide ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}" title="${alerts.map(a => e(a.label)).join(' • ')}">⚡ ${alerts.map(a => a.linkLabel || a.label).join('/')}</span>` : '';
+        return `
+          <button onclick="setState({slide:${i}})"
+            class="flex-shrink-0 px-3 py-2 rounded-lg text-xs whitespace-nowrap transition ${i === state.slide ? 'bg-blue-500 text-white shadow' : 'bg-white shadow-sm'}">
+            ${i + 1}. ${e(sl.title.substring(0, 12))}${sl.title.length > 12 ? '...' : ''}
+            ${badge}
+          </button>
+        `;
+      }).join('');
 
       // Slide content
       let content = '';
@@ -2615,6 +2749,16 @@ Example Markdown:
           content = `<div class="whitespace-pre-wrap">${e(s.content) || '<span class="text-slate-400">No content</span>'}</div>`;
       }
 
+      const currentAlerts = state.patternAlerts?.[s.id] || [];
+      const alertPills = currentAlerts.length ? `
+        <div class="flex flex-wrap gap-2 mt-3" aria-label="Slide safety cues">
+          ${currentAlerts.map(al => `
+            <button onclick="openPatternLink('${al.calcType || ''}','${al.link || ''}')" title="${e(al.label)}" class="text-[11px] px-2 py-1 rounded-full bg-amber-100 text-amber-800 hover:bg-amber-200 flex items-center gap-1">
+              ⚡ ${e(al.linkLabel || al.label)}
+            </button>
+          `).join('')}
+        </div>` : '';
+
       return `
         <div class="min-h-screen bg-slate-100 pb-20">
           <!-- Header -->
@@ -2643,6 +2787,7 @@ Example Markdown:
               <div class="text-xs text-slate-400 mb-1">${s.type.toUpperCase()}</div>
               <h2 class="text-xl font-bold mb-4 text-slate-800">${e(s.title)}</h2>
               ${content}
+              ${alertPills}
             </div>
 
             <!-- Edit Button -->
