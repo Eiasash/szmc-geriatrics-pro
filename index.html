@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SZMC Geriatrics: Universal v12.1 (Fix)</title>
+    <title>SZMC Pro: Universal v12.2 (AI Fix)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
@@ -20,7 +20,7 @@
         /* SIDEBAR */
         .sidebar { width: 300px; background: var(--sidebar); border-right: 1px solid #bdc3c7; display: flex; flex-direction: column; padding: 20px; z-index: 2; }
         .logo { font-size: 1.4rem; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-        .badge { background: #27ae60; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; }
+        .badge { background: #8e44ad; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; }
 
         /* DROPZONE */
         .drop-zone {
@@ -55,7 +55,7 @@
 <body>
 
 <div class="sidebar">
-    <div class="logo"><span>SZMC Pro</span><span class="badge">v12.1 Fix</span></div>
+    <div class="logo"><span>SZMC Pro</span><span class="badge">v12.2 AI Fix</span></div>
     
     <div class="drop-zone" onclick="document.getElementById('file-in').click()" id="drop-area">
         <span class="drop-icon">📂</span>
@@ -99,9 +99,12 @@
     <div class="preview-col">
         <div style="background:white; padding:20px; border-radius:8px; box-shadow:0 4px 6px rgba(0,0,0,0.05);">
             <div style="font-weight:800; color:var(--primary); margin-bottom:15px; border-bottom:1px solid #eee;">Tools</div>
-            <button class="btn btn-ai" onclick="generatePrompt()">✨ AI Prompt</button>
+            <button class="btn btn-ai" onclick="generatePrompt()">✨ Copy AI Prompt</button>
             <button class="btn btn-ppt" onclick="exportPPT()">📊 Export PPTX</button>
             <button class="btn btn-doc" onclick="exportDOC()">📝 Export Word</button>
+        </div>
+        <div style="font-size:0.8rem; color:#7f8c8d; background:#eee; padding:10px; border-radius:4px;">
+            <strong>Tip:</strong> If the text boxes are empty, the "AI Prompt" button will automatically grab the Raw Text instead.
         </div>
     </div>
 </div>
@@ -127,26 +130,18 @@
         statusDiv.innerText = "Reading " + ext.toUpperCase() + "...";
 
         try {
-            // A. PPTX (FIXED: XML Parsing)
+            // A. PPTX (XML Parsing)
             if (ext === 'pptx') {
                 const zip = await JSZip.loadAsync(file);
-                // Get all slide files
                 const slideFiles = Object.keys(zip.files).filter(n => n.match(/ppt\/slides\/slide\d+\.xml/));
-                
-                // Sort slides numerically (Slide 1, Slide 2, Slide 10...)
-                slideFiles.sort((a,b) => {
-                    return parseInt(a.match(/slide(\d+)\.xml/)[1]) - parseInt(b.match(/slide(\d+)\.xml/)[1]);
-                });
+                // Numerical Sort
+                slideFiles.sort((a,b) => parseInt(a.match(/slide(\d+)\.xml/)[1]) - parseInt(b.match(/slide(\d+)\.xml/)[1]));
 
                 for(let k of slideFiles) {
                     const xmlText = await zip.file(k).async("string");
                     const parser = new DOMParser();
                     const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-                    
-                    // SAFE EXTRACTION: Use documentElement.textContent for XML
-                    if (xmlDoc.documentElement) {
-                        text += xmlDoc.documentElement.textContent + "\n\n";
-                    }
+                    if (xmlDoc.documentElement) text += xmlDoc.documentElement.textContent + "\n\n";
                 }
             }
             // B. PDF
@@ -184,6 +179,7 @@
     // --- 2. SMART POPULATE ---
     function smartPopulate(text) {
         const set = (id, r) => { let m = text.match(r); if(m) document.getElementById(id).value = m[1].trim(); }
+        // Try to match headers
         set('age', /(\d{2,3})\s?(y|yo|Year)/i);
         set('hpi', /(?:HPI|History|Anamnesis)[:\s]+([\s\S]*?)(?=\n\s*(?:PMH|Back|Meds)|$)/i);
         set('pmh', /(?:PMH|Background)[:\s]+([\s\S]*?)(?=\n\s*(?:Med|Lab)|$)/i);
@@ -193,27 +189,24 @@
 
     // --- 3. EXPORTS ---
     const v = (id) => document.getElementById(id).value || "";
+    const raw = () => document.getElementById('raw-text').value || "";
 
     function exportPPT() {
         let pres = new PptxGenJS();
         
-        // Slide 1
         let s1 = pres.addSlide();
         s1.addText("Geriatric Case", {x:1, y:2, fontSize:32, color:'2c3e50', bold:true});
         s1.addText(`${v('age')}yo ${v('sex')} - ${v('cc')}`, {x:1, y:3, fontSize:24, color:'7f8c8d'});
 
-        // Slide 2: HPI
         let s2 = pres.addSlide();
         s2.addText("HPI", {x:0.5, y:0.5, fontSize:18, color:'3498db', bold:true});
-        s2.addText(v('hpi'), {x:0.5, y:1.0, w:'90%', fontSize:14});
+        s2.addText(v('hpi') || raw().substring(0,500) + "...", {x:0.5, y:1.0, w:'90%', fontSize:14});
 
-        // Slide 3: Meds & Labs
         let s3 = pres.addSlide();
         s3.addText("Objective", {x:0.5, y:0.5, fontSize:18, color:'3498db', bold:true});
         s3.addText("Meds: " + v('meds'), {x:0.5, y:1.0, w:'45%', fontSize:12});
         s3.addText("Labs: " + v('labs'), {x:5.0, y:1.0, w:'45%', fontSize:12});
 
-        // Slide 4: Plan
         let s4 = pres.addSlide();
         s4.addText("Plan", {x:0.5, y:0.5, fontSize:18, color:'3498db', bold:true});
         s4.addText(v('plan'), {x:0.5, y:1.0, w:'90%', fontSize:14});
@@ -222,7 +215,7 @@
     }
 
     function exportDOC() {
-        const content = `<h1>Case Report</h1><p><strong>Pt:</strong> ${v('age')} ${v('sex')}</p><h3>HPI</h3><p>${v('hpi')}</p><h3>Assessment</h3><p>${v('plan')}</p>`;
+        const content = `<h1>Case Report</h1><p><strong>Pt:</strong> ${v('age')} ${v('sex')}</p><h3>HPI</h3><p>${v('hpi') || raw()}</p><h3>Assessment</h3><p>${v('plan')}</p>`;
         const blob = new Blob(['<!DOCTYPE html><html><body>'+content+'</body></html>'], {type: 'application/msword'});
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -230,10 +223,36 @@
         a.click();
     }
 
+    // --- 4. IMPROVED AI PROMPT ---
     function generatePrompt() {
-        const p = `Summarize case: ${v('age')}yo ${v('sex')}. HPI: ${v('hpi')}. Meds: ${v('meds')}. Plan: ${v('plan')}. Focus on geriatric issues.`;
+        let p = "";
+        
+        // Strategy: Use structured data if we have it, otherwise fallback to the Raw Text dump.
+        const hasStructured = v('hpi').length > 10 || v('meds').length > 10;
+        
+        p += "Act as a Senior Geriatrician. I need a comprehensive Case Presentation and Assessment.\n\n";
+        
+        if (hasStructured) {
+             p += `PATIENT: ${v('age')} ${v('sex')}\n`;
+             p += `CC: ${v('cc')}\n`;
+             p += `HPI: ${v('hpi')}\n`;
+             p += `PMH: ${v('pmh')}\n`;
+             p += `MEDICATIONS: ${v('meds')}\n`;
+             p += `LABS/OBJECTIVE: ${v('labs')}\n`;
+             p += `CURRENT PLAN: ${v('plan')}\n\n`;
+        } else {
+             p += "I have extracted the following text from a medical document/image. It is messy. Please organize it into a clinical summary:\n\n";
+             p += `--- START RAW DATA ---\n${raw()}\n--- END RAW DATA ---\n\n`;
+        }
+
+        p += "TASKS:\n";
+        p += "1. Summarize the HPI and primary medical issues.\n";
+        p += "2. Identify potential Geriatric Syndromes (Falls, Delirium, Frailty, Incontinence).\n";
+        p += "3. Review the Medication List for Polypharmacy and Beer's Criteria (flag inappropriate meds).\n";
+        p += "4. Suggest a prioritized Assessment & Plan.";
+
         navigator.clipboard.writeText(p);
-        alert("Prompt copied!");
+        alert("Prompt copied to clipboard! (Includes fallback to raw text if fields were empty)");
     }
 </script>
 </body>
