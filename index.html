@@ -2888,7 +2888,8 @@ Example Markdown:
         </button>
       `).join('');
 
-      const lastEvidence = (state.aiTemplates || []).find(t => t.type === 'evidence');
+      const lastEvidence = (state.aiTemplates || []).find(t => t.type === 'evidence')
+        || (state.lastEvidenceId ? EVIDENCE_LIBRARY.find(ev => ev.id === state.lastEvidenceId) : null);
       const evidenceSelect = `
         <div class="px-3 pb-3">
           <div class="flex items-center justify-between mb-2">
@@ -3236,7 +3237,14 @@ Example Markdown:
     }
 
     function reuseCachedEvidence() {
-      const cached = (state.aiTemplates || []).find(t => t.type === 'evidence');
+      let cached = (state.aiTemplates || []).find(t => t.type === 'evidence');
+      if (!cached && state.lastEvidenceId) {
+        const ev = EVIDENCE_LIBRARY.find(e => e.id === state.lastEvidenceId);
+        if (ev) {
+          cached = { ...ev, content: buildEvidenceText(ev) };
+        }
+      }
+
       if (!cached) {
         showToast('No cached evidence yet');
         return;
