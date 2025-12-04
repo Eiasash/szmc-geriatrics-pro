@@ -2,224 +2,288 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SZMC Pro: One-Click v15</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SZMC Pro: Mobile v15.1</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
+    
     <style>
         :root { --primary: #2c3e50; --accent: #27ae60; --bg: #f4f6f7; --sidebar: #ffffff; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
 
-        /* SIDEBAR */
-        .sidebar { width: 300px; background: var(--sidebar); border-right: 1px solid #dce1e6; display: flex; flex-direction: column; padding: 25px; z-index: 2; box-shadow: 4px 0 15px rgba(0,0,0,0.03); }
-        .logo { font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-bottom: 25px; display:flex; justify-content:space-between; align-items:center; }
-        .badge { background: var(--accent); color: white; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; }
+        /* SIDEBAR (Desktop) */
+        .sidebar { width: 300px; background: var(--sidebar); border-right: 1px solid #dce1e6; display: flex; flex-direction: column; padding: 20px; z-index: 2; overflow-y: auto; }
+        .logo { font-size: 1.4rem; font-weight: 800; color: var(--primary); margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center; }
+        .badge { background: var(--accent); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; }
         
-        .drop-zone { border: 2px dashed #bdc3c7; border-radius: 12px; padding: 30px 10px; text-align: center; background: #fafafa; cursor: pointer; transition: 0.2s; }
-        .drop-zone:hover { border-color: var(--accent); background: #eafaf1; }
+        /* DROPZONE */
+        .drop-zone { border: 2px dashed #bdc3c7; border-radius: 12px; padding: 20px 10px; text-align: center; background: #fafafa; cursor: pointer; transition: 0.2s; min-height: 120px; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+        .drop-zone:active { background: #eafaf1; border-color: var(--accent); }
         
-        /* MAIN LAYOUT */
-        .main { flex: 1; padding: 30px; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-        .card { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); display: flex; flex-direction: column; }
-        
-        /* HEADERS */
-        h2 { margin-top:0; font-size:1.1rem; color:var(--primary); border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:20px; }
-        label { display: block; font-size: 0.7rem; font-weight: 700; color: #95a5a6; margin-bottom: 5px; text-transform: uppercase; }
+        /* MAIN LAYOUT (Desktop) */
+        .main { flex: 1; padding: 20px; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-bottom: 80px; }
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; height: fit-content; }
         
         /* INPUTS */
-        input, textarea { width: 100%; padding: 12px; border: 1px solid #e1e4e8; border-radius: 8px; font-family: inherit; font-size: 0.9rem; box-sizing: border-box; background: #fdfdfd; margin-bottom: 15px; }
+        h2 { margin-top:0; font-size:1rem; color:var(--primary); border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px; font-weight:700; }
+        label { display: block; font-size: 0.75rem; font-weight: 700; color: #7f8c8d; margin-bottom: 5px; text-transform: uppercase; letter-spacing:0.5px; }
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #e1e4e8; border-radius: 8px; font-size: 16px; /* Prevents iOS zoom */ background: #fdfdfd; margin-bottom: 15px; -webkit-appearance: none; }
         input:focus, textarea:focus { border-color: var(--accent); outline: none; background: white; }
-        textarea { resize: vertical; }
 
         /* BUTTONS */
-        .btn { padding: 15px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; color: white; width: 100%; font-size: 1rem; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; transition: transform 0.1s; }
-        .btn:active { transform: scale(0.98); }
-        .btn-magic { background: linear-gradient(135deg, #27ae60, #2ecc71); box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3); }
-        .btn-ppt { background: #e67e22; }
+        .btn { padding: 14px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; color: white; width: 100%; font-size: 0.95rem; margin-top: 5px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn:active { transform: scale(0.96); opacity: 0.9; }
+        .btn-magic { background: linear-gradient(135deg, #27ae60, #2ecc71); }
+        .btn-ppt { background: #e67e22; margin-bottom: 10px; }
         .btn-doc { background: #2980b9; }
         
-        /* AI BOX */
-        .ai-box { border: 2px solid #27ae60; background: #f0fcf4; color: #2c3e50; font-family: monospace; }
-        
+        .ai-box { border: 2px solid #27ae60; background: #f0fcf4; color: #2c3e50; font-family: monospace; font-size: 0.85rem; }
         #status { font-size: 0.8rem; color: #e67e22; text-align: center; margin-top: 10px; min-height: 1.2em; font-weight: bold; }
+
+        /* --- MOBILE RESPONSIVE ENGINE --- */
+        @media (max-width: 768px) {
+            body { flex-direction: column; height: auto; overflow: auto; }
+            .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #ddd; padding: 15px; flex-shrink: 0; }
+            .main { display: flex; flex-direction: column; height: auto; overflow: visible; padding: 15px; }
+            .drop-zone { padding: 15px; min-height: 100px; }
+            textarea { min-height: 100px; }
+            .ai-box { min-height: 200px; }
+            /* Hide raw text on mobile to save space */
+            #raw-text-container { display: none; } 
+        }
     </style>
 </head>
 <body>
 
 <div class="sidebar">
-    <div class="logo"><span>SZMC Pro</span> <span class="badge">v15.0</span></div>
+    <div class="logo"><span>SZMC Pro</span> <span class="badge">v15.1 Mobile</span></div>
     
     <div class="drop-zone" onclick="document.getElementById('file-in').click()" id="drop-area">
-        <div style="font-size:2rem;">📂</div>
-        <div style="font-weight:700; color:#2c3e50; margin-top:10px;">Drop File Here</div>
-        <div style="font-size:0.75rem; color:#7f8c8d; margin-top:5px;">PDF • DOCX • HTML • IMG</div>
+        <div style="font-size:1.8rem;">📂</div>
+        <div style="font-weight:700; color:#2c3e50; margin-top:5px;">Import File</div>
+        <div style="font-size:0.7rem; color:#7f8c8d;">PDF • DOCX • HTML • JPG</div>
         <input type="file" id="file-in" style="display:none" onchange="handleFile(this)">
     </div>
     <div id="status"></div>
     
-    <div style="margin-top:auto">
-        <label>Step 1: Extracted Data</label>
-        <textarea id="raw-text" style="height:300px; font-size:0.75rem;" placeholder="Raw text appears here..."></textarea>
+    <div id="raw-text-container" style="margin-top:20px;">
+        <label>Raw Data</label>
+        <textarea id="raw-text" style="height:150px; font-size:0.7rem; font-family:monospace;" placeholder="Text extractor..."></textarea>
     </div>
 </div>
 
 <div class="main">
     <div class="card">
-        <h2>2. Clinical Data (Auto-Filled)</h2>
+        <h2>1. Patient Data</h2>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-            <div><label>Age/Sex</label><input type="text" id="age_sex" placeholder="85M"></div>
-            <div><label>Initials</label><input type="text" id="initials" placeholder="A.B."></div>
+            <div><label>Age/Sex</label><input type="text" id="age_sex" placeholder="e.g. 85F"></div>
+            <div><label>Initials</label><input type="text" id="initials" placeholder="e.g. A.B."></div>
         </div>
-        <label>Chief Complaint</label><input type="text" id="cc">
-        <label>HPI</label><textarea id="hpi" rows="5"></textarea>
-        <label>Meds</label><textarea id="meds" rows="5"></textarea>
-        <label>Labs/Objective</label><textarea id="labs" rows="5"></textarea>
+        <label>CC / HPI</label><textarea id="hpi" rows="4" placeholder="Admitted for..."></textarea>
+        <label>Meds & Labs</label><textarea id="meds" rows="4" placeholder="List meds and labs..."></textarea>
         
         <button class="btn btn-magic" onclick="generateMagicPrompt()">
-            <span>✨</span> Copy "All-in-One" Prompt
+            <span>✨</span> Copy AI Prompt
         </button>
-        <div style="text-align:center; font-size:0.75rem; color:#7f8c8d; margin-top:10px;">
-            Copies a Master Prompt to clipboard. Paste into Claude/ChatGPT.
-        </div>
     </div>
 
     <div class="card">
-        <h2>3. Paste AI Result & Export</h2>
-        <label>Paste Claude/ChatGPT Response Here:</label>
-        <textarea id="ai-response" class="ai-box" rows="20" placeholder="Paste the full AI analysis here. The tool will automatically attach this text to your PPTX/Word export..."></textarea>
+        <h2>2. AI Result & Export</h2>
+        <label>Paste Claude/GPT Answer Here:</label>
+        <textarea id="ai-response" class="ai-box" rows="12" placeholder="Paste the full AI analysis here. This text will be included in your export."></textarea>
         
-        <div style="margin-top:auto;">
-            <button class="btn btn-ppt" onclick="exportPPT()">📊 Download Presentation</button>
-            <button class="btn btn-doc" onclick="exportDOC()">📝 Download Word Report</button>
+        <div style="margin-top:20px;">
+            <button class="btn btn-ppt" onclick="exportPPT()">📊 Download PPTX (Slides)</button>
+            <button class="btn btn-doc" onclick="exportDOC()">📝 Download Word (Doc)</button>
         </div>
     </div>
 </div>
 
 <script>
-    // --- IMPORT ENGINE (Added HTML & DOCX Support) ---
+    // --- 1. IMPORT ENGINE ---
     const dropArea = document.getElementById('drop-area');
     const statusDiv = document.getElementById('status');
 
-    dropArea.addEventListener('dragover', (e) => { e.preventDefault(); dropArea.style.background = '#eafaf1'; });
-    dropArea.addEventListener('dragleave', (e) => { e.preventDefault(); dropArea.style.background = '#fafafa'; });
-    dropArea.addEventListener('drop', (e) => { e.preventDefault(); dropArea.style.background = '#fafafa'; if(e.dataTransfer.files.length) handleFile({files: e.dataTransfer.files}); });
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+    function preventDefaults (e) { e.preventDefault(); e.stopPropagation(); }
+
+    // Highlight drop area
+    ['dragenter', 'dragover'].forEach(eventName => { dropArea.addEventListener(eventName, () => dropArea.style.background = '#eafaf1', false); });
+    ['dragleave', 'drop'].forEach(eventName => { dropArea.addEventListener(eventName, () => dropArea.style.background = '#fafafa', false); });
+
+    // Handle Drop
+    dropArea.addEventListener('drop', (e) => {
+        let dt = e.dataTransfer;
+        let files = dt.files;
+        handleFile({files: files});
+    }, false);
 
     async function handleFile(input) {
         const file = input.files[0];
         if(!file) return;
         const ext = file.name.split('.').pop().toLowerCase();
         let text = "";
-        statusDiv.innerText = "Reading " + ext.toUpperCase() + "...";
+        statusDiv.innerText = "Reading...";
 
         try {
             if (ext === 'pptx') {
                 const zip = await JSZip.loadAsync(file);
-                const slides = Object.keys(zip.files).filter(n => n.match(/ppt\/slides\/slide\d+\.xml/)).sort((a,b)=>parseInt(a.match(/\d+/)[0])-parseInt(b.match(/\d+/)[0]));
-                for(let s of slides) { const t = await zip.file(s).async("string"); const d = new DOMParser().parseFromString(t,"text/xml"); if(d.documentElement) text+=d.documentElement.textContent+"\n"; }
-            } else if (ext === 'pdf') {
+                // Filter and numerical sort for slides
+                const slides = Object.keys(zip.files).filter(n => n.match(/ppt\/slides\/slide\d+\.xml/)).sort((a,b)=>{
+                    return parseInt(a.match(/\d+/)[0]) - parseInt(b.match(/\d+/)[0]);
+                });
+                for(let s of slides) { 
+                    const t = await zip.file(s).async("string"); 
+                    const d = new DOMParser().parseFromString(t,"text/xml"); 
+                    // Safe access to textContent
+                    if(d.documentElement) text += (d.documentElement.textContent || "") + "\n\n"; 
+                }
+            } 
+            else if (ext === 'pdf') {
                 const pdf = await pdfjsLib.getDocument(await file.arrayBuffer()).promise;
                 for(let i=1; i<=pdf.numPages; i++) text += (await (await pdf.getPage(i)).getTextContent()).items.map(s=>s.str).join(' ') + " ";
-            } else if (ext === 'docx') {
-                // Mammoth for DOCX
+            } 
+            else if (ext === 'docx') {
                 const res = await mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()});
                 text = res.value;
-            } else if (ext === 'html' || ext === 'htm') {
-                // HTML Parser (Hospital Web Exports)
-                const doc = new DOMParser().parseFromString(await file.text(), 'text/html');
-                text = doc.body.innerText;
-            } else if (['jpg','png'].includes(ext)) {
-                statusDiv.innerText = "OCR..."; const w = await Tesseract.createWorker('eng');
-                const r = await w.recognize(file); text = r.data.text; await w.terminate();
-            } else { text = await file.text(); } // Fallback for .txt
+            } 
+            else if (['html', 'htm', 'txt'].includes(ext)) {
+                text = await file.text();
+                // Strip tags if HTML
+                if(ext.includes('htm')) {
+                    const doc = new DOMParser().parseFromString(text, 'text/html');
+                    text = doc.body.innerText;
+                }
+            }
+            else if (['jpg','png','jpeg'].includes(ext)) {
+                statusDiv.innerText = "OCR (Wait)..."; 
+                const w = await Tesseract.createWorker('eng');
+                const r = await w.recognize(file); 
+                text = r.data.text; 
+                await w.terminate();
+            } 
             
             document.getElementById('raw-text').value = text;
             smartPopulate(text);
-            statusDiv.innerText = "Done!";
-        } catch (err) { console.error(err); statusDiv.innerText = "Error!"; alert("Import failed."); }
+            statusDiv.innerText = "Success!";
+            setTimeout(()=>statusDiv.innerText="", 2000);
+        } catch (err) { 
+            console.error(err); 
+            statusDiv.innerText = "Error"; 
+            alert("Could not read file. " + err.message); 
+        }
     }
 
-    // --- SIMPLE PARSER ---
+    // --- 2. POPULATOR ---
     function smartPopulate(text) {
-        const set = (id, r) => { let m = text.match(r); if(m) document.getElementById(id).value = m[1].trim(); }
+        const set = (id, r) => { let m = text.match(r); if(m && m[1]) document.getElementById(id).value = m[1].trim(); }
         set('age_sex', /(\d{2,3}\s?[MmFf])/);
         set('hpi', /(?:HPI|History)[:\s]+([\s\S]*?)(?=\n\s*(?:PMH|Meds)|$)/i);
         set('meds', /(?:Meds|Medications)[:\s]+([\s\S]*?)(?=\n\s*(?:Labs|Plan)|$)/i);
-        set('labs', /(?:Labs|Objective)[:\s]+([\s\S]*?)(?=\n\s*(?:Plan|Impression)|$)/i);
     }
 
-    // --- MAGIC PROMPT ---
+    // --- 3. PROMPT ---
     function generateMagicPrompt() {
         const v = (id) => document.getElementById(id).value;
         const p = `Act as a Senior Geriatrician.
 I will provide clinical data. Please output a response with TWO SECTIONS:
 
 SECTION 1: SAFETY AUDIT (Strict)
-- Flag any Drug Interactions.
-- Flag Beers Criteria violations.
-- Flag Missing Workups.
+- Flag Drug Interactions.
+- Flag Beers Criteria.
 
 SECTION 2: CLINICAL SUMMARY (Professional)
-- Write a clear Admission Note / Case Presentation.
-- Include a logical Assessment & Plan.
+- Case Presentation style.
+- Assessment & Plan.
 
 DATA:
 ID: ${v('age_sex')}
-CC: ${v('cc')}
 HPI: ${v('hpi')}
-MEDS: ${v('meds')}
-LABS: ${v('labs')}`;
+MEDS/LABS: ${v('meds')}`;
 
         navigator.clipboard.writeText(p);
-        alert("✨ Copied! Paste this into AI, then paste the answer back here.");
+        alert("Prompt Copied! Paste into AI.");
     }
 
-    // --- EXPORTS (Now includes AI Response) ---
-    function exportPPT() {
-        let pres = new PptxGenJS();
-        const v = (id) => document.getElementById(id).value || "";
-        
-        // Slide 1: ID
-        let s1 = pres.addSlide();
-        s1.addText("Geriatric Case", {x:1, y:2, fontSize:32, color:'2c3e50', bold:true});
-        s1.addText(`${v('age_sex')} - ${v('initials')}`, {x:1, y:3, fontSize:24, color:'7f8c8d'});
-        
-        // Slide 2: Clinical Data
-        let s2 = pres.addSlide();
-        s2.addText("Clinical Data", {x:0.5, y:0.5, fontSize:18, color:'27ae60', bold:true});
-        s2.addText(`HPI: ${v('hpi').substring(0,300)}...`, {x:0.5, y:1, w:'90%', fontSize:14});
-        s2.addText(`MEDS: ${v('meds').substring(0,200)}...`, {x:0.5, y:3, w:'90%', fontSize:12});
-        
-        // Slide 3: AI Analysis (The Paste-Back)
-        let s3 = pres.addSlide();
-        s3.addText("AI Analysis & Plan", {x:0.5, y:0.5, fontSize:18, color:'c0392b', bold:true});
-        s3.addText(v('ai-response'), {x:0.5, y:1, w:'90%', h:'80%', fontSize:11, color:'333333'});
+    // --- 4. SAFE EXPORTS ---
+    const getVal = (id) => document.getElementById(id).value || " ";
 
-        pres.writeFile({ fileName: `Case_${v('initials')}.pptx` });
+    function exportPPT() {
+        try {
+            let pres = new PptxGenJS();
+            
+            // Slide 1
+            let s1 = pres.addSlide();
+            s1.addText("Geriatric Case", {x:1, y:2, fontSize:32, color:'2c3e50', bold:true});
+            s1.addText(`${getVal('age_sex')} - ${getVal('initials')}`, {x:1, y:3, fontSize:24, color:'7f8c8d'});
+            
+            // Slide 2 (Data)
+            let s2 = pres.addSlide();
+            s2.addText("Clinical Context", {x:0.5, y:0.5, fontSize:18, color:'27ae60', bold:true});
+            s2.addText(`HPI: ${getVal('hpi').substring(0,400)}`, {x:0.5, y:1, w:'90%', h:2, fontSize:14});
+            s2.addText(`MEDS: ${getVal('meds').substring(0,400)}`, {x:0.5, y:3.5, w:'90%', h:2, fontSize:12});
+            
+            // Slide 3 (AI)
+            let s3 = pres.addSlide();
+            s3.addText("Analysis & Plan", {x:0.5, y:0.5, fontSize:18, color:'c0392b', bold:true});
+            // Split long text to prevent overflow
+            const aiText = getVal('ai-response');
+            s3.addText(aiText.substring(0, 1000), {x:0.5, y:1, w:'90%', h:'80%', fontSize:12, color:'333333'});
+            
+            // Slide 4 (Overflow if needed)
+            if(aiText.length > 1000) {
+                let s4 = pres.addSlide();
+                s4.addText("Plan (Cont.)", {x:0.5, y:0.5, fontSize:18, color:'c0392b'});
+                s4.addText(aiText.substring(1000, 2000), {x:0.5, y:1, w:'90%', h:'80%', fontSize:12});
+            }
+
+            pres.writeFile({ fileName: `Case_${getVal('initials')}.pptx` });
+        } catch(e) {
+            alert("PPT Export Error: " + e.message);
+        }
     }
 
     function exportDOC() {
-        const v = (id) => document.getElementById(id).value || "";
+        // CORRUPTION FIX: Use UTF-8 BOM (\ufeff) and proper XML namespaces
+        const preHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Case</title></head><body>";
+        const postHtml = "</body></html>";
+        
         const content = `
-            <h1>Geriatric Case Report</h1>
-            <h3>Raw Data</h3>
-            <p><strong>ID:</strong> ${v('age_sex')} (${v('initials')})</p>
-            <p><strong>HPI:</strong> ${v('hpi')}</p>
-            <p><strong>Meds:</strong> ${v('meds')}</p>
+            <h1 style="color:#2c3e50">Geriatric Case Report</h1>
+            <p><strong>ID:</strong> ${getVal('age_sex')} (${getVal('initials')})</p>
+            <h3>HPI</h3><p>${getVal('hpi')}</p>
+            <h3>Meds/Labs</h3><p>${getVal('meds')}</p>
             <hr>
-            <h3>AI Audit & Synthesis</h3>
-            <pre style="font-family:sans-serif; white-space:pre-wrap;">${v('ai-response')}</pre>
+            <h3>Analysis & Plan</h3>
+            <div style="font-family: Arial; white-space: pre-wrap;">${getVal('ai-response')}</div>
         `;
-        const blob = new Blob(['<!DOCTYPE html><html><body>'+content+'</body></html>'], {type: 'application/msword'});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Case_${v('initials')}.doc`; a.click();
+        
+        const html = preHtml + content + postHtml;
+        
+        // The \ufeff BOM is critical for Hebrew/Unicode in Word
+        const blob = new Blob(['\ufeff', html], {
+            type: 'application/msword'
+        });
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Case_${getVal('initials')}.doc`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 </script>
 </body>
