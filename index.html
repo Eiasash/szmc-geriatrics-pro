@@ -1,27 +1,19 @@
-To add PDF import capabilities, file parsing, and AI-driven suggestions with citations, I have significantly upgraded the tool.
-New Features in v3.0
- * Smart PDF/Text Import: You can now upload a PDF (e.g., a discharge letter or referral). The tool uses an embedded PDF engine to extract the text and attach it to your prompt.
- * "AI Supervisor" Mode: A new toggle that instructs the AI not just to write the note, but to critique it, suggest missing labs/tests based on guidelines (IMA/ESC/AHA), and cite objective sources.
- * Save/Load Cases: You can now export your presentation data to a JSON file and load it back later (perfect for saving a "work in progress").
-Installation Instructions
- * Open your szmc-geriatrics-pro repository.
- * Open index.html.
- * Delete everything and paste the code below.
- * Commit changes.
-<!-- end list -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SZMC Pro: AI Medical Command Center</title>
+    <title>SZMC Pro: Universal Medical Hub</title>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
     <style>
         :root {
             --primary: #005eb8; 
             --secondary: #003087;
-            --accent: #d32f2f;
+            --accent: #ffb700;
             --success: #2e7d32;
             --bg: #f4f7f6;
             --card-bg: #ffffff;
@@ -47,7 +39,7 @@ Installation Instructions
             box-shadow: 0 4px 20px rgba(0,0,0,0.08);
         }
 
-        /* Header & Toolbar */
+        /* Header */
         header {
             display: flex;
             justify-content: space-between;
@@ -58,17 +50,28 @@ Installation Instructions
         }
 
         h1 { margin: 0; font-size: 1.8rem; color: var(--secondary); }
-        .badge { background: var(--primary); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; vertical-align: middle; }
+        .badge { background: var(--accent); color: #000; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight:bold; vertical-align: middle; }
         
-        .toolbar {
-            display: flex;
-            gap: 10px;
+        /* Universal Upload Zone */
+        .upload-zone {
+            border: 2px dashed var(--primary);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            background: #eef4fc;
+            margin-bottom: 25px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
         }
-
+        .upload-zone:hover { background: #dfe9f5; border-color: var(--secondary); transform: translateY(-2px); }
+        .upload-icon { font-size: 2rem; display: block; margin-bottom: 10px; }
+        .file-status { font-size: 0.95rem; margin-top: 15px; color: var(--success); font-weight: bold; white-space: pre-wrap; }
+        
         /* Controls Grid */
         .controls {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
             margin-bottom: 25px;
             background: #f8f9fa;
@@ -88,21 +91,7 @@ Installation Instructions
             box-sizing: border-box;
         }
 
-        /* Upload Zone */
-        .upload-zone {
-            border: 2px dashed var(--primary);
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            background: #eef4fc;
-            margin-bottom: 20px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .upload-zone:hover { background: #dfe9f5; }
-        .file-status { font-size: 0.9rem; margin-top: 10px; color: var(--success); font-weight: bold; }
-
-        /* Form Layouts */
+        /* Sections */
         .section-title {
             font-size: 1.1rem;
             color: var(--primary);
@@ -110,8 +99,7 @@ Installation Instructions
             margin-bottom: 10px;
             border-bottom: 1px solid #eee;
             padding-bottom: 5px;
-            display: flex;
-            justify-content: space-between;
+            font-weight: bold;
         }
 
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
@@ -146,7 +134,7 @@ Installation Instructions
         .btn-primary:hover { background-color: var(--secondary); }
         .btn-secondary { background-color: white; border: 2px solid var(--border); color: var(--text); }
         .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
-        .btn-file { background-color: #eef4fc; color: var(--primary); border: 1px solid var(--primary); padding: 5px 10px; font-size: 0.9rem; }
+        .btn-save { background-color: var(--success); color: white; }
 
         /* Output Area */
         #output-area {
@@ -179,22 +167,21 @@ Installation Instructions
 <div class="container">
     <header>
         <div>
-            <h1>SZMC Pro <span class="badge">v3.0</span></h1>
-            <small style="color: #666;">AI Medical Architect & Supervisor</small>
+            <h1>SZMC Pro <span class="badge">v4.0</span></h1>
+            <small style="color: #666;">Universal Medical Data Parser</small>
         </div>
-        <div class="toolbar">
-            <input type="file" id="importFile" accept=".json" style="display:none" onchange="loadCase(this)">
-            <button class="btn-secondary" onclick="document.getElementById('importFile').click()">📂 Load Case</button>
-            <button class="btn-secondary" onclick="saveCase()">💾 Save Case</button>
+        <div>
+            <button class="btn-save" onclick="saveCaseJSON()">💾 Save JSON</button>
         </div>
     </header>
 
     <div class="upload-zone" id="drop-zone">
-        <h3>📄 Drag & Drop Medical Documents (PDF)</h3>
-        <p style="margin:0; color:#666;">Or click to upload. (Discharge letters, Lab results, Referrals)</p>
-        <input type="file" id="pdf-input" accept="application/pdf" style="display:none" onchange="handleFileSelect(this)">
+        <span class="upload-icon">📂</span>
+        <h3>Drag & Drop Files Here</h3>
+        <p style="margin:0; color:#666;">Supported: <strong>PDF, PowerPoint (.pptx), HTML, JSON</strong></p>
+        <input type="file" id="file-input" accept=".pdf, .json, .html, .htm, .pptx" style="display:none" onchange="handleFileSelect(this)">
         <div id="file-status" class="file-status"></div>
-        <textarea id="extracted-pdf-content" class="hidden"></textarea>
+        <textarea id="extracted-content" class="hidden"></textarea>
     </div>
 
     <div class="controls">
@@ -210,11 +197,11 @@ Installation Instructions
             </select>
         </div>
         <div>
-            <label>Output Type</label>
+            <label>Output Format</label>
             <select id="format">
-                <option value="case">Presentation</option>
+                <option value="case">Formal Presentation</option>
                 <option value="admission">Admission Note</option>
-                <option value="discharge">Discharge Letter</option>
+                <option value="discharge">Discharge Summary</option>
             </select>
         </div>
         <div>
@@ -228,27 +215,26 @@ Installation Instructions
             <label>AI Supervisor Mode</label>
             <div class="toggle-container">
                 <label class="toggle-switch">
-                    <input type="checkbox" id="ai-fix-mode">
+                    <input type="checkbox" id="ai-fix-mode" checked>
                     <span class="slider"></span>
                 </label>
-                <span style="font-size: 0.85rem;">Review, Fix & Cite Sources</span>
+                <span style="font-size: 0.85rem;">Review & Cite Sources</span>
             </div>
         </div>
     </div>
 
     <div class="section-title">Patient Profile</div>
     <div class="grid-3">
-        <div><label>Age</label><input type="number" id="age" placeholder="e.g. 82"></div>
+        <div><label>Age</label><input type="number" id="age" placeholder="85"></div>
         <div><label>Gender</label><select id="sex"><option>Male</option><option>Female</option></select></div>
-        <div><label>Chief Complaint</label><input type="text" id="cc" placeholder="Main reason for arrival"></div>
+        <div><label>Chief Complaint</label><input type="text" id="cc"></div>
     </div>
 
-    <div class="section-title">History</div>
-    <textarea id="hpi" placeholder="HPI: Timeline, symptoms, aggravating factors..."></textarea>
-    
+    <div class="section-title">Clinical History</div>
+    <textarea id="hpi" placeholder="History of Present Illness..."></textarea>
     <div class="grid-2" style="margin-top:15px;">
-        <div><label>PMH</label><textarea id="pmh" rows="3" placeholder="Chronic conditions"></textarea></div>
-        <div><label>Medications</label><textarea id="meds" rows="3" placeholder="Current list"></textarea></div>
+        <div><label>Past Medical History</label><textarea id="pmh" rows="3"></textarea></div>
+        <div><label>Medications</label><textarea id="meds" rows="3"></textarea></div>
     </div>
 
     <div id="spec-geriatrics" class="specialty-section">
@@ -260,38 +246,38 @@ Installation Instructions
     </div>
 
     <div id="spec-pediatrics" class="specialty-section hidden">
-        <div class="section-title">Pediatric Details</div>
-        <textarea id="ped-birth" placeholder="Birth history, development, vaccines"></textarea>
+        <div class="section-title">Pediatric History</div>
+        <textarea id="ped-birth" placeholder="Birth, development, immunizations"></textarea>
     </div>
-
+    
     <div id="spec-surgery" class="specialty-section hidden">
-        <div class="section-title">Surgical Details</div>
-        <textarea id="surg-risk" placeholder="Pre-op risk, airway, prev surgeries"></textarea>
+        <div class="section-title">Surgical Profile</div>
+        <textarea id="surg-risk" placeholder="Pre-op risks, past surgeries"></textarea>
     </div>
 
     <div id="spec-obgyn" class="specialty-section hidden">
-        <div class="section-title">OBGYN Details</div>
-        <textarea id="ob-hist" placeholder="G_ P_ LMP, complications"></textarea>
+        <div class="section-title">OB/GYN History</div>
+        <textarea id="ob-hist" placeholder="Gravida/Para, LMP, complications"></textarea>
     </div>
-
+    
     <div id="spec-psychiatry" class="specialty-section hidden">
-        <div class="section-title">Psychiatric Details</div>
-        <textarea id="psych-hist" placeholder="Substance use, risk assessment"></textarea>
+        <div class="section-title">Psychiatric History</div>
+        <textarea id="psych-hist" placeholder="Substance use, family history"></textarea>
     </div>
 
-    <div class="section-title">Objective & Plan</div>
+    <div class="section-title">Assessment</div>
     <div class="grid-2">
         <div><label>Physical Exam</label><textarea id="pe"></textarea></div>
-        <div><label>Labs/Imaging</label><textarea id="labs"></textarea></div>
+        <div><label>Labs & Imaging</label><textarea id="labs"></textarea></div>
     </div>
     <div style="margin-top:15px;">
         <label>Assessment & Plan</label>
-        <textarea id="plan" style="height: 120px;" placeholder="List problems and proposed plan"></textarea>
+        <textarea id="plan" style="height: 120px;" placeholder="Problem list and plan..."></textarea>
     </div>
 
     <div class="actions">
-        <button class="btn-primary" onclick="generateSmartPrompt()">
-            <span>✨ Generate AI Prompt</span>
+        <button class="btn-primary" onclick="generatePrompt()">
+            <span>✨ Generate AI Architect Prompt</span>
         </button>
         <button class="btn-secondary" onclick="resetForm()">
             <span>🗑️ Reset</span>
@@ -300,30 +286,21 @@ Installation Instructions
 
     <div id="output-area">
         <div class="output-header">
-            <strong>🚀 Ready to Paste (ChatGPT / Claude)</strong>
-            <button class="btn-secondary" style="background:transparent; color:white; border:1px solid #666;" onclick="copyToClipboard()">Copy to Clipboard</button>
+            <strong>Ready for AI (ChatGPT/Claude)</strong>
+            <button class="btn-secondary" style="background:transparent; color:white; border:1px solid #666; padding:2px 10px;" onclick="copyToClipboard()">Copy</button>
         </div>
         <pre id="prompt-output"></pre>
     </div>
 </div>
 
 <script>
-    // --- 1. PDF Handling ---
+    // --- FILE HANDLING LOGIC ---
     const dropZone = document.getElementById('drop-zone');
-    const pdfInput = document.getElementById('pdf-input');
+    const fileInput = document.getElementById('file-input');
 
-    dropZone.onclick = () => pdfInput.click();
-    
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.style.background = '#e1eefd';
-    });
-
-    dropZone.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        dropZone.style.background = '#eef4fc';
-    });
-
+    dropZone.onclick = () => fileInput.click();
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.background = '#e1eefd'; });
+    dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.style.background = '#eef4fc'; });
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.style.background = '#eef4fc';
@@ -332,31 +309,88 @@ Installation Instructions
 
     async function handleFileSelect(input) {
         const file = input.files[0];
-        if (file.type !== 'application/pdf') return alert('Please upload a PDF file.');
+        const statusEl = document.getElementById('file-status');
+        const contentEl = document.getElementById('extracted-content');
         
-        document.getElementById('file-status').innerText = `Processing: ${file.name}...`;
-        
-        try {
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-            let fullText = "";
+        statusEl.innerText = `⏳ Processing ${file.name}...`;
 
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                const pageText = textContent.items.map(item => item.str).join(' ');
-                fullText += `--- PDF Page ${i} ---\n${pageText}\n`;
+        try {
+            // 1. JSON (Direct Form Import)
+            if (file.type === "application/json" || file.name.endsWith(".json")) {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                for (const key in data) {
+                    const el = document.getElementById(key);
+                    if (el) el.value = data[key]; // Fill form
+                }
+                statusEl.innerText = "✅ JSON Data Loaded into Form";
+                updateForm();
+                return;
             }
 
-            document.getElementById('extracted-pdf-content').value = fullText;
-            document.getElementById('file-status').innerText = `✅ Attached: ${file.name} (${pdf.numPages} pages)`;
+            // 2. PDF Parsing
+            if (file.type === "application/pdf") {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                let fullText = "";
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    fullText += textContent.items.map(item => item.str).join(' ') + "\n";
+                }
+                contentEl.value = `[SOURCE: PDF - ${file.name}]\n` + fullText;
+                statusEl.innerText = `✅ PDF Attached (${pdf.numPages} pages)`;
+                return;
+            }
+
+            // 3. HTML Parsing
+            if (file.type === "text/html" || file.name.endsWith(".html")) {
+                const text = await file.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(text, 'text/html');
+                const cleanText = doc.body.innerText.replace(/\s+/g, ' ').trim();
+                contentEl.value = `[SOURCE: HTML - ${file.name}]\n` + cleanText;
+                statusEl.innerText = "✅ HTML Content Attached";
+                return;
+            }
+
+            // 4. PowerPoint (.pptx) Parsing
+            if (file.name.endsWith(".pptx")) {
+                const zip = await JSZip.loadAsync(file);
+                let slideText = "";
+                let slideCount = 0;
+                
+                // Regex to find slide XML files
+                const slideFiles = Object.keys(zip.files).filter(name => name.match(/ppt\/slides\/slide\d+\.xml/));
+                
+                for (const filename of slideFiles) {
+                    slideCount++;
+                    const xmlStr = await zip.file(filename).async("string");
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(xmlStr, "text/xml");
+                    // Extract text from <a:t> tags
+                    const textNodes = xmlDoc.getElementsByTagName("a:t");
+                    let thisSlide = `--- SLIDE ${slideCount} ---\n`;
+                    for (let i = 0; i < textNodes.length; i++) {
+                        thisSlide += textNodes[i].textContent + " ";
+                    }
+                    slideText += thisSlide + "\n";
+                }
+                
+                contentEl.value = `[SOURCE: PPTX - ${file.name}]\n` + slideText;
+                statusEl.innerText = `✅ PowerPoint Attached (${slideCount} slides)`;
+                return;
+            }
+
+            statusEl.innerText = "❌ Unsupported file format";
+
         } catch (err) {
             console.error(err);
-            document.getElementById('file-status').innerText = "❌ Error parsing PDF.";
+            statusEl.innerText = "❌ Error reading file.";
         }
     }
 
-    // --- 2. Form Logic ---
+    // --- FORM & AI LOGIC ---
     function updateForm() {
         document.querySelectorAll('.specialty-section').forEach(el => el.classList.add('hidden'));
         const spec = document.getElementById('specialty').value;
@@ -364,47 +398,45 @@ Installation Instructions
         if (target) target.classList.remove('hidden');
     }
 
-    function generateSmartPrompt() {
+    function generatePrompt() {
         const spec = document.getElementById('specialty').value;
         const format = document.getElementById('format').value;
         const lang = document.getElementById('language').value;
         const fixMode = document.getElementById('ai-fix-mode').checked;
-        const pdfContent = document.getElementById('extracted-pdf-content').value;
+        const sourceMaterial = document.getElementById('extracted-content').value;
 
         let prompt = `Role: You are an expert Consultant in ${spec}.\n`;
-        prompt += `Task: Create a ${format.toUpperCase()}.\n`;
-        prompt += `Language: Output in ${lang === 'hebrew' ? 'HEBREW (Professional Medical)' : 'ENGLISH'}.\n\n`;
+        prompt += `Task: Create a professional ${format.toUpperCase()}.\n`;
+        prompt += `Language: ${lang === 'hebrew' ? 'HEBREW (Official Medical Terminology)' : 'ENGLISH'}.\n\n`;
 
         if (fixMode) {
-            prompt += `🔴 CRITICAL INSTRUCTION (SUPERVISOR MODE):\n`;
-            prompt += `1. Do not just format the data. CRITIQUE it.\n`;
-            prompt += `2. Identify missing fields standard for ${spec}.\n`;
-            prompt += `3. Suggest guideline-based improvements (cite Guidelines like ESC, AHA, NICE, or IMA).\n`;
-            prompt += `4. If medications dose seems wrong, flag it.\n`;
-            prompt += `5. After the critique, provide the polished final document.\n\n`;
+            prompt += `🔴 SUPERVISOR MODE ACTIVE:\n`;
+            prompt += `1. CRITIQUE the data first. Are labs missing? Is the dose appropriate?\n`;
+            prompt += `2. CITE SOURCES for your recommendations (e.g., IMA, ESC, AHA guidelines).\n`;
+            prompt += `3. SUGGEST specific investigations that should be added to the plan.\n`;
+            prompt += `4. Then, generate the final polished document.\n\n`;
         }
 
-        prompt += `--- DATA INPUT ---\n`;
-        prompt += `Patient: ${document.getElementById('age').value}y ${document.getElementById('sex').value}\n`;
+        prompt += `--- MANUAL PATIENT DATA ---\n`;
+        prompt += `Age/Sex: ${document.getElementById('age').value} ${document.getElementById('sex').value}\n`;
         prompt += `CC: ${document.getElementById('cc').value}\n`;
         prompt += `HPI: ${document.getElementById('hpi').value}\n`;
         prompt += `PMH: ${document.getElementById('pmh').value}\n`;
         prompt += `Meds: ${document.getElementById('meds').value}\n`;
         
-        // Add Specialty Specifics
-        if(spec === 'geriatrics') {
-            prompt += `Function: ${document.getElementById('ger-func').value}\n`;
-            prompt += `Geriatric Syndromes: ${document.getElementById('ger-syn').value}\n`;
-        } // Add others as needed...
-
+        if (spec === 'geriatrics') {
+            prompt += `Func Status: ${document.getElementById('ger-func').value}\n`;
+            prompt += `Syndromes: ${document.getElementById('ger-syn').value}\n`;
+        }
+        
         prompt += `PE: ${document.getElementById('pe').value}\n`;
-        prompt += `Labs/Imaging: ${document.getElementById('labs').value}\n`;
+        prompt += `Labs: ${document.getElementById('labs').value}\n`;
         prompt += `Plan: ${document.getElementById('plan').value}\n`;
 
-        if (pdfContent) {
-            prompt += `\n--- ATTACHED SOURCE DOCUMENT (RAW TEXT) ---\n`;
-            prompt += `Use this raw text to fill in gaps or correct the summary above:\n`;
-            prompt += pdfContent.substring(0, 15000); // Limit chars for token limits
+        if (sourceMaterial) {
+            prompt += `\n--- ATTACHED SOURCE MATERIAL (RAW EXTRACT) ---\n`;
+            prompt += `(Note: This text may be messy as it was extracted from a file. Synthesize relevant clinical data from it.)\n`;
+            prompt += sourceMaterial.substring(0, 15000); 
         }
 
         document.getElementById('prompt-output').innerText = prompt;
@@ -412,41 +444,21 @@ Installation Instructions
         document.getElementById('output-area').scrollIntoView({behavior: "smooth"});
     }
 
-    // --- 3. Save/Load System ---
-    function saveCase() {
+    function saveCaseJSON() {
         const data = {};
-        document.querySelectorAll('input, select, textarea').forEach(el => {
+        document.querySelectorAll('input:not([type=file]), select, textarea').forEach(el => {
             if(el.id) data[el.id] = el.type === 'checkbox' ? el.checked : el.value;
         });
-        const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `szmc_case_${new Date().toISOString().slice(0,10)}.json`;
+        a.download = `case_${new Date().toISOString().slice(0,10)}.json`;
         a.click();
     }
 
-    function loadCase(input) {
-        const file = input.files[0];
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const data = JSON.parse(e.target.result);
-            for (const key in data) {
-                const el = document.getElementById(key);
-                if (el) {
-                    if (el.type === 'checkbox') el.checked = data[key];
-                    else el.value = data[key];
-                }
-            }
-            updateForm();
-            alert('Case loaded successfully!');
-        };
-        reader.readAsText(file);
-    }
-
     function resetForm() {
-        if(confirm("Clear all data?")) {
+        if(confirm("Clear all?")) {
             document.querySelectorAll("input:not([type=file]), textarea").forEach(e => e.value = "");
-            document.getElementById('extracted-pdf-content').value = "";
             document.getElementById('file-status').innerText = "";
             document.getElementById('output-area').style.display = 'none';
         }
@@ -454,7 +466,7 @@ Installation Instructions
 
     function copyToClipboard() {
         navigator.clipboard.writeText(document.getElementById('prompt-output').innerText)
-            .then(() => alert("Copied! Paste into ChatGPT."));
+            .then(() => alert("Copied! Paste to AI."));
     }
 </script>
 
