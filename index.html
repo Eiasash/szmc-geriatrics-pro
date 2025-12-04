@@ -80,7 +80,6 @@
       // Enhanced AI features
       aiHistory: [],
       aiTemplates: [],
-      selectedEvidence: '',
       aiCategory: 'clinical',
       showAIHistory: false,
       showAITemplates: false,
@@ -92,10 +91,7 @@
       aiTargetSlide: 0,
       aiTargetField: 'items',
       editableAIContent: '',
-      autoApplyFromQA: false,
-      // Pattern spotting & drills
-      patternAlerts: {},
-      drillStreak: 0,
+      lastEvidenceId: null,
       // QA + API helpers
       showQA: false,
       qaResults: null,
@@ -112,28 +108,9 @@
         state.darkMode = data.darkMode || false;
         state.aiHistory = data.aiHistory || [];
         state.aiTemplates = data.aiTemplates || [];
-        state.selectedEvidence = data.selectedEvidence || '';
-        state.drillStreak = data.drillStreak || 0;
+        state.lastEvidenceId = data.lastEvidenceId || null;
       }
     } catch(e) { console.error('Load error:', e); }
-
-    function ensureAITemplatesSeeded() {
-      const defaults = [
-        { id: 'delirium-coach', type: 'coaching', title: 'Delirium admission hook', prompt: 'Craft a 2-line hook for a delirium admission. Include onset, baseline cognition/function, likely triggers, and one teaching pearl.' },
-        { id: 'falls-coach', type: 'coaching', title: 'Recurrent falls timeline', prompt: 'Build a focused timeline (3-5 bullets) for recurrent falls with orthostatics, gait aids, vision/hearing, and med changes.' },
-        { id: 'polypharmacy-coach', type: 'coaching', title: 'Polypharmacy clean-up', prompt: 'List 4 deprescribing moves with taper/monitoring steps for sedatives/anticholinergics and create a patient-friendly explanation.' }
-      ];
-      defaults.forEach(t => {
-        if (!state.aiTemplates.some(existing => existing.id === t.id)) {
-          state.aiTemplates.push(t);
-        }
-      });
-      if (!state.selectedEvidence && EVIDENCE_LIBRARY[0]) {
-        state.selectedEvidence = EVIDENCE_LIBRARY[0].id;
-      }
-    }
-
-    ensureAITemplatesSeeded();
 
     // Save to storage
     function save() {
@@ -144,8 +121,7 @@
           darkMode: state.darkMode,
           aiHistory: state.aiHistory.slice(-50), // Keep last 50 conversations
           aiTemplates: state.aiTemplates,
-          selectedEvidence: state.selectedEvidence,
-          drillStreak: state.drillStreak
+          lastEvidenceId: state.lastEvidenceId
         }));
       } catch(e) { console.error('Save error:', e); }
     }
@@ -241,47 +217,6 @@
           'Deprescribe non-beneficial statins, vitamins, and duplicative preventive meds when life expectancy limited'
         ],
         sources: 'CAPC/ASCO serious illness frameworks 2024; WHO pain ladder updates'
-      }
-    ];
-
-    const PATTERN_RULES = [
-      { id: 'falls', label: 'Falls risk', terms: ['fall', 'orthostat', 'unsteady', 'hip fracture', 'morse', 'tug'], note: 'Check orthostatics, run Morse score, and deprescribe sedating/anticholinergic meds.', calc: 'morse', evidence: 'falls2024' },
-      { id: 'delirium', label: 'Delirium screen', terms: ['confusion', 'cam', 'delirium', 'acute mental', 'disoriented'], note: 'Confirm with CAM, review precipitants (DIMS-VOID), mobilize and avoid benzos/anticholinergics.', calc: 'cam', evidence: 'delirium2024' },
-      { id: 'frailty', label: 'Frailty / sarcopenia', terms: ['frail', 'weight loss', 'unintentional', 'sarcopenia', 'cfs', 'mna', 'low bmi'], note: 'Document CFS/FRAIL/MNA, protein goals 1.2–1.5 g/kg, resistance work, vitamin D.', calc: 'ckdepi', evidence: 'osteoporosis2025' },
-      { id: 'polypharmacy', label: 'Polypharmacy & anticholinergic load', terms: ['anticholinergic', 'beers', 'diphenhydramine', 'oxybutynin', 'meclizine', 'benzodiazepine', 'sedative'], note: 'Flag Beers meds, simplify regimen, add taper/deprescribing plan with monitoring.', calc: 'corrNa', evidence: 'uti2025' },
-      { id: 'anticoag', label: 'Anticoagulation nuance', terms: ['doac', 'apixaban', 'warfarin', 'atrial fibrillation', 'afib'], note: 'Confirm dosing by age/weight/CrCl, review fall mitigation and HAS-BLED factors.', calc: 'crcl', evidence: 'afib2024' }
-    ];
-
-    const DRILL_CASES = [
-      {
-        id: 'delirium-drill',
-        title: 'Learning Drill: Delirium vs Dementia',
-        prompt: 'Use CAM before revealing the plan. Identify precipitants and propose non-pharm bundle first.',
-        calculators: ['cam'],
-        evidence: 'delirium2024',
-        slides: [
-          { type: 'title', title: 'Drill: Delirium vs Dementia', subtitle: 'Practice run (CAM first)' },
-          { type: 'patient', title: 'Patient', demographics: '81yo female from SNF', cc: 'Acute confusion since yesterday', codeStatus: 'DNR' },
-          { type: 'content', title: 'Timeline', content: 'Found wandering overnight; staff note new urinary urgency and poor intake. Baseline mild dementia, ambulates with walker.' },
-          { type: 'list', title: 'Medications', items: ['Oxybutynin 5mg BID', 'Zolpidem 10mg qhs', 'Sertraline 50mg daily', 'Amlodipine 10mg daily'] },
-          { type: 'list', title: 'Checklist', items: ['Run CAM at bedside', 'Order UA/UCx before antibiotics', 'Review high-risk meds for delirium', 'Add orientation/mobilization plan'] }
-        ],
-        feedback: 'CAM positive? Prioritize non-pharm bundle, remove deliriogenic meds, and treat triggers (infection, pain, retention, constipation).'
-      },
-      {
-        id: 'falls-drill',
-        title: 'Learning Drill: Recurrent Falls',
-        prompt: 'Calculate Morse and document orthostatics before drafting plan.',
-        calculators: ['morse'],
-        evidence: 'falls2024',
-        slides: [
-          { type: 'title', title: 'Drill: Recurrent Falls', subtitle: 'Practice run (Morse + orthostatics)' },
-          { type: 'patient', title: 'Patient', demographics: '84yo male, independent', cc: '3rd fall in 2 months', codeStatus: 'Full' },
-          { type: 'content', title: 'HPI', content: 'Falls while getting up at night; reports dizziness when standing, uses furniture to steady. No LOC. Meds include trazodone 50mg qhs, amlodipine 10mg daily.' },
-          { type: 'list', title: 'To-Do Before Plan', items: ['Orthostatic vitals sitting/standing', 'Morse fall scale', 'Check gait aids + vision/hearing', 'Review psychoactive meds to taper'] },
-          { type: 'list', title: 'Labs/Imaging', items: ['BMP', 'CBC', 'Vitamin D level', 'Consider head CT if red flags'] }
-        ],
-        feedback: 'If Morse ≥45 start fall precautions, deprescribe sedatives, add PT/OT, protein and vitamin D repletion, and home safety assessment.'
       }
     ];
 
@@ -581,37 +516,6 @@
     };
 
     // ============ UTILITY FUNCTIONS ============
-    function getEvidenceById(id) {
-      return EVIDENCE_LIBRARY.find(ev => ev.id === id);
-    }
-
-    function scanPatternAlerts(pres = state.pres) {
-      const alerts = {};
-      if (!pres?.slides) return alerts;
-
-      pres.slides.forEach((slide, idx) => {
-        const text = JSON.stringify(slide).toLowerCase();
-        PATTERN_RULES.forEach(rule => {
-          if (rule.terms.some(term => text.includes(term))) {
-            if (!alerts[idx]) alerts[idx] = [];
-            alerts[idx].push({ id: rule.id, label: rule.label, note: rule.note, calc: rule.calc, evidence: rule.evidence });
-          }
-        });
-      });
-
-      return alerts;
-    }
-
-    function getPrimaryField(slide) {
-      if (!slide) return 'items';
-      if (slide.items !== undefined) return 'items';
-      if (slide.content !== undefined) return 'content';
-      if (slide.findings !== undefined) return 'findings';
-      if (slide.pharm !== undefined) return 'pharm';
-      if (slide.nonpharm !== undefined) return 'nonpharm';
-      return 'title';
-    }
-
     function e(str) {
       if (!str) return '';
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -877,7 +781,6 @@
         p.id = Date.now() + Math.random();
         p.created = p.created || new Date().toISOString();
         p.modified = new Date().toISOString();
-        p.patternAlerts = scanPatternAlerts(p);
         state.saved.push(p);
       });
 
@@ -1201,50 +1104,15 @@ Potassium,20mEq,daily,Keep K >4.0`;
         created: new Date().toISOString(),
         modified: new Date().toISOString(),
         template: templateKey,
-        slides: JSON.parse(JSON.stringify(template.slides)),
-        patternAlerts: {}
+        slides: JSON.parse(JSON.stringify(template.slides)).map(slide => ({ ...slide, notes: slide.notes || '' }))
       };
-
+      
       state.saved.push(newPres);
       state.pres = newPres;
       state.slide = 0;
       state.view = 'editor';
       state.showTemplates = false;
-      state.patternAlerts = scanPatternAlerts(newPres);
-      state.pres.patternAlerts = state.patternAlerts;
       save();
-      render();
-    }
-
-    function startDrill(caseId) {
-      const drill = DRILL_CASES.find(c => c.id === caseId);
-      if (!drill) return;
-
-      const pres = {
-        id: Date.now(),
-        created: new Date().toISOString(),
-        modified: new Date().toISOString(),
-        template: 'drill',
-        drillCase: {
-          id: drill.id,
-          calculators: drill.calculators,
-          evidence: drill.evidence,
-          prompt: drill.prompt,
-          feedback: drill.feedback,
-          completed: false
-        },
-        slides: JSON.parse(JSON.stringify(drill.slides)),
-        patternAlerts: {}
-      };
-
-      pres.patternAlerts = scanPatternAlerts(pres);
-      state.saved.push(pres);
-      state.pres = pres;
-      state.slide = 0;
-      state.view = 'editor';
-      state.patternAlerts = pres.patternAlerts;
-      save();
-      showToast('Drill loaded — run the calculators!');
       render();
     }
 
@@ -1252,25 +1120,7 @@ Potassium,20mEq,daily,Keep K >4.0`;
       state.pres = p;
       state.slide = 0;
       state.view = 'editor';
-      state.patternAlerts = p.patternAlerts || scanPatternAlerts(p);
       render();
-    }
-
-    function markDrillComplete() {
-      if (!state.pres?.drillCase) {
-        showToast('No active drill');
-        return;
-      }
-
-      if (state.pres.drillCase.completed) {
-        showToast('Already marked complete');
-        return;
-      }
-
-      state.pres.drillCase.completed = true;
-      state.drillStreak = (state.drillStreak || 0) + 1;
-      savePres();
-      showToast(`Drill complete! Streak: ${state.drillStreak}`);
     }
 
     function openPresentationByIndex(idx) {
@@ -1304,8 +1154,6 @@ Potassium,20mEq,daily,Keep K >4.0`;
 
     function savePres() {
       if (!state.pres) return;
-      state.pres.patternAlerts = scanPatternAlerts(state.pres);
-      state.patternAlerts = state.pres.patternAlerts;
       state.pres.modified = new Date().toISOString();
       state.saved = state.saved.map(p => p.id === state.pres.id ? state.pres : p);
       save();
@@ -1320,7 +1168,7 @@ Potassium,20mEq,daily,Keep K >4.0`;
 
     function addSlide(type) {
       if (!state.pres) return;
-      const newSlide = { type, title: 'New Slide', content: '', items: [] };
+      const newSlide = { type, title: 'New Slide', content: '', items: [], notes: '' };
       state.pres.slides.splice(state.slide + 1, 0, newSlide);
       state.slide++;
       savePres();
@@ -1364,7 +1212,6 @@ Potassium,20mEq,daily,Keep K >4.0`;
       if (!state.aiInput.trim() || state.aiLoading) return;
       if (!state.apiKey) {
         state.aiChat.push({ role: 'assistant', content: '⚠️ Please add your Anthropic API key in Settings first.', time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
-        state.autoApplyFromQA = false;
         render();
         return;
       }
@@ -1432,18 +1279,10 @@ DO NOT include any code blocks or JSON. Just provide the content directly.`;
 
         // Store the generated content for potential use
         state.lastAIContent = aiResponse;
-        if (state.autoApplyFromQA) {
-          state.editableAIContent = aiResponse;
-          state.showApplyPanel = true;
-          state.aiTargetSlide = state.slide || 0;
-          state.aiTargetField = getPrimaryField(state.pres?.slides[state.slide]);
-          state.autoApplyFromQA = false;
-        }
 
         state.aiChat.push({ role: 'assistant', content: aiResponse, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
       } catch(e) {
         state.aiChat.push({ role: 'assistant', content: `⚠️ Error: ${e.message}`, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
-        state.autoApplyFromQA = false;
       }
 
       state.aiLoading = false;
@@ -1498,20 +1337,6 @@ DO NOT include any code blocks or JSON. Just provide the content directly.`;
       if (state.aiInput) {
         setTimeout(() => sendAI(), 50);
       }
-    }
-
-    function askAIToFixCurrentSlide() {
-      if (!state.pres) {
-        showToast('Open a presentation first');
-        return;
-      }
-
-      const slide = state.pres.slides[state.slide];
-      const field = getPrimaryField(slide);
-      state.aiInput = `You are a presentation QA coach. Review this slide and return replacements for the ${field} field as clean bullets. Avoid headers, just give the content. Slide JSON: ${JSON.stringify(slide)}. Context: ${summarizePresentation(state.pres)}`;
-      state.autoApplyFromQA = true;
-      setState({ view: 'ai', aiCategory: 'coaching' });
-      setTimeout(() => sendAI(), 60);
     }
 
     function aiCommand(cmd) {
@@ -1862,21 +1687,6 @@ DO NOT include any code blocks or JSON. Just provide the content directly.`;
             <button onclick="setState({showTemplates:true})" class="w-full bg-white text-blue-600 rounded-xl p-4 font-bold shadow-lg hover:shadow-xl transition">
               + New Presentation
             </button>
-          </div>
-
-          <!-- Learning/Drills -->
-          <div class="px-4 mb-4">
-            <div class="bg-white/20 rounded-2xl p-4 shadow flex items-center justify-between gap-3">
-              <div>
-                <div class="text-sm text-blue-100">Learning mode</div>
-                <div class="font-semibold">Practice drills</div>
-                <div class="text-xs text-blue-200">Streak: ${state.drillStreak || 0}</div>
-              </div>
-              <div class="flex gap-2">
-                <button onclick="startDrill('delirium-drill')" class="px-3 py-2 bg-white text-blue-700 rounded-lg text-xs font-medium shadow">Delirium</button>
-                <button onclick="startDrill('falls-drill')" class="px-3 py-2 bg-white text-blue-700 rounded-lg text-xs font-medium shadow">Falls</button>
-              </div>
-            </div>
           </div>
 
           <!-- Import Button -->
@@ -2715,23 +2525,16 @@ Example Markdown:
 
     function renderEditor() {
       if (!state.pres) return renderHome();
-
+      
       const s = state.pres.slides[state.slide];
-      const alertsForSlide = state.patternAlerts?.[state.slide] || [];
-      const drillCase = state.pres.drillCase;
-      const drillEvidence = drillCase ? getEvidenceById(drillCase.evidence) : null;
-
+      
       // Slide thumbnails
-      const thumbs = state.pres.slides.map((sl, i) => {
-        const alertCount = state.patternAlerts?.[i]?.length || 0;
-        const badge = alertCount ? `<span class="ml-1 inline-flex items-center justify-center text-[10px] bg-amber-100 text-amber-700 rounded-full px-1.5">${alertCount}</span>` : '';
-        return `
-        <button onclick="setState({slide:${i}})"
+      const thumbs = state.pres.slides.map((sl, i) => `
+        <button onclick="setState({slide:${i}})" 
           class="flex-shrink-0 px-3 py-2 rounded-lg text-xs whitespace-nowrap transition ${i === state.slide ? 'bg-blue-500 text-white shadow' : 'bg-white shadow-sm'}">
-          ${i + 1}. ${e(sl.title.substring(0, 12))}${sl.title.length > 12 ? '...' : ''} ${badge}
+          ${i + 1}. ${e(sl.title.substring(0, 12))}${sl.title.length > 12 ? '...' : ''}
         </button>
-      `;
-      }).join('');
+      `).join('');
 
       // Slide content
       let content = '';
@@ -2815,6 +2618,12 @@ Example Markdown:
           content = `<div class="whitespace-pre-wrap">${e(s.content) || '<span class="text-slate-400">No content</span>'}</div>`;
       }
 
+      const notesBlock = `
+        <div class="mt-4 bg-slate-50 border border-slate-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-slate-600 mb-1">📝 Notes / Plan</div>
+          <div class="text-sm text-slate-700 whitespace-pre-wrap">${s.notes ? e(s.notes) : '<span class="text-slate-400">Use evidence drops or AI to populate notes.</span>'}</div>
+        </div>`;
+
       return `
         <div class="min-h-screen bg-slate-100 pb-20">
           <!-- Header -->
@@ -2837,51 +2646,18 @@ Example Markdown:
             ${thumbs}
           </div>
 
-            <!-- Slide Content -->
-            <div class="p-4">
-              <div class="bg-white rounded-xl shadow-lg p-6 min-h-48">
-                <div class="text-xs text-slate-400 mb-1">${s.type.toUpperCase()}</div>
-                <h2 class="text-xl font-bold mb-4 text-slate-800">${e(s.title)}</h2>
-                ${content}
-                ${alertsForSlide.length ? `
-                  <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
-                    <div class="text-xs font-semibold text-amber-700 flex items-center gap-2"><span>🔎</span> Pattern flags</div>
-                    ${alertsForSlide.map(a => `
-                      <div class="flex flex-col gap-1 bg-white/70 rounded-lg p-2 border border-amber-100">
-                        <div class="text-sm font-medium text-amber-800">${e(a.label)}</div>
-                        <div class="text-[11px] text-amber-700">${e(a.note)}</div>
-                        <div class="flex gap-2 flex-wrap mt-1">
-                          ${a.calc ? `<button onclick="setState({showCalc:true,calcType:'${a.calc}'})" class="text-[11px] px-2 py-1 bg-amber-100 text-amber-800 rounded-full">Run ${a.calc.toUpperCase()}</button>` : ''}
-                          ${a.evidence ? `<button onclick="seedEvidencePrompt('${a.evidence}')" class="text-[11px] px-2 py-1 bg-blue-50 text-blue-700 rounded-full">Apply evidence</button>` : ''}
-                        </div>
-                      </div>
-                    `).join('')}
-                  </div>
-                ` : ''}
+          <!-- Slide Content -->
+          <div class="p-4">
+            <div class="bg-white rounded-xl shadow-lg p-6 min-h-48">
+              <div class="text-xs text-slate-400 mb-1">${s.type.toUpperCase()}</div>
+              <h2 class="text-xl font-bold mb-4 text-slate-800">${e(s.title)}</h2>
+              ${content}
+              ${notesBlock}
+            </div>
 
-                ${drillCase ? `
-                  <div class="mt-4 bg-indigo-50 border border-indigo-200 rounded-lg p-3">
-                    <div class="flex items-center justify-between gap-2 mb-1">
-                      <div class="text-sm font-semibold text-indigo-800 flex items-center gap-2"><span>🎯</span> Drill mode</div>
-                      ${drillCase.completed ? '<span class="text-[11px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Completed</span>' : ''}
-                    </div>
-                    <p class="text-xs text-indigo-700 mb-2">${e(drillCase.prompt)}</p>
-                    <div class="flex gap-2 flex-wrap mb-2">
-                      ${(drillCase.calculators || []).map(c => `<button onclick="setState({showCalc:true,calcType:'${c}'})" class="px-2 py-1 bg-white text-indigo-700 rounded-full text-[11px] border border-indigo-200">${c.toUpperCase()} calc</button>`).join('')}
-                    </div>
-                    ${drillEvidence ? `<div class="text-[11px] text-indigo-700">Evidence: ${e(drillEvidence.title)} (${drillEvidence.year})</div>` : ''}
-                    ${drillCase.feedback ? `<div class="mt-1 text-[11px] text-indigo-800">Feedback: ${e(drillCase.feedback)}</div>` : ''}
-                    <div class="flex gap-2 mt-2">
-                      <button onclick="markDrillComplete()" class="flex-1 bg-indigo-600 text-white text-xs py-2 rounded-lg shadow">Mark drill complete</button>
-                      <button onclick="showToast('Remember to run the suggested calculators before finalizing.')" class="px-3 py-2 text-xs bg-white text-indigo-700 rounded-lg border border-indigo-200">Remind me</button>
-                    </div>
-                  </div>
-                ` : ''}
-              </div>
-
-              <!-- Edit Button -->
-              <button onclick="setState({editing:'${s.type}'})" class="w-full mt-4 bg-blue-500 text-white rounded-xl py-3 font-medium shadow">
-                ✏️ Edit This Slide
+            <!-- Edit Button -->
+            <button onclick="setState({editing:'${s.type}'})" class="w-full mt-4 bg-blue-500 text-white rounded-xl py-3 font-medium shadow">
+              ✏️ Edit This Slide
             </button>
             
             <!-- Slide Actions -->
@@ -3015,6 +2791,12 @@ Example Markdown:
           break;
       }
 
+      fields += `
+        <div class="mb-3">
+          <label class="block text-sm font-medium text-slate-700 mb-1">Notes / Plan</label>
+          <textarea oninput="updateSlide('notes',this.value)" class="w-full border rounded-lg p-3 min-h-20" placeholder="Add speaker notes, plan details, or evidence summaries">${e(s.notes || '')}</textarea>
+        </div>`;
+
       return `
         <div class="fixed inset-0 bg-black/50 flex items-end z-50 animate-fadeIn" onclick="if(event.target===this)setState({editing:null})">
           <div class="bg-white w-full rounded-t-2xl p-4 modal-content max-h-[85vh] overflow-auto">
@@ -3099,16 +2881,28 @@ Example Markdown:
       ];
 
       const currentActions = AI_QUICK_ACTIONS[state.aiCategory] || AI_QUICK_ACTIONS.clinical;
-      const evidenceOptions = EVIDENCE_LIBRARY.map(ev => `<option value="${ev.id}" ${state.selectedEvidence === ev.id ? 'selected' : ''}>${e(ev.title)} (${ev.year})</option>`).join('');
-      const coachingTemplates = state.aiTemplates.filter(t => t.type === 'coaching');
-      const recentCoaching = state.aiHistory.slice(-3).reverse();
-      const lastEvidence = state.aiTemplates.find(t => t.type === 'last-evidence');
       const evidenceButtons = EVIDENCE_LIBRARY.map(ev => `
         <button onclick="injectEvidence('${ev.id}')" class="px-3 py-2 bg-white border border-slate-200 rounded-lg text-left shadow-sm hover:shadow-md text-xs">
           <div class="font-semibold text-slate-800">${e(ev.title)}</div>
           <div class="text-[11px] text-slate-500">${ev.year} • ${e(ev.summary.substring(0, 70))}...</div>
         </button>
       `).join('');
+
+      const lastEvidence = (state.aiTemplates || []).find(t => t.type === 'evidence')
+        || (state.lastEvidenceId ? EVIDENCE_LIBRARY.find(ev => ev.id === state.lastEvidenceId) : null);
+      const evidenceSelect = `
+        <div class="px-3 pb-3">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-xs text-slate-600 flex items-center gap-2"><span class="text-blue-600">📝</span>Drop evidence into current slide notes/plan</div>
+            ${lastEvidence ? `<button onclick="reuseCachedEvidence()" aria-label="Reuse last evidence: ${e(lastEvidence.title)}" class="text-[11px] text-blue-700 border border-blue-200 px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100">Reuse ${e(lastEvidence.title)} (${e(lastEvidence.year)})</button>` : ''}
+          </div>
+          <div class="flex gap-2">
+            <select onchange="applyEvidenceToNotes(this.value);this.value=''" aria-label="Select evidence to inject into slide notes" class="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
+              <option value="">Select evidence topic...</option>
+              ${EVIDENCE_LIBRARY.map(ev => `<option value="${ev.id}">${e(ev.title)} (${e(ev.year)})</option>`).join('')}
+            </select>
+          </div>
+        </div>`;
 
       // Format messages with basic markdown
       const formatAIMessage = (text) => {
@@ -3183,41 +2977,15 @@ Example Markdown:
             </div>
           </div>
 
-          ${state.aiCategory === 'coaching' ? `
-            <div class="px-3 pb-3">
-              <div class="flex items-center justify-between mb-2">
-                <div class="text-sm font-semibold text-slate-700 flex items-center gap-2"><span>🎤</span> Coaching presets</div>
-                <button onclick="askAIToFixCurrentSlide()" class="text-xs bg-amber-100 text-amber-800 px-3 py-1 rounded-full">QA → Fix current slide</button>
-              </div>
-              <div class="flex gap-2 overflow-x-auto pb-1">
-                ${coachingTemplates.length ? coachingTemplates.map(t => `
-                  <button onclick="state.aiInput='${e(t.prompt)}';render();setTimeout(()=>sendAI(),60)" class="flex-shrink-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs shadow-sm hover:border-blue-300">${e(t.title)}</button>
-                `).join('') : '<span class="text-xs text-slate-500">No coaching templates yet</span>'}
-              </div>
-              <div class="mt-3 bg-white/70 rounded-lg p-3 border border-slate-200">
-                <div class="text-xs font-semibold text-slate-700 mb-1">Recent coaching chats</div>
-                ${recentCoaching.length ? recentCoaching.map(h => `<div class="text-[11px] text-slate-600">${new Date(h.date).toLocaleDateString()} • ${e(h.title || 'Session')}</div>`).join('') : '<div class="text-[11px] text-slate-500">No recent sessions</div>'}
-              </div>
-            </div>
-          ` : ''}
+          ${evidenceSelect}
 
           <!-- Evidence injectors -->
           <div class="px-3 pb-3">
             <div class="text-xs text-slate-500 mb-2 flex items-center gap-2">
               <span class="text-blue-600">📖</span> 2024-2025 evidence quick inserts
             </div>
-            <div class="flex flex-col gap-2 mb-2">
-              <div class="flex flex-wrap gap-2 items-center">
-                <select onchange="state.selectedEvidence=this.value;save();render()" class="flex-1 min-w-[180px] border rounded-lg p-2 text-sm">
-                  ${evidenceOptions}
-                </select>
-                <button onclick="insertEvidenceIntoSlide(state.selectedEvidence)" class="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs">Insert on slide</button>
-                <button onclick="copyEvidence(state.selectedEvidence)" class="px-3 py-2 bg-white border border-slate-200 text-xs rounded-lg">Copy</button>
-                ${lastEvidence ? `<button onclick="insertEvidenceIntoSlide('${lastEvidence.evId}')" class="px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs">Reuse ${e(lastEvidence.title)}</button>` : ''}
-              </div>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                ${evidenceButtons}
-              </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+              ${evidenceButtons}
             </div>
           </div>
 
@@ -3237,7 +3005,10 @@ Example Markdown:
                       <div class="text-sm font-bold text-slate-800">${e(ev.title)}</div>
                       <div class="text-xs text-blue-600">${e(ev.year)}</div>
                     </div>
-                    <span class="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">Guideline</span>
+                    <div class="flex items-center gap-1">
+                      <span class="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">Guideline</span>
+                      <button onclick="copyEvidenceBlock('${ev.id}')" aria-label="Copy ${e(ev.title)} to clipboard" class="text-[11px] border border-slate-200 text-slate-600 rounded-md px-2 py-1 hover:border-blue-300 hover:text-blue-700 bg-white" title="Copy to clipboard">📋</button>
+                    </div>
                   </div>
                   <p class="text-xs text-slate-600 mt-2">${e(ev.summary)}</p>
                   <ul class="text-xs text-slate-700 mt-2 list-disc list-inside space-y-1">
@@ -3246,7 +3017,6 @@ Example Markdown:
                   <div class="flex gap-2 mt-3">
                     <button onclick="seedEvidencePrompt('${ev.id}')" class="flex-1 bg-blue-600 text-white text-xs py-2 rounded-lg hover:bg-blue-700">Ask with evidence</button>
                     <button onclick="pushEvidenceToChat('${ev.id}')" class="flex-1 border border-blue-200 text-blue-700 text-xs py-2 rounded-lg hover:bg-blue-50">Add summary</button>
-                    <button onclick="copyEvidence('${ev.id}')" class="px-3 bg-white border border-slate-200 text-slate-700 text-xs rounded-lg hover:bg-slate-50">Copy</button>
                   </div>
                 </div>
               `).join('')}
@@ -3432,54 +3202,134 @@ Example Markdown:
       return `${ev.title} (${ev.year})\n${ev.summary}\nKey recommendations:\n${bulletPoints}\nSources: ${ev.sources}`;
     }
 
-    function insertEvidenceIntoSlide(id) {
-      const ev = getEvidenceById(id || state.selectedEvidence);
-      if (!ev) {
-        showToast('Pick an evidence pack first');
+    // Cache an evidence item for quick reuse.
+    // Stores the pre-formatted content along with metadata in aiTemplates.
+    // Most recent evidence is placed first; older entries are deduplicated
+    // by id and the list is capped at 10 items.
+    function cacheEvidenceTemplate(ev, content) {
+      const evidenceTemplate = {
+        type: 'evidence',
+        id: ev.id,
+        title: ev.title,
+        year: ev.year,
+        content,
+        sources: ev.sources,
+        updated: new Date().toISOString()
+      };
+
+      state.lastEvidenceId = ev.id;
+      const filtered = (state.aiTemplates || []).filter(t => !(t.type === 'evidence' && t.id === ev.id));
+      state.aiTemplates = [evidenceTemplate, ...filtered].slice(0, 10);
+      save();
+    }
+
+    // Inject selected evidence into the current slide's notes field.
+    // Caches the evidence for quick reuse via lastEvidenceId.
+    function applyEvidenceToNotes(id) {
+      const ev = EVIDENCE_LIBRARY.find(e => e.id === id);
+      if (!ev) return;
+      if (!state.pres) {
+        showToast('Open a presentation to drop evidence into notes');
         return;
       }
-      if (!state.pres) {
-        showToast('Open a presentation to insert evidence');
+      if (state.slide < 0 || state.slide >= state.pres.slides.length) {
+        showToast('Invalid slide index');
         return;
       }
 
       const slide = state.pres.slides[state.slide];
-      const block = `${ev.title} (${ev.year})\n${ev.summary}\n- ${ev.keyPoints.join('\n- ')}\nSources: ${ev.sources}`;
-
-      if (slide.nonpharm !== undefined) {
-        slide.nonpharm = (slide.nonpharm ? slide.nonpharm + '\n\n' : '') + block;
-      } else if (slide.pharm !== undefined) {
-        slide.pharm = (slide.pharm ? slide.pharm + '\n\n' : '') + block;
-      } else if (slide.content !== undefined) {
-        slide.content = (slide.content ? slide.content + '\n\n' : '') + block;
-      } else if (slide.items !== undefined) {
-        slide.items = [...(slide.items || []), ...ev.keyPoints];
-      }
-
-      state.selectedEvidence = ev.id;
-      state.aiTemplates = [
-        ...state.aiTemplates.filter(t => t.type !== 'last-evidence'),
-        { id: 'last-evidence', type: 'last-evidence', evId: ev.id, title: ev.title }
-      ];
+      const text = buildEvidenceText(ev);
+      slide.notes = (slide.notes ? slide.notes + '\n\n' : '') + text;
       savePres();
-      showToast('Evidence inserted onto slide');
+      cacheEvidenceTemplate(ev, text);
+      showToast('Evidence injected into slide notes/plan');
+      render();
     }
 
-    function copyEvidence(id) {
-      const ev = getEvidenceById(id || state.selectedEvidence);
-      if (!ev) {
-        showToast('Pick an evidence pack first');
+    // Reapply the most recently used evidence to the current slide's notes.
+    // Falls back to lastEvidenceId if no cached template exists, rebuilding
+    // the cache from the evidence library to ensure consistent structure.
+    function reuseCachedEvidence() {
+      let cached = (state.aiTemplates || []).find(t => t.type === 'evidence');
+      if (!cached && state.lastEvidenceId) {
+        const ev = EVIDENCE_LIBRARY.find(e => e.id === state.lastEvidenceId);
+        if (ev) {
+          const content = buildEvidenceText(ev);
+          cacheEvidenceTemplate(ev, content);
+          // Re-fetch from cache to ensure consistent structure
+          cached = (state.aiTemplates || []).find(t => t.type === 'evidence');
+        }
+      }
+
+      if (!cached) {
+        showToast('No cached evidence yet');
         return;
       }
-      navigator.clipboard.writeText(buildEvidenceText(ev))
-        .then(() => showToast('Evidence copied'))
-        .catch(() => showToast('Copy not available'));
+      if (!state.pres) {
+        showToast('Open a presentation to reapply evidence');
+        return;
+      }
+      if (state.slide < 0 || state.slide >= state.pres.slides.length) {
+        showToast('Invalid slide index');
+        return;
+      }
+
+      // Rebuild content if missing (e.g., legacy cached items)
+      if (!cached.content) {
+        const evDetails = EVIDENCE_LIBRARY.find(e => e.id === cached.id);
+        if (evDetails) {
+          cached.content = buildEvidenceText(evDetails);
+          cacheEvidenceTemplate(evDetails, cached.content);
+        }
+      }
+
+      const slide = state.pres.slides[state.slide];
+      slide.notes = (slide.notes ? slide.notes + '\n\n' : '') + cached.content;
+      state.lastEvidenceId = cached.id || state.lastEvidenceId;
+      savePres();
+      save();
+      showToast(`Reused evidence: ${cached.title}`);
+      render();
+    }
+
+    // Copy formatted evidence text to clipboard.
+    // Uses modern Clipboard API with execCommand fallback for older browsers
+    // or non-HTTPS contexts where navigator.clipboard is unavailable.
+    function copyEvidenceToClipboard(id) {
+      const ev = EVIDENCE_LIBRARY.find(e => e.id === id);
+      if (!ev) return;
+      const text = buildEvidenceText(ev);
+
+      const handleSuccess = () => showToast('Evidence copied');
+      const handleFallback = () => {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        handleSuccess();
+      };
+
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).then(handleSuccess).catch(handleFallback);
+      } else {
+        handleFallback();
+      }
+    }
+
+    // Alias for backwards compatibility
+    function copyEvidenceBlock(id) {
+      copyEvidenceToClipboard(id);
     }
 
     function pushEvidenceToChat(id) {
       const ev = EVIDENCE_LIBRARY.find(e => e.id === id);
       if (!ev) return;
       const text = buildEvidenceText(ev);
+      cacheEvidenceTemplate(ev, text);
       state.lastAIContent = text;
       state.editableAIContent = text;
       state.aiChat.push({ role: 'assistant', content: text, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) });
@@ -3497,6 +3347,7 @@ Example Markdown:
       const slide = state.pres?.slides?.[state.slide];
       const contextLine = slide ? `Current slide: ${slide.title || 'Untitled'}; focus on ${slide.type || 'content'}.` : 'No active slide loaded.';
       state.aiInput = `Using ${ev.title} (${ev.year}) evidence: ${ev.summary}. Key points: ${ev.keyPoints.join('; ')}. ${contextLine} Create slide-ready bullets with monitoring parameters and geriatric cautions.`;
+      cacheEvidenceTemplate(ev, buildEvidenceText(ev));
       render();
       setTimeout(() => sendAI(), 50);
     }
