@@ -13,26 +13,34 @@
 **Chief Complaint:** [Reason for admission]
 
 **History of Present Illness (HPI):**
-> [Paste HPI here from v13 Tool]
+> [Paste HPI here]
 
 **Background (PMH):**
 * [List major comorbidities]
-* [List baseline functional status if known]
+* [List baseline functional status]
 
 ## 3. Geriatric Assessment
 **Polypharmacy & Meds:**
 > [Paste Med List here]
-* *Beer's Criteria Flags:* [List any identified by AI]
 
 **Objective Data:**
 * **Labs:** [Paste critical labs]
 * **Imaging:** [Paste imaging reports]
 
+---
+
+## "Inner Auditor" Safety Check
+*(Findings from AI Audit Mode)*
+* **Drug Interactions:** [e.g., "AI flagged Cipro + Warfarin interaction"]
+* **Missed Diagnoses:** [e.g., "Considered Hypoactive Delirium vs Depression"]
+* **Safety Plan:** [e.g., "Added Bed Alarm"]
+
+---
+
 ## 4. Synthesis & Plan
 **Assessment:**
-> [Paste Synthesis from v13 Tool]
+> [Paste Synthesis from v14 Tool]
 
 **Action Items:**
 1.  [ ] [Action 1]
 2.  [ ] [Action 2]
-3.  [ ] [Action 3]

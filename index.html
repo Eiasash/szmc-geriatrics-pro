@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SZMC Geriatrics Pro v13</title>
+    <title>SZMC Pro: Auditor v14.0</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
 
@@ -16,48 +16,58 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
-        :root { --primary: #2c3e50; --accent: #3498db; --bg: #f4f6f7; --sidebar: #ffffff; }
+        :root { --primary: #2c3e50; --accent: #3498db; --audit: #e74c3c; --bg: #f0f2f5; --sidebar: #ffffff; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
 
         /* SIDEBAR */
-        .sidebar { width: 320px; background: var(--sidebar); border-right: 1px solid #bdc3c7; display: flex; flex-direction: column; padding: 25px; z-index: 2; box-shadow: 4px 0 10px rgba(0,0,0,0.03); }
+        .sidebar { width: 340px; background: var(--sidebar); border-right: 1px solid #dce1e6; display: flex; flex-direction: column; padding: 25px; z-index: 2; box-shadow: 4px 0 15px rgba(0,0,0,0.03); }
         .logo { font-size: 1.5rem; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 10px; margin-bottom: 25px; }
-        .badge { background: #e74c3c; color: white; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; letter-spacing: 0.5px; }
-        .autosave-indicator { font-size: 0.7rem; color: #27ae60; display: flex; align-items: center; gap: 5px; opacity: 0; transition: opacity 0.5s; }
+        .badge { background: var(--audit); color: white; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; letter-spacing: 0.5px; }
 
         /* DROPZONE */
         .drop-zone {
-            border: 2px dashed #bdc3c7; border-radius: 12px; padding: 30px 20px; text-align: center;
-            background: #fafafa; cursor: pointer; transition: all 0.2s ease;
+            border: 2px dashed #cbd5e0; border-radius: 12px; padding: 30px 20px; text-align: center;
+            background: #f8fafc; cursor: pointer; transition: all 0.2s ease;
         }
         .drop-zone:hover { border-color: var(--accent); background: #ebf5fb; transform: translateY(-2px); }
-        .drop-icon { font-size: 2.5rem; display: block; margin-bottom: 10px; opacity: 0.8; }
 
         /* MAIN AREA */
         .main { flex: 1; padding: 40px; overflow-y: auto; display: flex; gap: 40px; }
-        .editor-col { flex: 2; background: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .preview-col { flex: 1; display: flex; flex-direction: column; gap: 20px; min-width: 280px; }
+        .editor-col { flex: 2; background: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); }
+        .preview-col { flex: 1; display: flex; flex-direction: column; gap: 20px; min-width: 300px; position: sticky; top: 40px; height: fit-content; }
 
-        /* INPUTS */
-        .sec-header { font-size: 1.1rem; font-weight: 800; color: var(--primary); border-bottom: 2px solid #ecf0f1; padding-bottom: 12px; margin-bottom: 25px; margin-top: 35px; letter-spacing: -0.5px; }
+        /* INPUTS & MACROS */
+        .sec-header { font-size: 1.1rem; font-weight: 800; color: var(--primary); border-bottom: 2px solid #f1f3f5; padding-bottom: 12px; margin-bottom: 15px; margin-top: 35px; display:flex; justify-content:space-between; align-items:center; }
         .sec-header:first-child { margin-top: 0; }
+
+        .macro-row { display:flex; gap:8px; overflow-x:auto; padding-bottom:10px; margin-bottom:5px; }
+        .macro-tag {
+            background: #edf2f7; color: #4a5568; padding: 4px 10px; border-radius: 20px;
+            font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap; border: 1px solid transparent; transition:0.2s;
+        }
+        .macro-tag:hover { background: #cbd5e0; border-color: #a0aec0; }
+
         label { display: block; font-size: 0.7rem; font-weight: 700; color: #95a5a6; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
         input, select, textarea { width: 100%; padding: 14px; border: 1px solid #dfe6e9; border-radius: 8px; font-family: inherit; font-size: 0.95rem; box-sizing: border-box; background: #fdfdfd; transition: border 0.2s; }
-        input:focus, textarea:focus { border-color: var(--accent); outline: none; background: white; box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.1); }
+        input:focus, textarea:focus { border-color: var(--accent); outline: none; background: white; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1); }
 
         /* BUTTONS */
-        .btn { padding: 14px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; color: white; width: 100%; margin-bottom: 12px; font-size: 0.95rem; transition: transform 0.1s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn { padding: 14px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; color: white; width: 100%; margin-bottom: 12px; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.1s; }
         .btn:active { transform: scale(0.98); }
-        .btn-ppt { background: #d35400; }
-        .btn-doc { background: #2980b9; }
-        .btn-ai { background: linear-gradient(135deg, #8e44ad, #9b59b6); box-shadow: 0 4px 15px rgba(142, 68, 173, 0.3); }
-        .btn-reset { background: transparent; color: #e74c3c; border: 1px solid #e74c3c; margin-top: 10px; }
-        .btn-reset:hover { background: #fff5f5; }
 
-        /* STATUS & UTILS */
-        #ocr-status { font-size: 0.8rem; color: #e67e22; margin-top: 15px; font-weight: bold; min-height: 1.2em; text-align: center; }
+        .btn-ai { background: linear-gradient(135deg, #2c3e50, #34495e); }
+        .btn-audit { background: linear-gradient(135deg, #c0392b, #e74c3c); box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3); }
+        .btn-ppt { background: #e67e22; }
+        .btn-doc { background: #2980b9; }
+
+        /* AUDIT PANEL */
+        .audit-panel { background: #fff5f5; border: 2px solid #fab1a0; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        .audit-title { color: #c0392b; font-weight: 800; font-size: 1rem; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+
         .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        #ocr-status { font-size: 0.8rem; color: #e67e22; margin-top: 15px; font-weight: bold; text-align: center; }
+        .autosave-msg { font-size:0.7rem; color:#27ae60; text-align:center; opacity:0; transition:opacity 0.5s; margin-top:10px; }
     </style>
 </head>
 <body>
@@ -65,145 +75,151 @@
 <div class="sidebar">
     <div class="logo">
         <span>SZMC Pro</span>
-        <span class="badge">v13.0</span>
+        <span class="badge">v14.0 Auditor</span>
     </div>
 
     <div class="drop-zone" onclick="document.getElementById('file-in').click()" id="drop-area">
-        <span class="drop-icon">📂</span>
-        <div style="font-weight:700; color:#34495e;">Import Clinical Data</div>
-        <div style="font-size:0.8rem; color:#7f8c8d; margin-top:8px; line-height:1.4;">
-            PPTX • PDF • DOCX • Images<br>
-            <span style="font-size:0.7rem; color:#95a5a6;">(Drag & Drop supported)</span>
+        <span class="drop-icon">🔍</span>
+        <div style="font-weight:700; color:#34495e;">Import Case Data</div>
+        <div style="font-size:0.8rem; color:#7f8c8d; margin-top:8px;">
+            Drag PDF, PPTX, or Image<br>
         </div>
         <input type="file" id="file-in" style="display:none" onchange="handleFile(this)">
     </div>
     <div id="ocr-status"></div>
+    <div class="autosave-msg" id="save-msg">✅ Auto-saved</div>
 
     <div style="margin-top:auto;">
-        <div class="autosave-indicator" id="save-msg">✅ Auto-saved</div>
         <label>Raw Extracted Text</label>
-        <textarea id="raw-text" style="height:200px; font-family:monospace; font-size:0.75rem; color:#333; line-height:1.4;" placeholder="Extracted text appears here..."></textarea>
+        <textarea id="raw-text" style="height:250px; font-family:monospace; font-size:0.75rem; color:#333; line-height:1.4;" placeholder="Extracted text dump..."></textarea>
     </div>
 </div>
 
 <div class="main">
     <div class="editor-col">
-        <div class="sec-header">1. Demographics & ID</div>
+        <div class="sec-header">1. Context</div>
         <div class="grid-3">
             <div><label>Age</label><input type="text" id="age" oninput="autoSave()"></div>
             <div><label>Sex</label><select id="sex" oninput="autoSave()"><option>Male</option><option>Female</option></select></div>
             <div><label>Initials</label><input type="text" id="initials" oninput="autoSave()"></div>
         </div>
-        <div style="margin-top:20px;"><label>Chief Complaint (CC)</label><input type="text" id="cc" oninput="autoSave()"></div>
+        <div style="margin-top:20px;">
+            <label>Chief Complaint</label>
+            <input type="text" id="cc" oninput="autoSave()">
+        </div>
 
-        <div class="sec-header">2. Clinical History</div>
-        <label>History of Present Illness (HPI)</label>
-        <textarea id="hpi" rows="5" oninput="autoSave()" placeholder="Patient presented with..."></textarea>
+        <div class="sec-header">
+            2. Narrative
+            <div class="macro-row">
+                <span class="macro-tag" onclick="insert('hpi', 'Baseline: Independent.')">🚶 Independent</span>
+                <span class="macro-tag" onclick="insert('hpi', 'Baseline: Nursing Home resident.')">🏠 Nursing Home</span>
+                <span class="macro-tag" onclick="insert('hpi', 'Cognitively intact.')">🧠 Intact</span>
+            </div>
+        </div>
+        <textarea id="hpi" rows="5" oninput="autoSave()" placeholder="HPI..."></textarea>
 
         <div class="grid-2" style="margin-top:25px;">
-            <div><label>Background (PMH)</label><textarea id="pmh" rows="6" oninput="autoSave()"></textarea></div>
-            <div><label>Medications</label><textarea id="meds" rows="6" oninput="autoSave()"></textarea></div>
+            <div>
+                <label>PMH</label>
+                <div class="macro-row">
+                    <span class="macro-tag" onclick="insert('pmh', 'HTN, T2DM, HLP')">💊 Met Syn</span>
+                    <span class="macro-tag" onclick="insert('pmh', 'IHD (s/p CABG)')">❤️ Cardiac</span>
+                </div>
+                <textarea id="pmh" rows="6" oninput="autoSave()"></textarea>
+            </div>
+            <div>
+                <label>Medications</label>
+                <textarea id="meds" rows="6" oninput="autoSave()"></textarea>
+            </div>
         </div>
 
-        <div class="sec-header">3. Objective Data</div>
+        <div class="sec-header">3. Objective</div>
         <div class="grid-2">
             <div><label>Labs</label><textarea id="labs" rows="6" oninput="autoSave()"></textarea></div>
-            <div><label>Imaging / Scores</label><textarea id="imaging" rows="6" oninput="autoSave()"></textarea></div>
+            <div><label>Imaging / Diagnostics</label><textarea id="imaging" rows="6" oninput="autoSave()"></textarea></div>
         </div>
 
-        <div class="sec-header">4. Synthesis</div>
-        <label>Assessment & Plan</label><textarea id="plan" rows="10" oninput="autoSave()"></textarea>
+        <div class="sec-header">
+            4. Assessment & Plan
+            <div class="macro-row">
+                <span class="macro-tag" onclick="insert('plan', 'DNR / DNI.')">🛑 DNR/DNI</span>
+                <span class="macro-tag" onclick="insert('plan', 'Rec: Geriatric Rehab.')">🏥 Rehab</span>
+            </div>
+        </div>
+        <textarea id="plan" rows="10" oninput="autoSave()"></textarea>
     </div>
 
     <div class="preview-col">
-        <div style="background:white; padding:25px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.05);">
-            <div style="font-weight:800; color:var(--primary); margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #eee;">Smart Actions</div>
 
-            <button class="btn btn-ai" onclick="generatePrompt()">
-                <span>✨</span> Generate AI Prompt
+        <div class="audit-panel">
+            <div class="audit-title">🛡️ Inner AI Auditor</div>
+            <p style="font-size:0.8rem; color:#c0392b; margin-bottom:15px; line-height:1.4;">
+                Force the AI to critique your plan for safety, errors, and missing items before you discharge.
+            </p>
+            <label>Audit Focus</label>
+            <select id="audit-mode" style="margin-bottom:10px; border-color:#fab1a0;">
+                <option value="safety">💊 Med Safety & Beers Criteria</option>
+                <option value="diagnostic">🔍 Diagnostic Blindspots</option>
+                <option value="discharge">🚪 Discharge Safety Check</option>
+            </select>
+            <button class="btn btn-audit" onclick="generateAudit()">
+                <span>🚨</span> Run Clinical Audit
+            </button>
+        </div>
+
+        <div style="background:white; padding:25px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.05);">
+            <div style="font-weight:800; color:var(--primary); margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">Standard Output</div>
+
+            <button class="btn btn-ai" onclick="generateStandard()">
+                <span>✨</span> Generate Summary
             </button>
 
             <div style="height:1px; background:#eee; margin:15px 0;"></div>
 
-            <button class="btn btn-ppt" onclick="exportPPT()">📊 Download PPTX</button>
-            <button class="btn btn-doc" onclick="exportDOC()">📝 Download Word</button>
-            <button class="btn btn-reset" onclick="clearData()">🗑️ Clear All Data</button>
-        </div>
-
-        <div style="font-size:0.8rem; color:#7f8c8d; background:#eee; padding:15px; border-radius:8px; line-height:1.5;">
-            <strong>Pro Tip:</strong> Drag a <em>Discharge Letter (PDF)</em> or a <em>Morning Report (PPTX)</em> to instantly fill the form.
+            <button class="btn btn-ppt" onclick="exportPPT()">📊 PPTX</button>
+            <button class="btn btn-doc" onclick="exportDOC()">📝 Word</button>
+            <button class="btn" onclick="clearData()" style="background:transparent; color:#95a5a6; border:1px solid #ccc; margin-top:10px;">Reset</button>
         </div>
     </div>
 </div>
 
 <script>
-    // --- 1. ROBUST IMPORT ENGINE ---
+    // --- 1. CORE & IMPORT ---
     const dropArea = document.getElementById('drop-area');
     const statusDiv = document.getElementById('ocr-status');
 
     dropArea.addEventListener('dragover', (e) => { e.preventDefault(); dropArea.style.background = '#e8f6f3'; });
-    dropArea.addEventListener('dragleave', (e) => { e.preventDefault(); dropArea.style.background = '#fafafa'; });
-    dropArea.addEventListener('drop', (e) => {
-        e.preventDefault(); dropArea.style.background = '#fafafa';
-        if(e.dataTransfer.files.length) handleFile({files: e.dataTransfer.files});
-    });
+    dropArea.addEventListener('dragleave', (e) => { e.preventDefault(); dropArea.style.background = '#f8fafc'; });
+    dropArea.addEventListener('drop', (e) => { e.preventDefault(); dropArea.style.background = '#f8fafc'; if(e.dataTransfer.files.length) handleFile({files: e.dataTransfer.files}); });
 
     async function handleFile(input) {
         const file = input.files[0];
         if(!file) return;
-
         const ext = file.name.split('.').pop().toLowerCase();
         let text = "";
         statusDiv.innerText = "Reading " + ext.toUpperCase() + "...";
 
         try {
-            // A. PPTX (Robust XML Parsing)
             if (ext === 'pptx') {
                 const zip = await JSZip.loadAsync(file);
-                const slideFiles = Object.keys(zip.files).filter(n => n.match(/ppt\/slides\/slide\d+\.xml/));
-                slideFiles.sort((a,b) => parseInt(a.match(/slide(\d+)\.xml/)[1]) - parseInt(b.match(/slide(\d+)\.xml/)[1]));
-
-                for(let k of slideFiles) {
-                    const xmlText = await zip.file(k).async("string");
-                    const parser = new DOMParser();
-                    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-                    if (xmlDoc.documentElement) text += xmlDoc.documentElement.textContent + "\n\n";
-                }
-            }
-            // B. PDF
-            else if (ext === 'pdf') {
+                const slideFiles = Object.keys(zip.files).filter(n => n.match(/ppt\/slides\/slide\d+\.xml/)).sort((a,b) => parseInt(a.match(/slide(\d+)\.xml/)[1]) - parseInt(b.match(/slide(\d+)\.xml/)[1]));
+                for(let k of slideFiles) { const t = await zip.file(k).async("string"); const d = new DOMParser().parseFromString(t, "text/xml"); if(d.documentElement) text += d.documentElement.textContent + "\n\n"; }
+            } else if (ext === 'pdf') {
                 const pdf = await pdfjsLib.getDocument(await file.arrayBuffer()).promise;
                 for(let i=1; i<=pdf.numPages; i++) text += (await (await pdf.getPage(i)).getTextContent()).items.map(s=>s.str).join(' ') + " ";
-            }
-            // C. DOCX
-            else if (ext === 'docx') {
+            } else if (ext === 'docx') {
                 const result = await mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()});
                 text = result.value;
-            }
-            // D. IMAGES (OCR)
-            else if (['jpg','png','jpeg'].includes(ext)) {
+            } else if (['jpg','png','jpeg'].includes(ext)) {
                 statusDiv.innerText = "OCR Processing...";
-                const worker = await Tesseract.createWorker('eng');
-                const ret = await worker.recognize(file);
-                text = ret.data.text;
-                await worker.terminate();
-            }
-            else { text = await file.text(); }
-
-            document.getElementById('raw-text').value = text;
-            smartPopulate(text);
-            statusDiv.innerText = "Success!";
-            autoSave(); // Save after import
-            setTimeout(()=>statusDiv.innerText="", 3000);
-
-        } catch (err) {
-            console.error(err);
-            statusDiv.innerText = "Error: " + err.message;
-            alert("Error parsing file. See console for details.");
-        }
+                const w = await Tesseract.createWorker('eng');
+                const r = await w.recognize(file); text = r.data.text; await w.terminate();
+            } else { text = await file.text(); }
+            document.getElementById('raw-text').value = text; smartPopulate(text); statusDiv.innerText = "Success!"; autoSave(); setTimeout(()=>statusDiv.innerText="", 2000);
+        } catch (err) { console.error(err); statusDiv.innerText = "Error!"; alert("Import failed."); }
     }
 
-    // --- 2. SMART POPULATE ---
+    // --- 2. SMART LOGIC ---
     function smartPopulate(text) {
         const set = (id, r) => { let m = text.match(r); if(m) document.getElementById(id).value = m[1].trim(); }
         set('age', /(\d{2,3})\s?(y|yo|Year)/i);
@@ -212,88 +228,56 @@
         set('meds', /(?:Meds|Medications)[:\s]+([\s\S]*?)(?=\n\s*(?:Lab|Plan)|$)/i);
         set('labs', /(?:Labs|Chemistry)[:\s]+([\s\S]*?)(?=\n\s*(?:Plan|Imag)|$)/i);
     }
+    function insert(id, txt) { const el = document.getElementById(id); el.value = el.value ? el.value + " " + txt : txt; autoSave(); }
 
-    // --- 3. AUTO-SAVE & LOAD ---
+    // --- 3. STATE ---
     const FIELDS = ['age','sex','initials','cc','hpi','pmh','meds','labs','imaging','plan','raw-text'];
-
     function autoSave() {
-        const data = {};
-        FIELDS.forEach(id => data[id] = document.getElementById(id).value);
-        localStorage.setItem('szmc_v13_data', JSON.stringify(data));
-
-        const ind = document.getElementById('save-msg');
-        ind.style.opacity = 1;
-        setTimeout(() => ind.style.opacity = 0, 1000);
+        const d = {}; FIELDS.forEach(id => d[id] = document.getElementById(id).value);
+        localStorage.setItem('szmc_v14_data', JSON.stringify(d));
+        const ind = document.getElementById('save-msg'); ind.style.opacity = 1; setTimeout(() => ind.style.opacity = 0, 1000);
     }
+    window.onload = () => { const s = localStorage.getItem('szmc_v14_data'); if(s) { const d = JSON.parse(s); FIELDS.forEach(id => { if(d[id]) document.getElementById(id).value = d[id]; }); } };
+    function clearData() { if(confirm("Reset all?")) { FIELDS.forEach(id => document.getElementById(id).value = ""); localStorage.removeItem('szmc_v14_data'); } }
 
-    function loadData() {
-        const saved = localStorage.getItem('szmc_v13_data');
-        if(saved) {
-            const data = JSON.parse(saved);
-            FIELDS.forEach(id => { if(data[id]) document.getElementById(id).value = data[id]; });
-        }
-    }
-
-    function clearData() {
-        if(confirm("Are you sure you want to clear all fields?")) {
-            FIELDS.forEach(id => document.getElementById(id).value = "");
-            localStorage.removeItem('szmc_v13_data');
-        }
-    }
-
-    window.onload = loadData;
-
-    // --- 4. EXPORTS & AI ---
+    // --- 4. EXPORT & AI ---
     const v = (id) => document.getElementById(id).value || "";
     const raw = () => document.getElementById('raw-text').value || "";
+    const getData = () => v('hpi').length > 5 ? `PT: ${v('age')} ${v('sex')}\nHPI: ${v('hpi')}\nPMH: ${v('pmh')}\nMEDS: ${v('meds')}\nLABS: ${v('labs')}\nPLAN: ${v('plan')}` : `RAW:\n${raw()}`;
+
+    function generateStandard() {
+        const p = `Act as a Senior Geriatrician. Summarize this case for Morning Report.\n\n${getData()}\n\nOUTPUT: 1-Liner ID, HPI Summary, Geriatric Syndromes, Plan.`;
+        navigator.clipboard.writeText(p); alert("✨ Summary Prompt Copied!");
+    }
+
+    function generateAudit() {
+        const mode = document.getElementById('audit-mode').value;
+        let p = `Act as a STRICT Clinical Safety Officer and Geriatric Pharmacologist. Review this case CRITICALLY. Do NOT summarize. Only find ERRORS and RISKS.\n\n${getData()}\n\n`;
+
+        if (mode === 'safety') {
+            p += `TASK: 1. Identify ANY potential Drug-Drug Interactions. 2. Flag meds inappropriate for elderly (Beers Criteria / STOPP). 3. Check for Renally cleared drugs if Creatinine is high.`;
+        } else if (mode === 'diagnostic') {
+            p += `TASK: 1. What diagnoses are we missing? 2. Is the Delirium workup complete? 3. Are we anchoring on a diagnosis? Suggest 3 differential diagnoses we might have ignored.`;
+        } else if (mode === 'discharge') {
+            p += `TASK: 1. Is this patient safe to go home? 2. Identify fall risks at home based on this data. 3. What social support is missing?`;
+        }
+
+        navigator.clipboard.writeText(p); alert("🚨 AUDIT PROMPT COPIED! Paste into AI to start safety check.");
+    }
 
     function exportPPT() {
         let pres = new PptxGenJS();
-
-        let s1 = pres.addSlide();
-        s1.addText("Geriatric Case", {x:1, y:2, fontSize:32, color:'2c3e50', bold:true});
-        s1.addText(`${v('age')}yo ${v('sex')} - ${v('cc')}`, {x:1, y:3, fontSize:24, color:'7f8c8d'});
-
-        let s2 = pres.addSlide();
-        s2.addText("HPI", {x:0.5, y:0.5, fontSize:18, color:'3498db', bold:true});
-        s2.addText(v('hpi') || raw().substring(0,500), {x:0.5, y:1.0, w:'90%', fontSize:14});
-
-        let s3 = pres.addSlide();
-        s3.addText("Objective", {x:0.5, y:0.5, fontSize:18, color:'3498db', bold:true});
-        s3.addText("Meds: " + v('meds'), {x:0.5, y:1.0, w:'45%', fontSize:12});
-        s3.addText("Labs: " + v('labs'), {x:5.0, y:1.0, w:'45%', fontSize:12});
-
-        let s4 = pres.addSlide();
-        s4.addText("Plan", {x:0.5, y:0.5, fontSize:18, color:'3498db', bold:true});
-        s4.addText(v('plan'), {x:0.5, y:1.0, w:'90%', fontSize:14});
-
+        let s1 = pres.addSlide(); s1.addText("Geriatric Case", {x:1, y:2, fontSize:32, color:'2c3e50', bold:true}); s1.addText(`${v('age')}yo ${v('sex')} - ${v('cc')}`, {x:1, y:3, fontSize:24, color:'7f8c8d'});
+        let s2 = pres.addSlide(); s2.addText("HPI", {x:0.5, y:0.5, fontSize:18, color:'3498db', bold:true}); s2.addText(v('hpi') || raw().substring(0,500), {x:0.5, y:1.0, w:'90%', fontSize:14});
+        let s3 = pres.addSlide(); s3.addText("Objective", {x:0.5, y:0.5, fontSize:18, color:'3498db', bold:true}); s3.addText("Meds: " + v('meds'), {x:0.5, y:1.0, w:'45%', fontSize:12}); s3.addText("Labs: " + v('labs'), {x:5.0, y:1.0, w:'45%', fontSize:12});
+        let s4 = pres.addSlide(); s4.addText("Plan", {x:0.5, y:0.5, fontSize:18, color:'3498db', bold:true}); s4.addText(v('plan'), {x:0.5, y:1.0, w:'90%', fontSize:14});
         pres.writeFile({ fileName: `Case_${v('initials')}.pptx` });
     }
 
     function exportDOC() {
-        const content = `<h1>Case Report</h1><p><strong>Pt:</strong> ${v('age')} ${v('sex')}</p><h3>HPI</h3><p>${v('hpi') || raw()}</p><h3>Assessment</h3><p>${v('plan')}</p>`;
-        const blob = new Blob(['<!DOCTYPE html><html><body>'+content+'</body></html>'], {type: 'application/msword'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `Case_${v('initials')}.doc`;
-        a.click();
-    }
-
-    function generatePrompt() {
-        let p = "Act as a Senior Geriatrician. I need a comprehensive Case Presentation and Assessment.\n\n";
-        const hasStructured = v('hpi').length > 5 || v('meds').length > 5;
-
-        if (hasStructured) {
-             p += `PATIENT: ${v('age')} ${v('sex')}\nCC: ${v('cc')}\nHPI: ${v('hpi')}\nPMH: ${v('pmh')}\nMEDS: ${v('meds')}\nLABS: ${v('labs')}\nPLAN: ${v('plan')}\n\n`;
-        } else {
-             p += "Here is the raw clinical text (it may be messy, please organize it):\n\n";
-             p += `--- START RAW DATA ---\n${raw()}\n--- END RAW DATA ---\n\n`;
-        }
-
-        p += "TASKS:\n1. Summarize HPI.\n2. Identify Geriatric Syndromes (Falls, Delirium, Frailty).\n3. Check Meds for Polypharmacy (Beer's Criteria).\n4. Suggest Plan.";
-
-        navigator.clipboard.writeText(p);
-        alert("AI Prompt Copied! (Includes fallback to raw text if needed)");
+        const c = `<h1>Case Report</h1><p><strong>Pt:</strong> ${v('age')} ${v('sex')}</p><h3>HPI</h3><p>${v('hpi') || raw()}</p><h3>Plan</h3><p>${v('plan')}</p>`;
+        const b = new Blob(['<!DOCTYPE html><html><body>'+c+'</body></html>'], {type: 'application/msword'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `Case_${v('initials')}.doc`; a.click();
     }
 </script>
 </body>
