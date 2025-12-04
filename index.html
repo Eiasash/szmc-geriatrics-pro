@@ -91,6 +91,7 @@
       aiTargetSlide: 0,
       aiTargetField: 'items',
       editableAIContent: '',
+      lastEvidenceId: null,
       // QA + API helpers
       showQA: false,
       qaResults: null,
@@ -107,6 +108,7 @@
         state.darkMode = data.darkMode || false;
         state.aiHistory = data.aiHistory || [];
         state.aiTemplates = data.aiTemplates || [];
+        state.lastEvidenceId = data.lastEvidenceId || null;
       }
     } catch(e) { console.error('Load error:', e); }
 
@@ -118,7 +120,8 @@
           apiKey: state.apiKey,
           darkMode: state.darkMode,
           aiHistory: state.aiHistory.slice(-50), // Keep last 50 conversations
-          aiTemplates: state.aiTemplates
+          aiTemplates: state.aiTemplates,
+          lastEvidenceId: state.lastEvidenceId
         }));
       } catch(e) { console.error('Save error:', e); }
     }
@@ -1101,7 +1104,7 @@ Potassium,20mEq,daily,Keep K >4.0`;
         created: new Date().toISOString(),
         modified: new Date().toISOString(),
         template: templateKey,
-        slides: JSON.parse(JSON.stringify(template.slides))
+        slides: JSON.parse(JSON.stringify(template.slides)).map(slide => ({ ...slide, notes: slide.notes || '' }))
       };
       
       state.saved.push(newPres);
@@ -1165,7 +1168,7 @@ Potassium,20mEq,daily,Keep K >4.0`;
 
     function addSlide(type) {
       if (!state.pres) return;
-      const newSlide = { type, title: 'New Slide', content: '', items: [] };
+      const newSlide = { type, title: 'New Slide', content: '', items: [], notes: '' };
       state.pres.slides.splice(state.slide + 1, 0, newSlide);
       state.slide++;
       savePres();
@@ -2615,6 +2618,12 @@ Example Markdown:
           content = `<div class="whitespace-pre-wrap">${e(s.content) || '<span class="text-slate-400">No content</span>'}</div>`;
       }
 
+      const notesBlock = `
+        <div class="mt-4 bg-slate-50 border border-slate-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-slate-600 mb-1">📝 Notes / Plan</div>
+          <div class="text-sm text-slate-700 whitespace-pre-wrap">${s.notes ? e(s.notes) : '<span class="text-slate-400">Use evidence drops or AI to populate notes.</span>'}</div>
+        </div>`;
+
       return `
         <div class="min-h-screen bg-slate-100 pb-20">
           <!-- Header -->
@@ -2643,6 +2652,7 @@ Example Markdown:
               <div class="text-xs text-slate-400 mb-1">${s.type.toUpperCase()}</div>
               <h2 class="text-xl font-bold mb-4 text-slate-800">${e(s.title)}</h2>
               ${content}
+              ${notesBlock}
             </div>
 
             <!-- Edit Button -->
@@ -2781,6 +2791,12 @@ Example Markdown:
           break;
       }
 
+      fields += `
+        <div class="mb-3">
+          <label class="block text-sm font-medium text-slate-700 mb-1">Notes / Plan</label>
+          <textarea oninput="updateSlide('notes',this.value)" class="w-full border rounded-lg p-3 min-h-20" placeholder="Add speaker notes, plan details, or evidence summaries">${e(s.notes || '')}</textarea>
+        </div>`;
+
       return `
         <div class="fixed inset-0 bg-black/50 flex items-end z-50 animate-fadeIn" onclick="if(event.target===this)setState({editing:null})">
           <div class="bg-white w-full rounded-t-2xl p-4 modal-content max-h-[85vh] overflow-auto">
@@ -2872,6 +2888,21 @@ Example Markdown:
         </button>
       `).join('');
 
+      const lastEvidence = (state.aiTemplates || []).find(t => t.type === 'evidence');
+      const evidenceSelect = `
+        <div class="px-3 pb-3">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-xs text-slate-600 flex items-center gap-2"><span class="text-blue-600">📝</span>Drop evidence into current slide notes/plan</div>
+            ${lastEvidence ? `<button onclick="reuseCachedEvidence()" class="text-[11px] text-blue-700 border border-blue-200 px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100">Reuse ${e(lastEvidence.title)} (${e(lastEvidence.year)})</button>` : ''}
+          </div>
+          <div class="flex gap-2">
+            <select onchange="applyEvidenceToNotes(this.value);this.value=''" class="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
+              <option value="">Select evidence topic...</option>
+              ${EVIDENCE_LIBRARY.map(ev => `<option value="${ev.id}">${e(ev.title)} (${e(ev.year)})</option>`).join('')}
+            </select>
+          </div>
+        </div>`;
+
       // Format messages with basic markdown
       const formatAIMessage = (text) => {
         return text
@@ -2945,6 +2976,8 @@ Example Markdown:
             </div>
           </div>
 
+          ${evidenceSelect}
+
           <!-- Evidence injectors -->
           <div class="px-3 pb-3">
             <div class="text-xs text-slate-500 mb-2 flex items-center gap-2">
@@ -2971,7 +3004,10 @@ Example Markdown:
                       <div class="text-sm font-bold text-slate-800">${e(ev.title)}</div>
                       <div class="text-xs text-blue-600">${e(ev.year)}</div>
                     </div>
-                    <span class="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">Guideline</span>
+                    <div class="flex items-center gap-1">
+                      <span class="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">Guideline</span>
+                      <button onclick="copyEvidenceBlock('${ev.id}')" class="text-[11px] border border-slate-200 text-slate-600 rounded-md px-2 py-1 hover:border-blue-300 hover:text-blue-700 bg-white" title="Copy to clipboard">📋</button>
+                    </div>
                   </div>
                   <p class="text-xs text-slate-600 mt-2">${e(ev.summary)}</p>
                   <ul class="text-xs text-slate-700 mt-2 list-disc list-inside space-y-1">
@@ -3165,10 +3201,88 @@ Example Markdown:
       return `${ev.title} (${ev.year})\n${ev.summary}\nKey recommendations:\n${bulletPoints}\nSources: ${ev.sources}`;
     }
 
+    function cacheEvidenceTemplate(ev, content) {
+      const evidenceTemplate = {
+        type: 'evidence',
+        id: ev.id,
+        title: ev.title,
+        year: ev.year,
+        content,
+        sources: ev.sources,
+        updated: new Date().toISOString()
+      };
+
+      state.lastEvidenceId = ev.id;
+      const filtered = (state.aiTemplates || []).filter(t => !(t.type === 'evidence' && t.id === ev.id));
+      state.aiTemplates = [evidenceTemplate, ...filtered].slice(0, 10);
+      save();
+    }
+
+    function applyEvidenceToNotes(id) {
+      const ev = EVIDENCE_LIBRARY.find(e => e.id === id);
+      if (!ev) return;
+      if (!state.pres) {
+        showToast('Open a presentation to drop evidence into notes');
+        return;
+      }
+
+      const slide = state.pres.slides[state.slide];
+      const text = buildEvidenceText(ev);
+      slide.notes = (slide.notes ? slide.notes + '\n\n' : '') + text;
+      savePres();
+      cacheEvidenceTemplate(ev, text);
+      showToast('Evidence injected into slide notes/plan');
+      render();
+    }
+
+    function reuseCachedEvidence() {
+      const cached = (state.aiTemplates || []).find(t => t.type === 'evidence');
+      if (!cached) {
+        showToast('No cached evidence yet');
+        return;
+      }
+      if (!state.pres) {
+        showToast('Open a presentation to reapply evidence');
+        return;
+      }
+
+      const slide = state.pres.slides[state.slide];
+      slide.notes = (slide.notes ? slide.notes + '\n\n' : '') + cached.content;
+      state.lastEvidenceId = cached.id || state.lastEvidenceId;
+      savePres();
+      save();
+      showToast(`Reused evidence: ${cached.title}`);
+      render();
+    }
+
+    function copyEvidenceBlock(id) {
+      const ev = EVIDENCE_LIBRARY.find(e => e.id === id);
+      if (!ev) return;
+      const text = buildEvidenceText(ev);
+
+      const handleSuccess = () => showToast('Evidence copied');
+      const handleFallback = () => {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        handleSuccess();
+      };
+
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).then(handleSuccess).catch(handleFallback);
+      } else {
+        handleFallback();
+      }
+    }
+
     function pushEvidenceToChat(id) {
       const ev = EVIDENCE_LIBRARY.find(e => e.id === id);
       if (!ev) return;
       const text = buildEvidenceText(ev);
+      cacheEvidenceTemplate(ev, text);
       state.lastAIContent = text;
       state.editableAIContent = text;
       state.aiChat.push({ role: 'assistant', content: text, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) });
@@ -3186,6 +3300,7 @@ Example Markdown:
       const slide = state.pres?.slides?.[state.slide];
       const contextLine = slide ? `Current slide: ${slide.title || 'Untitled'}; focus on ${slide.type || 'content'}.` : 'No active slide loaded.';
       state.aiInput = `Using ${ev.title} (${ev.year}) evidence: ${ev.summary}. Key points: ${ev.keyPoints.join('; ')}. ${contextLine} Create slide-ready bullets with monitoring parameters and geriatric cautions.`;
+      cacheEvidenceTemplate(ev, buildEvidenceText(ev));
       render();
       setTimeout(() => sendAI(), 50);
     }
