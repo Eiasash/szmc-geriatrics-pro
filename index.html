@@ -2888,13 +2888,29 @@ Example Markdown:
         </button>
       `).join('');
 
-      const lastEvidence = (state.aiTemplates || []).find(t => t.type === 'evidence')
-        || (state.lastEvidenceId ? EVIDENCE_LIBRARY.find(ev => ev.id === state.lastEvidenceId) : null);
+      const lastEvidence = (() => {
+        const template = (state.aiTemplates || []).find(t => t.type === 'evidence');
+        if (template) return template;
+        if (state.lastEvidenceId) {
+          const ev = EVIDENCE_LIBRARY.find(ev => ev.id === state.lastEvidenceId);
+          if (ev) {
+            return {
+              type: 'evidence',
+              id: ev.id,
+              title: ev.title,
+              year: ev.year,
+              summary: ev.summary,
+              content: buildEvidenceText(ev)
+            };
+          }
+        }
+        return null;
+      })();
       const evidenceSelect = `
         <div class="px-3 pb-3">
           <div class="flex items-center justify-between mb-2">
             <div class="text-xs text-slate-600 flex items-center gap-2"><span class="text-blue-600">📝</span>Drop evidence into current slide notes/plan</div>
-            ${lastEvidence ? `<button onclick="reuseCachedEvidence()" class="text-[11px] text-blue-700 border border-blue-200 px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100">Reuse ${e(lastEvidence.title)} (${e(lastEvidence.year)})</button>` : ''}
+            ${lastEvidence ? `<button onclick="reuseCachedEvidence()" class="text-[11px] text-blue-700 border border-blue-200 px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100" aria-label="Reuse last evidence: ${e(lastEvidence.title)}">Reuse ${e(lastEvidence.title)} (${e(lastEvidence.year)})</button>` : ''}
           </div>
           <div class="flex gap-2">
             <select onchange="applyEvidenceToNotes(this.value);this.value=''" class="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
@@ -3007,7 +3023,7 @@ Example Markdown:
                     </div>
                     <div class="flex items-center gap-1">
                       <span class="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">Guideline</span>
-                      <button onclick="copyEvidenceBlock('${ev.id}')" class="text-[11px] border border-slate-200 text-slate-600 rounded-md px-2 py-1 hover:border-blue-300 hover:text-blue-700 bg-white" title="Copy to clipboard">📋</button>
+                      <button onclick="copyEvidenceText('${ev.id}')" class="text-[11px] border border-slate-200 text-slate-600 rounded-md px-2 py-1 hover:border-blue-300 hover:text-blue-700 bg-white" title="Copy to clipboard" aria-label="Copy evidence to clipboard">📋</button>
                     </div>
                   </div>
                   <p class="text-xs text-slate-600 mt-2">${e(ev.summary)}</p>
@@ -3202,6 +3218,7 @@ Example Markdown:
       return `${ev.title} (${ev.year})\n${ev.summary}\nKey recommendations:\n${bulletPoints}\nSources: ${ev.sources}`;
     }
 
+    // Cache evidence template for quick reuse, keeping only the most recent 10 and deduplicating by evidence id
     function cacheEvidenceTemplate(ev, content) {
       const evidenceTemplate = {
         type: 'evidence',
@@ -3224,6 +3241,18 @@ Example Markdown:
       if (!ev) return;
       if (!state.pres) {
         showToast('Open a presentation to drop evidence into notes');
+        return;
+      }
+
+      if (
+        !state.pres ||
+        !Array.isArray(state.pres.slides) ||
+        typeof state.slide !== 'number' ||
+        state.slide < 0 ||
+        state.slide >= state.pres.slides.length ||
+        !state.pres.slides[state.slide]
+      ) {
+        showToast('Invalid slide index');
         return;
       }
 
@@ -3255,6 +3284,10 @@ Example Markdown:
         showToast('Open a presentation to reapply evidence');
         return;
       }
+      if (!state.pres.slides[state.slide]) {
+        showToast('No slide found to reapply evidence');
+        return;
+      }
 
       const evDetails = EVIDENCE_LIBRARY.find(e => e.id === cached.id) || cached;
       if (!cached.content && evDetails) {
@@ -3264,33 +3297,25 @@ Example Markdown:
 
       const slide = state.pres.slides[state.slide];
       slide.notes = (slide.notes ? slide.notes + '\n\n' : '') + cached.content;
-      state.lastEvidenceId = cached.id || state.lastEvidenceId;
+      state.lastEvidenceId = cached.id;
       savePres();
       save();
       showToast(`Reused evidence: ${cached.title}`);
       render();
     }
 
-    function copyEvidenceBlock(id) {
+    function copyEvidenceText(id) {
       const ev = EVIDENCE_LIBRARY.find(e => e.id === id);
       if (!ev) return;
       const text = buildEvidenceText(ev);
 
       const handleSuccess = () => showToast('Evidence copied');
-      const handleFallback = () => {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        handleSuccess();
-      };
+      const handleUnavailable = () => showToast('Clipboard not available - please copy manually');
 
       if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(text).then(handleSuccess).catch(handleFallback);
+        navigator.clipboard.writeText(text).then(handleSuccess).catch(handleUnavailable);
       } else {
-        handleFallback();
+        handleUnavailable();
       }
     }
 
