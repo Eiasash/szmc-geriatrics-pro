@@ -3241,7 +3241,9 @@ Example Markdown:
       if (!cached && state.lastEvidenceId) {
         const ev = EVIDENCE_LIBRARY.find(e => e.id === state.lastEvidenceId);
         if (ev) {
-          cached = { ...ev, content: buildEvidenceText(ev) };
+          const content = buildEvidenceText(ev);
+          cacheEvidenceTemplate(ev, content);
+          cached = { ...ev, content };
         }
       }
 
@@ -3252,6 +3254,12 @@ Example Markdown:
       if (!state.pres) {
         showToast('Open a presentation to reapply evidence');
         return;
+      }
+
+      const evDetails = EVIDENCE_LIBRARY.find(e => e.id === cached.id) || cached;
+      if (!cached.content && evDetails) {
+        cached = { ...cached, content: buildEvidenceText(evDetails) };
+        cacheEvidenceTemplate(evDetails, cached.content);
       }
 
       const slide = state.pres.slides[state.slide];
