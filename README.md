@@ -1,164 +1,72 @@
-# SZMC Medical Pro
+# SZMC Pro: Universal AI Medical Architect 🏥
 
-🩺 **Medical Case Presentation & Clinical Decision Support Tool**
+![Version](https://img.shields.io/badge/version-4.0-blue)
+![Privacy](https://img.shields.io/badge/privacy-local%20processing-green)
+![Status](https://img.shields.io/badge/status-active-success)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-Built for Shaare Zedek Medical Center (SZMC), Jerusalem
+**SZMC Pro** is a client-side, privacy-focused tool designed for medical residents and specialists. It ingests raw clinical data (PDFs, PowerPoint, HTML) and uses advanced prompt engineering to generate world-class admission notes, discharge summaries, and case presentations for AI models (ChatGPT/Claude).
 
-![Version](https://img.shields.io/badge/version-6.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-
-## 🌐 Live Demo
-
-**[https://eiasash.github.io/szmc-geriatrics-pro](https://eiasash.github.io/szmc-geriatrics-pro)**
-
-## ✨ Features
-
-### 📊 Case Presentations (6 Templates)
-- **🩺 Case Presentation** - 13-slide complete clinical case format
-- **📋 Consult Note** - 8-slide consultation template
-- **☀️ Morning Report** - 6-slide teaching format
-- **🏥 ICU Handoff** - 8-slide structured ICU sign-out
-- **📤 Discharge Summary** - 7-slide discharge planning
-- **📚 Journal Club** - 6-slide critical appraisal format
-- Slide navigation with swipe gestures
-- Auto-save to localStorage
-
-### 📥 Import Presentations (8 Formats)
-Import from multiple formats:
-- **JSON** - Native format, export/import between devices
-- **Markdown** - Use `# Title` and `## Slide` headers
-- **Plain Text** - Sections separated by blank lines
-- **CSV/TSV** - Medication lists, lab values
-- **PPTX** - PowerPoint presentations
-- **DOCX** - Microsoft Word documents
-- **PDF** - PDF documents
-- **HTML** - Web pages
-
-Example Markdown import:
-```markdown
-# Delirium Case
-
-## Patient
-78yo male, nursing home resident
-
-## Chief Complaint
-Acute confusion x 2 days
-
-## Medications
-- Metoprolol 25mg daily
-- Lisinopril 10mg daily
-- Donepezil 10mg qhs
-
-## Differential Diagnosis
-- Delirium secondary to UTI
-- Medication effect
-- Dementia exacerbation
-```
-
-### 🧮 Clinical Calculators (12+)
-- **CrCl** (Cockcroft-Gault)
-- **eGFR** (CKD-EPI 2021)
-- **Anion Gap** (with albumin correction)
-- **qSOFA** (Sepsis Risk)
-- **GCS** (Glasgow Coma Scale)
-- **A-a Gradient** (Oxygenation)
-- **CAM** (Confusion Assessment Method)
-- **Morse Fall Scale**
-- **CHA₂DS₂-VASc** (Afib stroke risk)
-- **HAS-BLED** (Bleeding risk)
-- **MELD** (Liver disease)
-- **PERC** (PE rule-out)
-
-### 💊 Drug Reference
-- **Beers Criteria** - Drugs to avoid in elderly
-- **Geriatric dosing** - Start low, go slow recommendations
-- Renal adjustments
-
-### 🧪 Lab Reference
-- Normal values with geriatric-specific notes
-- Assessment cutoffs (MMSE, MoCA, CAM, GDS, MNA, CFS, etc.)
-
-### 🧠 AI Assistant (Optional)
-- Automatic slide modification and speaker notes
-- Generate DDx, teaching points, management plans
-- Medication review (Beers criteria check)
-- Evidence packs (2024-2025) with quick inject buttons and slide-ready summaries
-- Presentation QA → “Ask AI to fix” workflow
-- API key tester inside Settings
-- Coaching tab (hooks, timelines, tough Q&A) plus safety rails and 24h checklist generators
-- Slide-ready monitoring grids, handoff cards, and expanded 2025 guideline packs
-
-## 🚀 Quick Start
-
-### Use Online
-Visit the live demo link above - works on mobile and desktop.
-
-### Run Locally
-1. Clone this repo
-2. Open `index.html` in a browser
-3. No build process required!
-
-### Enable AI Features
-1. Get an API key from [console.anthropic.com](https://console.anthropic.com)
-2. Go to Settings (⚙️) in the app
-3. Enter your API key
-4. AI features will now work
-
-## 📱 Mobile Optimized
-
-- Touch-friendly interface
-- Swipe between slides
-- Bottom navigation bar
-- Works offline (except AI)
-
-## 🏥 Clinical Content
-
-### Geriatric Syndromes
-- Delirium (CAM criteria, workup, management)
-- Falls (risk factors, prevention)
-- Frailty (FRAIL scale, CFS)
-- Polypharmacy (deprescribing)
-- Malnutrition (MNA screening)
-
-### Assessment Tools
-| Tool | Cutoff | Interpretation |
-|------|--------|----------------|
-| MMSE | ≤23 | Cognitive impairment |
-| MoCA | ≤25 | Cognitive impairment (+1 if edu <12y) |
-| GDS-15 | ≥5 | Depression |
-| CAM | 1+2+(3or4) | Delirium |
-| MNA-SF | <8 | Malnourished |
-| CFS | ≥5 | Frail |
-| Morse | ≥25 | Fall risk |
-| TUG | >12s | Fall risk |
-
-## 🛠️ Development
-
-### Tech Stack
-- Vanilla JavaScript (no build required)
-- Tailwind CSS (via CDN)
-- LocalStorage for persistence
-- Anthropic Claude API for AI
-
-### File Structure
-```
-├── index.html      # Main application
-├── manifest.json   # PWA manifest
-├── README.md       # This file
-└── LICENSE         # MIT license
-```
-
-### Contributing
-Pull requests welcome! Please test on mobile devices.
-
-## 📄 License
-
-MIT License - Use freely for educational and clinical purposes.
-
-## 👨‍⚕️ Author
-
-**Eias** - Geriatrics Fellow, Shaare Zedek Medical Center
+> **✨ New in v4.0:** Full support for **PowerPoint (.pptx)** and **PDF** imports, plus an **"AI Supervisor"** mode that critiques your plan against clinical guidelines (IMA, ESC, AHA).
 
 ---
 
-*Disclaimer: This tool is for educational purposes. Always verify clinical information with authoritative sources.*
+## 🚀 Key Features
+
+### 1. Universal Data Import 📂
+Drag and drop your raw source files directly into the browser. The tool extracts clinical text automatically:
+- **PDF:** Discharge letters, lab results, referrals.
+- **PowerPoint (.pptx):** Morning report slides, lecture notes.
+- **HTML:** Web-based EMR exports.
+- **JSON:** Saved case files.
+
+### 2. Multi-Specialty Engines 🩺
+Instantly switches context and form fields based on the selected specialty:
+- **Geriatrics:** Adds ADL/IADL, cognitive status, and geriatric syndromes.
+- **Internal Medicine:** Focuses on HPI, active problems, and chronic lists.
+- **Pediatrics:** Includes birth history, milestones, and immunizations.
+- **Surgery:** Pre-op risk assessment (Cardiac/Airway) and operative history.
+- **OB/GYN:** Gravida/Para, LMP, and obstetric history.
+- **Psychiatry:** Substance use, family history, and risk assessment.
+
+### 3. AI Supervisor Mode 🛡️
+A toggle switch that instructs the AI to not just write, but **supervise**:
+- **Critique:** Identifies missing labs or incorrect dosages.
+- **Cite:** Demands citations from objective sources (IMA, UpToDate, Guidelines).
+- **Suggest:** Proposes specific investigations based on the differential.
+
+### 4. Privacy-First Architecture 🔒
+- **Zero Server Uploads:** All file parsing (PDF/PPTX) happens **locally in your browser** using WebAssembly.
+- **No Data Retention:** Patient data never leaves your device until you manually copy the anonymized prompt.
+
+### 5. Bilingual Support 🇮🇱 🇺🇸
+- Toggles between **Professional English** and **Medical Hebrew** output formats instantly.
+
+---
+
+## 🛠️ Usage Guide
+
+1.  **Open the Tool:** Simply open `index.html` in any modern browser (Chrome/Edge/Safari).
+2.  **Import Data:** Drag a PDF summary or PowerPoint presentation into the upload zone.
+3.  **Fill/Edit:** The extracted text is attached as "Source Material." Manually fill in any specific patient demographics in the form.
+4.  **Select Output:** Choose "Case Presentation," "Admission Note," or "Discharge Summary."
+5.  **Generate:** Click **"✨ Generate AI Prompt"**.
+6.  **Execute:** Copy the generated text and paste it into ChatGPT (GPT-4) or Claude (3.5 Sonnet) for the final result.
+
+---
+
+## 💻 Tech Stack
+
+- **Core:** Vanilla HTML5, CSS3, JavaScript (ES6+).
+- **PDF Parsing:** [PDF.js](https://mozilla.github.io/pdf.js/) (Client-side).
+- **PPTX Parsing:** [JSZip](https://stuk.github.io/jszip/) (Client-side XML extraction).
+- **Deployment:** Single-file architecture (no Node.js/Python backend required).
+
+---
+
+## ⚠️ Disclaimer
+
+**For Professional Assistance Only.**
+This tool is a prompt engineering utility. It does not provide medical advice. The output is generated by third-party AI models (OpenAI/Anthropic) and must be verified by a licensed physician before use in patient care. The author assumes no liability for errors in the AI-generated content.
+
+---
