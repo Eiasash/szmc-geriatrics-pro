@@ -1,10 +1,10 @@
-# SZMC Geriatrics Pro
+# SZMC Medical Pro
 
-🩺 **Case Presentation Tool for Geriatric Medicine**
+🩺 **Medical Case Presentation & Clinical Decision Support Tool**
 
-Built for Shaare Zedek Medical Center (SZMC), Jerusalem - Geriatrics Fellowship
+Built for Shaare Zedek Medical Center (SZMC), Jerusalem
 
-![Version](https://img.shields.io/badge/version-5.3-blue)
+![Version](https://img.shields.io/badge/version-6.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## 🌐 Live Demo
@@ -13,19 +13,26 @@ Built for Shaare Zedek Medical Center (SZMC), Jerusalem - Geriatrics Fellowship
 
 ## ✨ Features
 
-### 📊 Case Presentations
-- **13-slide case template** - Complete geriatric case presentation format
-- **Consultation template** - Quick consult notes
-- **Morning report template** - Teaching format
+### 📊 Case Presentations (6 Templates)
+- **🩺 Case Presentation** - 13-slide complete clinical case format
+- **📋 Consult Note** - 8-slide consultation template
+- **☀️ Morning Report** - 6-slide teaching format
+- **🏥 ICU Handoff** - 8-slide structured ICU sign-out
+- **📤 Discharge Summary** - 7-slide discharge planning
+- **📚 Journal Club** - 6-slide critical appraisal format
 - Slide navigation with swipe gestures
 - Auto-save to localStorage
 
-### 📥 Import Presentations (NEW in v4.1)
+### 📥 Import Presentations (8 Formats)
 Import from multiple formats:
 - **JSON** - Native format, export/import between devices
 - **Markdown** - Use `# Title` and `## Slide` headers
 - **Plain Text** - Sections separated by blank lines
-- **CSV** - Medication lists, lab values
+- **CSV/TSV** - Medication lists, lab values
+- **PPTX** - PowerPoint presentations
+- **DOCX** - Microsoft Word documents
+- **PDF** - PDF documents
+- **HTML** - Web pages
 
 Example Markdown import:
 ```markdown
@@ -48,15 +55,19 @@ Acute confusion x 2 days
 - Dementia exacerbation
 ```
 
-### 🧮 Clinical Calculators
+### 🧮 Clinical Calculators (12+)
 - **CrCl** (Cockcroft-Gault)
 - **eGFR** (CKD-EPI 2021)
+- **Anion Gap** (with albumin correction)
+- **qSOFA** (Sepsis Risk)
+- **GCS** (Glasgow Coma Scale)
+- **A-a Gradient** (Oxygenation)
 - **CAM** (Confusion Assessment Method)
 - **Morse Fall Scale**
-- **MNA-SF** (Nutrition)
-- **GDS-15** (Depression)
-- **FRAIL Scale**
-- **CHA₂DS₂-VASc**
+- **CHA₂DS₂-VASc** (Afib stroke risk)
+- **HAS-BLED** (Bleeding risk)
+- **MELD** (Liver disease)
+- **PERC** (PE rule-out)
 
 ### 💊 Drug Reference
 - **Beers Criteria** - Drugs to avoid in elderly
