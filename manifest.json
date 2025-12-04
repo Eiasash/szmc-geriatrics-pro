@@ -1,11 +1,11 @@
 {
-  "name": "SZMC Geriatrics Pro",
-  "short_name": "Geri Pro",
-  "description": "Geriatric Case Presentation Tool for SZMC",
+  "name": "SZMC Medical Pro",
+  "short_name": "Medical Pro",
+  "description": "Medical Case Presentation & Clinical Decision Support Tool",
   "start_url": "/szmc-geriatrics-pro/",
   "display": "standalone",
   "background_color": "#1e40af",
-  "theme_color": "#1e40af",
+  "theme_color": "#2563eb",
   "orientation": "portrait",
   "icons": [
     {
