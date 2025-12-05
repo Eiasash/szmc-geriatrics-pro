@@ -1,0 +1,25 @@
+{
+  "name": "szmc-geriatrics-pro",
+  "version": "15.1.0",
+  "description": "SZMC Geriatrics Pro - Clinical decision support tool for geriatricians",
+  "type": "module",
+  "scripts": {
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "jsdom": "^24.0.0",
+    "happy-dom": "^14.0.0"
+  },
+  "keywords": [
+    "geriatrics",
+    "clinical",
+    "healthcare",
+    "decision-support"
+  ],
+  "license": "MIT"
+}
