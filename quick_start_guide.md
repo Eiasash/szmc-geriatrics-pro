@@ -1,9 +1,9 @@
-# SZMC Auditor v14: Quick Start Guide
+# SZMC Pro v15.2: Quick Start Guide
 
 **Objective:** Generate a safe, validated, and professional case presentation in <3 minutes.
 
 ## Phase 1: Ingest Data
-1.  **Open App:** Launch `SZMC Auditor` from your desktop/home screen.
+1.  **Open App:** Launch `SZMC Pro` from your desktop/home screen.
 2.  **Drag & Drop:**
     * *Discharge Letter (PDF)* -> Extracts history and meds.
     * *Morning Report (PPTX)* -> Extracts slide text.
