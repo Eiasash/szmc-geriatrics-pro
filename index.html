@@ -121,7 +121,8 @@
 </div>
 
 <script>
-    // --- 0. LOCALSTORAGE AUTO-SAVE ---
+    // --- 0. CONSTANTS ---
+    const APP_VERSION = '15.3.0';
     const STORAGE_KEY = 'szmc-pro-form-data';
     const FORM_FIELDS = ['age_sex', 'initials', 'hpi', 'meds', 'ai-response', 'raw-text'];
 
@@ -485,7 +486,7 @@ MEDS/LABS: ${meds}`;
                 aiResponse: getVal('ai-response'),
                 rawText: getVal('raw-text'),
                 exportDate: new Date().toISOString(),
-                version: '15.3.0'
+                version: APP_VERSION
             };
 
             const json = JSON.stringify(data, null, 2);

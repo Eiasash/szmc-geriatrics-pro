@@ -53,6 +53,22 @@ export function sanitizeText(text) {
 }
 
 /**
+ * HTML escape map for preventing XSS
+ */
+const HTML_ESCAPE_MAP = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;'
+};
+
+/**
+ * Regex pattern for HTML escaping
+ */
+const HTML_ESCAPE_REGEX = /[&<>"']/g;
+
+/**
  * Escapes HTML special characters to prevent XSS
  * @param {string} text - The text to escape
  * @returns {string} - HTML-escaped text
@@ -61,14 +77,7 @@ export function escapeHtml(text) {
   if (!text || typeof text !== 'string') {
     return '';
   }
-  const escapeMap = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-  };
-  return text.replace(/[&<>"']/g, char => escapeMap[char]);
+  return text.replace(HTML_ESCAPE_REGEX, char => HTML_ESCAPE_MAP[char]);
 }
 
 /**
