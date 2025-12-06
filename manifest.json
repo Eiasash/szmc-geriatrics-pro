@@ -1,10 +1,10 @@
 {
-  "name": "SZMC Auditor v14.1",
-  "short_name": "SZMC Audit",
+  "name": "SZMC Pro v15.2",
+  "short_name": "SZMC Pro",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#f0f2f5",
-  "theme_color": "#e74c3c",
+  "background_color": "#f4f6f7",
+  "theme_color": "#2c3e50",
   "orientation": "any",
   "description": "Geriatric Clinical Decision Support & Safety Auditor - Mobile Optimized",
   "icons": [
