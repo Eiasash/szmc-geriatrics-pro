@@ -76,8 +76,8 @@ export function validatePromptData(data, allowBypass = false) {
   }
 
   // If bypass is allowed, ALL structured fields are empty, and raw text is available, allow bypass
-  const allFieldsEmpty = missing.length === requiredFields.length;
-  if (allowBypass && allFieldsEmpty && data.rawText && data.rawText.trim()) {
+  const allStructuredFieldsEmpty = missing.length === requiredFields.length;
+  if (allowBypass && allStructuredFieldsEmpty && data.rawText && data.rawText.trim()) {
     return {
       isValid: true,
       missing: [],
