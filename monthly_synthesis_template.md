@@ -10,7 +10,7 @@
 * **Rehab Transfers:** [Number]
 
 ## 2. The "Auditor" Log (Safety Catches)
-*List significantly critical findings caught by the v14 Audit Tool this month.*
+*List significantly critical findings caught by the SZMC Pro Audit Tool this month.*
 
 | Patient ID | The Error/Risk Caught | Intervention Taken |
 | :--- | :--- | :--- |

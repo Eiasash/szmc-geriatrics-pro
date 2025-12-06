@@ -1,15 +1,19 @@
-# SZMC Geriatrics Pro: Auditor Edition (v14.1)
+# SZMC Geriatrics Pro: Auditor Edition (v15.2.0)
 
 **A Clinical Decision Support tool with an "Inner AI Auditor" for safety checks.**
 
-## New in v14.1
+## New in v15.2.0
+* **Auto-Save:** Form data is automatically saved to localStorage to prevent data loss
+* **Enhanced Security:** Fixed security issues, added XSS protection in exports, and improved input validation
+* **Improved Error Handling:** Better error messages and graceful fallbacks throughout the application
+* **Comprehensive Test Suite:** Added 172 unit tests with full coverage for all modules
 * **Mobile Optimized:** Full responsive design for Samsung S23 Ultra and other mobile devices
-* **Security Hardened:** Added Subresource Integrity (SRI) checks for all CDN resources
-* **Improved Code Quality:** Expanded, documented JavaScript for maintainability
+* **Security Hardened:** Subresource Integrity (SRI) checks for all CDN resources
+* **Modular Architecture:** Refactored codebase into separate ES modules for better maintainability
 
 ## The Inner AI Auditor
 In Geriatrics, complexity leads to errors (Polypharmacy, missed delirium, unsafe discharge).
-v14.0 introduces a dedicated **Audit Panel** that generates strict "Critique Prompts" for AI assistants.
+The app includes a dedicated **Audit Panel** that generates strict "Critique Prompts" for AI assistants.
 
 ### Audit Modes:
 1.  **Med Safety:** Forces the AI to check your medication list against **Beers Criteria**, **STOPP/START**, and **Renal Dosing** rules.

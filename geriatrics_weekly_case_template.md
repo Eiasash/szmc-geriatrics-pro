@@ -39,7 +39,7 @@
 
 ## 4. Synthesis & Plan
 **Assessment:**
-> [Paste Synthesis from v14 Tool]
+> [Paste Synthesis from SZMC Pro Tool]
 
 **Action Items:**
 1.  [ ] [Action 1]
