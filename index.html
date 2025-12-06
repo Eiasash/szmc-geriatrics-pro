@@ -344,29 +344,32 @@ MEDS/LABS: {meds}`;
         const meds = v('meds').trim();
         const rawText = v('raw-text').trim();
         
-        // Check if structured fields are filled
-        const hasStructuredData = ageSex || hpi || meds;
+        // Check if ALL required structured fields are filled
+        const allStructuredFieldsFilled = ageSex && hpi && meds;
         
-        // If no structured data but raw text exists, offer to use raw text
-        if (!hasStructuredData && rawText) {
-            const useRawText = confirm(PROMPT_MESSAGES.BYPASS_CONFIRM);
-            if (!useRawText) {
+        // If any structured field is missing, check if we have raw text as fallback
+        if (!allStructuredFieldsFilled) {
+            if (rawText) {
+                // Raw text is available - offer to use it
+                const useRawText = confirm(PROMPT_MESSAGES.BYPASS_CONFIRM);
+                if (!useRawText) {
+                    return;
+                }
+            } else {
+                // No raw text fallback available - show error
+                const missing = [];
+                if (!ageSex) missing.push('Age/Sex');
+                if (!hpi) missing.push('HPI');
+                if (!meds) missing.push('Meds/Labs');
+                alert(`Please fill in the following required fields: ${missing.join(', ')}`);
                 return;
             }
-        } else if (!ageSex || !hpi || !meds) {
-            // If missing some structured fields and no raw text fallback
-            const missing = [];
-            if (!ageSex) missing.push('Age/Sex');
-            if (!hpi) missing.push('HPI');
-            if (!meds) missing.push('Meds/Labs');
-            alert(`Please fill in the following required fields: ${missing.join(', ')}`);
-            return;
         }
         
         // Generate prompt using template
         let p;
-        if (!hasStructuredData && rawText) {
-            // Use raw text in prompt
+        if (!allStructuredFieldsFilled && rawText) {
+            // Use raw text in prompt when structured fields are incomplete
             p = PROMPT_TEMPLATE
                 .replace('{ageSex}', 'See below')
                 .replace('{hpi}', 'See clinical data below')
@@ -381,7 +384,7 @@ MEDS/LABS: {meds}`;
 
         try {
             await navigator.clipboard.writeText(p);
-            const message = !hasStructuredData && rawText 
+            const message = !allStructuredFieldsFilled && rawText 
                 ? PROMPT_MESSAGES.SUCCESS_RAW_TEXT
                 : PROMPT_MESSAGES.SUCCESS_STANDARD;
             alert(message);
