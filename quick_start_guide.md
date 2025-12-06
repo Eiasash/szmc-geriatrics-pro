@@ -1,6 +1,15 @@
-# SZMC Pro v15.2: Quick Start Guide
+# SZMC Pro v15.3: Quick Start Guide
 
 **Objective:** Generate a safe, validated, and professional case presentation in <3 minutes.
+
+## What's New in v15.3
+* **Security Enhanced:** Updated dependencies, fixed vulnerabilities, added XSS protection
+* **New Features:** Clear Form button, Export to JSON, Keyboard shortcuts
+* **Better UX:** Input validation, ARIA labels for accessibility
+* **Keyboard Shortcuts:**
+  * `Ctrl/⌘ + G` - Generate AI Prompt
+  * `Ctrl/⌘ + E` - Export to PowerPoint
+  * `Ctrl/⌘ + Shift + E` - Export to Word
 
 ## Phase 1: Ingest Data
 1.  **Open App:** Launch `SZMC Pro` from your desktop/home screen.
@@ -31,6 +40,14 @@
 
 ## Phase 4: Export
 1.  **Generate Summary:** Click "Generate Summary" for the polished narrative.
-2.  **Download:**
-    * **PPTX:** For the morning staff meeting.
-    * **Word:** For the official file or copy-pasting into the EMR.
+2.  **Download (or use keyboard shortcuts):**
+    * **PPTX:** For the morning staff meeting (Ctrl/⌘ + E)
+    * **Word:** For the official file or copy-pasting into the EMR (Ctrl/⌘ + Shift + E)
+    * **JSON:** For backup or data portability
+3.  **Clear Form:** Use the "Clear Form" button when starting a new case (with confirmation to prevent accidents)
+
+## Pro Tips
+* All data is auto-saved to your browser's localStorage - your work is never lost
+* Use keyboard shortcuts for faster workflow
+* Input validation will alert you if required fields are missing
+* All exports include XSS protection for security

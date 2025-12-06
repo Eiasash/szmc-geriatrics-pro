@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SZMC Pro: Mobile v15.2</title>
+    <title>SZMC Pro: Mobile v15.3</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
     
@@ -64,7 +64,7 @@
 <body>
 
 <div class="sidebar">
-    <div class="logo"><span>SZMC Pro</span> <span class="badge">v15.2 Mobile</span></div>
+    <div class="logo"><span>SZMC Pro</span> <span class="badge">v15.3 Mobile</span></div>
     
     <div class="drop-zone" onclick="document.getElementById('file-in')?.click()" id="drop-area">
         <div style="font-size:1.8rem;">📂</div>
@@ -78,37 +78,51 @@
         <label>Raw Data</label>
         <textarea id="raw-text" style="height:150px; font-size:0.7rem; font-family:monospace;" placeholder="Text extractor..."></textarea>
     </div>
+    
+    <div style="margin-top:20px; padding:10px; background:#f9f9f9; border-radius:8px; font-size:0.75rem;">
+        <strong>⌨️ Keyboard Shortcuts:</strong>
+        <div style="margin-top:8px; color:#666;">
+            <div>Ctrl/⌘ + G - Generate Prompt</div>
+            <div>Ctrl/⌘ + E - Export PPTX</div>
+            <div>Ctrl/⌘ + Shift + E - Export DOC</div>
+        </div>
+    </div>
 </div>
 
 <div class="main">
     <div class="card">
         <h2>1. Patient Data</h2>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-            <div><label>Age/Sex</label><input type="text" id="age_sex" placeholder="e.g. 85F"></div>
-            <div><label>Initials</label><input type="text" id="initials" placeholder="e.g. A.B."></div>
+            <div><label for="age_sex">Age/Sex</label><input type="text" id="age_sex" placeholder="e.g. 85F" aria-label="Patient age and sex"></div>
+            <div><label for="initials">Initials</label><input type="text" id="initials" placeholder="e.g. A.B." aria-label="Patient initials"></div>
         </div>
-        <label>CC / HPI</label><textarea id="hpi" rows="4" placeholder="Admitted for..."></textarea>
-        <label>Meds & Labs</label><textarea id="meds" rows="4" placeholder="List meds and labs..."></textarea>
+        <label for="hpi">CC / HPI</label><textarea id="hpi" rows="4" placeholder="Admitted for..." aria-label="Chief complaint and history of present illness"></textarea>
+        <label for="meds">Meds & Labs</label><textarea id="meds" rows="4" placeholder="List meds and labs..." aria-label="Medications and laboratory results"></textarea>
         
-        <button class="btn btn-magic" onclick="generateMagicPrompt()">
+        <button class="btn btn-magic" onclick="generateMagicPrompt()" aria-label="Generate and copy AI prompt to clipboard">
             <span>✨</span> Copy AI Prompt
+        </button>
+        <button class="btn" style="background:#95a5a6; margin-top:10px;" onclick="clearForm()" aria-label="Clear all form fields">
+            <span>🗑️</span> Clear Form
         </button>
     </div>
 
     <div class="card">
         <h2>2. AI Result & Export</h2>
         <label>Paste Claude/GPT Answer Here:</label>
-        <textarea id="ai-response" class="ai-box" rows="12" placeholder="Paste the full AI analysis here. This text will be included in your export."></textarea>
+        <textarea id="ai-response" class="ai-box" rows="12" placeholder="Paste the full AI analysis here. This text will be included in your export." aria-label="AI response input"></textarea>
         
         <div style="margin-top:20px;">
-            <button class="btn btn-ppt" onclick="exportPPT()">📊 Download PPTX (Slides)</button>
-            <button class="btn btn-doc" onclick="exportDOC()">📝 Download Word (Doc)</button>
+            <button class="btn btn-ppt" onclick="exportPPT()" aria-label="Export to PowerPoint presentation">📊 Download PPTX (Slides)</button>
+            <button class="btn btn-doc" onclick="exportDOC()" aria-label="Export to Word document">📝 Download Word (Doc)</button>
+            <button class="btn" style="background:#16a085; margin-top:10px;" onclick="exportJSON()" aria-label="Export data as JSON file">💾 Export JSON</button>
         </div>
     </div>
 </div>
 
 <script>
-    // --- 0. LOCALSTORAGE AUTO-SAVE ---
+    // --- 0. CONSTANTS ---
+    const APP_VERSION = '15.3.0';
     const STORAGE_KEY = 'szmc-pro-form-data';
     const FORM_FIELDS = ['age_sex', 'initials', 'hpi', 'meds', 'ai-response', 'raw-text'];
 
@@ -298,6 +312,21 @@
     // --- 3. PROMPT ---
     async function generateMagicPrompt() {
         const v = (id) => document.getElementById(id)?.value || '';
+        
+        // Validate that required fields are filled
+        const ageSex = v('age_sex').trim();
+        const hpi = v('hpi').trim();
+        const meds = v('meds').trim();
+        
+        if (!ageSex || !hpi || !meds) {
+            const missing = [];
+            if (!ageSex) missing.push('Age/Sex');
+            if (!hpi) missing.push('HPI');
+            if (!meds) missing.push('Meds/Labs');
+            alert(`Please fill in the following required fields: ${missing.join(', ')}`);
+            return;
+        }
+        
         const p = `Act as a Senior Geriatrician.
 I will provide clinical data. Please output a response with TWO SECTIONS:
 
@@ -310,9 +339,9 @@ SECTION 2: CLINICAL SUMMARY (Professional)
 - Assessment & Plan.
 
 DATA:
-ID: ${v('age_sex')}
-HPI: ${v('hpi')}
-MEDS/LABS: ${v('meds')}`;
+ID: ${ageSex}
+HPI: ${hpi}
+MEDS/LABS: ${meds}`;
 
         try {
             await navigator.clipboard.writeText(p);
@@ -344,6 +373,12 @@ MEDS/LABS: ${v('meds')}`;
     function exportPPT() {
         console.log('Starting PPT export...');
         try {
+            // Validate minimum required data
+            if (!getVal('age_sex').trim() && !getVal('hpi').trim()) {
+                alert('Please add some patient data before exporting.');
+                return;
+            }
+            
             if (typeof PptxGenJS === 'undefined') throw new Error('PptxGenJS library not loaded');
             let pres = new PptxGenJS();
             
@@ -384,6 +419,12 @@ MEDS/LABS: ${v('meds')}`;
     function exportDOC() {
         console.log('Starting DOC export...');
         try {
+        // Validate minimum required data
+        if (!getVal('age_sex').trim() && !getVal('hpi').trim()) {
+            alert('Please add some patient data before exporting.');
+            return;
+        }
+        
         // CORRUPTION FIX: Use UTF-8 BOM (\ufeff) and proper XML namespaces
         const preHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Case</title></head><body>";
         const postHtml = "</body></html>";
@@ -420,6 +461,70 @@ MEDS/LABS: ${v('meds')}`;
             alert("DOC Export Error: " + e.message);
         }
     }
+
+    // --- 5. CLEAR FORM ---
+    function clearForm() {
+        if (confirm('Are you sure you want to clear all form data? This cannot be undone.')) {
+            FORM_FIELDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            // Clear localStorage
+            localStorage.removeItem(STORAGE_KEY);
+            alert('Form cleared successfully!');
+        }
+    }
+
+    // --- 6. EXPORT TO JSON ---
+    function exportJSON() {
+        try {
+            const data = {
+                ageSex: getVal('age_sex'),
+                initials: getVal('initials'),
+                hpi: getVal('hpi'),
+                meds: getVal('meds'),
+                aiResponse: getVal('ai-response'),
+                rawText: getVal('raw-text'),
+                exportDate: new Date().toISOString(),
+                version: APP_VERSION
+            };
+
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const jsonInitials = getVal('initials').trim() || 'export';
+            link.download = `Case_${jsonInitials}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            console.log('JSON export completed successfully');
+        } catch(e) {
+            console.error('JSON export failed:', e);
+            alert("JSON Export Error: " + e.message);
+        }
+    }
+
+    // --- 7. KEYBOARD SHORTCUTS ---
+    document.addEventListener('keydown', (e) => {
+        // Ctrl/Cmd + G to generate prompt
+        if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+            e.preventDefault();
+            generateMagicPrompt();
+        }
+        // Ctrl/Cmd + E to export PPTX
+        if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+            e.preventDefault();
+            exportPPT();
+        }
+        // Ctrl/Cmd + Shift + E to export DOC
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'E') {
+            e.preventDefault();
+            exportDOC();
+        }
+    });
 </script>
 </body>
 </html>
