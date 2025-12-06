@@ -1,12 +1,21 @@
-# SZMC Geriatrics Pro: Auditor Edition (v15.2.0)
+# SZMC Geriatrics Pro: Auditor Edition (v15.3.0)
 
 **A Clinical Decision Support tool with an "Inner AI Auditor" for safety checks.**
 
-## New in v15.2.0
+## New in v15.3.0
+* **Security Updates:** Updated all dependencies, fixed critical vulnerabilities (happy-dom, vitest)
+* **Enhanced XSS Protection:** Added comprehensive HTML escaping for all exports to prevent security issues
+* **New Features:**
+  * Clear Form button with confirmation dialog
+  * Export to JSON functionality for data portability
+  * Keyboard shortcuts (Ctrl/⌘ + G for prompt, Ctrl/⌘ + E for PPTX, Ctrl/⌘ + Shift + E for DOC)
+* **Improved Validation:** Added input validation for all major functions with helpful error messages
+* **Better Accessibility:** Added ARIA labels to all form inputs and buttons
+* **Enhanced Testing:** Expanded test suite to 183 tests with comprehensive coverage
+
+## Previous Features (v15.2.0)
 * **Auto-Save:** Form data is automatically saved to localStorage to prevent data loss
-* **Enhanced Security:** Fixed security issues, added XSS protection in exports, and improved input validation
 * **Improved Error Handling:** Better error messages and graceful fallbacks throughout the application
-* **Comprehensive Test Suite:** Added 172 unit tests with full coverage for all modules
 * **Mobile Optimized:** Full responsive design for Samsung S23 Ultra and other mobile devices
 * **Security Hardened:** Subresource Integrity (SRI) checks for all CDN resources
 * **Modular Architecture:** Refactored codebase into separate ES modules for better maintainability
