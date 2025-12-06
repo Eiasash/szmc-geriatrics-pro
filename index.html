@@ -310,24 +310,16 @@
     }
 
     // --- 3. PROMPT ---
-    async function generateMagicPrompt() {
-        const v = (id) => document.getElementById(id)?.value || '';
-        
-        // Validate that required fields are filled
-        const ageSex = v('age_sex').trim();
-        const hpi = v('hpi').trim();
-        const meds = v('meds').trim();
-        
-        if (!ageSex || !hpi || !meds) {
-            const missing = [];
-            if (!ageSex) missing.push('Age/Sex');
-            if (!hpi) missing.push('HPI');
-            if (!meds) missing.push('Meds/Labs');
-            alert(`Please fill in the following required fields: ${missing.join(', ')}`);
-            return;
-        }
-        
-        const p = `Act as a Senior Geriatrician.
+    // Constants for prompt generation
+    const PROMPT_MESSAGES = {
+        BYPASS_CONFIRM: 'Structured fields are empty, but raw text is available.\n\nDo you want to generate the AI prompt using the raw extracted text instead?',
+        SUCCESS_STANDARD: 'Prompt Copied! Paste into AI.',
+        SUCCESS_RAW_TEXT: 'Prompt generated from raw text and copied! Paste into AI.',
+        COPY_FAILED: 'Auto-copy failed. The prompt is displayed - please copy manually (Ctrl+C), then close this dialog.'
+    };
+
+    // Prompt template - matches src/prompt.js PROMPT_TEMPLATE
+    const PROMPT_TEMPLATE = `Act as a Senior Geriatrician.
 I will provide clinical data. Please output a response with TWO SECTIONS:
 
 SECTION 1: SAFETY AUDIT (Strict)
@@ -339,13 +331,60 @@ SECTION 2: CLINICAL SUMMARY (Professional)
 - Assessment & Plan.
 
 DATA:
-ID: ${ageSex}
-HPI: ${hpi}
-MEDS/LABS: ${meds}`;
+ID: {ageSex}
+HPI: {hpi}
+MEDS/LABS: {meds}`;
+
+    async function generateMagicPrompt() {
+        const v = (id) => document.getElementById(id)?.value || '';
+        
+        // Get all data including raw text
+        const ageSex = v('age_sex').trim();
+        const hpi = v('hpi').trim();
+        const meds = v('meds').trim();
+        const rawText = v('raw-text').trim();
+        
+        // Check if structured fields are filled
+        const hasStructuredData = ageSex || hpi || meds;
+        
+        // If no structured data but raw text exists, offer to use raw text
+        if (!hasStructuredData && rawText) {
+            const useRawText = confirm(PROMPT_MESSAGES.BYPASS_CONFIRM);
+            if (!useRawText) {
+                return;
+            }
+        } else if (!ageSex || !hpi || !meds) {
+            // If missing some structured fields and no raw text fallback
+            const missing = [];
+            if (!ageSex) missing.push('Age/Sex');
+            if (!hpi) missing.push('HPI');
+            if (!meds) missing.push('Meds/Labs');
+            alert(`Please fill in the following required fields: ${missing.join(', ')}`);
+            return;
+        }
+        
+        // Generate prompt using template
+        let p;
+        if (!hasStructuredData && rawText) {
+            // Use raw text in prompt
+            p = PROMPT_TEMPLATE
+                .replace('{ageSex}', 'See below')
+                .replace('{hpi}', 'See clinical data below')
+                .replace('{meds}', rawText);
+        } else {
+            // Use structured fields
+            p = PROMPT_TEMPLATE
+                .replace('{ageSex}', ageSex)
+                .replace('{hpi}', hpi)
+                .replace('{meds}', meds);
+        }
 
         try {
             await navigator.clipboard.writeText(p);
-            alert("Prompt Copied! Paste into AI.");
+            const message = !hasStructuredData && rawText 
+                ? PROMPT_MESSAGES.SUCCESS_RAW_TEXT
+                : PROMPT_MESSAGES.SUCCESS_STANDARD;
+            alert(message);
         } catch (err) {
             console.error('Clipboard error:', err);
             // Fallback: show prompt in a textarea for manual copy
@@ -354,7 +393,7 @@ MEDS/LABS: ${meds}`;
             textarea.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80%;height:60%;z-index:9999;';
             document.body.appendChild(textarea);
             textarea.select();
-            alert("Auto-copy failed. The prompt is displayed - please copy manually (Ctrl+C), then close this dialog.");
+            alert(PROMPT_MESSAGES.COPY_FAILED);
             document.body.removeChild(textarea);
         }
     }
