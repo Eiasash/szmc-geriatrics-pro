@@ -341,3 +341,169 @@ describe('Prompt Content Quality', () => {
     expect(prompt).toContain('SAFETY AUDIT');
   });
 });
+
+describe('Raw Text Bypass Functionality', () => {
+  describe('generatePrompt with raw text', () => {
+    it('should use raw text when structured fields are empty', () => {
+      const data = {
+        ageSex: '',
+        hpi: '',
+        meds: '',
+        rawText: 'Patient: 85F with pneumonia. Meds: Lisinopril'
+      };
+
+      const result = generatePrompt(data);
+
+      expect(result).toContain('See below');
+      expect(result).toContain('See clinical data below');
+      expect(result).toContain('Patient: 85F with pneumonia');
+    });
+
+    it('should prefer structured fields over raw text when available', () => {
+      const data = {
+        ageSex: '90M',
+        hpi: 'Structured HPI',
+        meds: 'Structured Meds',
+        rawText: 'This should not be used'
+      };
+
+      const result = generatePrompt(data);
+
+      expect(result).toContain('ID: 90M');
+      expect(result).toContain('HPI: Structured HPI');
+      expect(result).toContain('MEDS/LABS: Structured Meds');
+      expect(result).not.toContain('This should not be used');
+    });
+
+    it('should not use raw text if any structured field is present', () => {
+      const data = {
+        ageSex: '75F',
+        hpi: '',
+        meds: '',
+        rawText: 'Raw text content'
+      };
+
+      const result = generatePrompt(data);
+
+      expect(result).toContain('ID: 75F');
+      expect(result).not.toContain('See below');
+      expect(result).not.toContain('Raw text content');
+    });
+  });
+
+  describe('validatePromptData with bypass', () => {
+    it('should allow bypass when raw text is available', () => {
+      const data = {
+        ageSex: '',
+        hpi: '',
+        meds: '',
+        rawText: 'Clinical data extracted from file'
+      };
+
+      const result = validatePromptData(data, true);
+
+      expect(result.isValid).toBe(true);
+      expect(result.usingRawText).toBe(true);
+      expect(result.message).toBe('Using raw text for prompt generation');
+    });
+
+    it('should not allow bypass without raw text', () => {
+      const data = {
+        ageSex: '',
+        hpi: '',
+        meds: '',
+        rawText: ''
+      };
+
+      const result = validatePromptData(data, true);
+
+      expect(result.isValid).toBe(false);
+      expect(result.usingRawText).toBe(false);
+    });
+
+    it('should require all fields when bypass is false', () => {
+      const data = {
+        ageSex: '',
+        hpi: '',
+        meds: '',
+        rawText: 'Some raw text'
+      };
+
+      const result = validatePromptData(data, false);
+
+      expect(result.isValid).toBe(false);
+      expect(result.missing).toEqual(['ageSex', 'hpi', 'meds']);
+    });
+
+    it('should validate normally when structured fields are present', () => {
+      const data = {
+        ageSex: '85F',
+        hpi: 'HPI text',
+        meds: 'Meds text',
+        rawText: 'Raw text'
+      };
+
+      const result = validatePromptData(data, true);
+
+      expect(result.isValid).toBe(true);
+      expect(result.usingRawText).toBe(false);
+      expect(result.message).toBe('All fields present');
+    });
+  });
+
+  describe('generateMagicPrompt with bypass', () => {
+    let mockGetValue;
+    let mockAlert;
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+
+      mockGetValue = vi.fn((id) => {
+        const values = {
+          'age_sex': '',
+          'hpi': '',
+          'meds': '',
+          'raw-text': 'Raw extracted clinical data'
+        };
+        return values[id] || '';
+      });
+
+      mockAlert = vi.fn();
+      navigator.clipboard.writeText.mockResolvedValue(undefined);
+    });
+
+    it('should generate prompt from raw text when bypass is enabled', async () => {
+      const result = await generateMagicPrompt(mockGetValue, mockAlert, true);
+
+      expect(result).toContain('See below');
+      expect(result).toContain('Raw extracted clinical data');
+      expect(mockAlert).toHaveBeenCalledWith('Prompt generated from raw text and copied! Paste into AI.');
+    });
+
+    it('should fail validation when bypass is disabled and fields are empty', async () => {
+      const result = await generateMagicPrompt(mockGetValue, mockAlert, false);
+
+      expect(result).toBe('');
+      expect(mockAlert).toHaveBeenCalledWith(expect.stringContaining('Please fill in the following required fields'));
+    });
+
+    it('should not bypass when structured fields are available', async () => {
+      mockGetValue = vi.fn((id) => {
+        const values = {
+          'age_sex': '85F',
+          'hpi': 'Test HPI',
+          'meds': 'Test Meds',
+          'raw-text': 'Should not be used'
+        };
+        return values[id] || '';
+      });
+
+      const result = await generateMagicPrompt(mockGetValue, mockAlert, true);
+
+      expect(result).toContain('ID: 85F');
+      expect(result).toContain('HPI: Test HPI');
+      expect(result).not.toContain('Should not be used');
+      expect(mockAlert).toHaveBeenCalledWith('Prompt Copied! Paste into AI.');
+    });
+  });
+});
