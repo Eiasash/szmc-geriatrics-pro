@@ -64,12 +64,12 @@ export async function extractFromPPTX(file, JSZip) {
 
   const zip = await JSZip.loadAsync(file);
 
-  // Filter and sort slides numerically
+  // Filter and sort slides numerically (with safe number extraction)
   const slides = Object.keys(zip.files)
     .filter(name => name.match(/ppt\/slides\/slide\d+\.xml/))
     .sort((a, b) => {
-      const numA = parseInt(a.match(/\d+/)[0]);
-      const numB = parseInt(b.match(/\d+/)[0]);
+      const numA = parseInt(a.match(/\d+/)?.[0] || '0', 10);
+      const numB = parseInt(b.match(/\d+/)?.[0] || '0', 10);
       return numA - numB;
     });
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SZMC Pro: Mobile v15.1</title>
+    <title>SZMC Pro: Mobile v15.2</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
     
@@ -64,7 +64,7 @@
 <body>
 
 <div class="sidebar">
-    <div class="logo"><span>SZMC Pro</span> <span class="badge">v15.1 Mobile</span></div>
+    <div class="logo"><span>SZMC Pro</span> <span class="badge">v15.2 Mobile</span></div>
     
     <div class="drop-zone" onclick="document.getElementById('file-in').click()" id="drop-area">
         <div style="font-size:1.8rem;">📂</div>
@@ -108,6 +108,54 @@
 </div>
 
 <script>
+    // --- 0. LOCALSTORAGE AUTO-SAVE ---
+    const STORAGE_KEY = 'szmc-pro-form-data';
+    const FORM_FIELDS = ['age_sex', 'initials', 'hpi', 'meds', 'ai-response', 'raw-text'];
+
+    // Load saved data on page load
+    function loadSavedData() {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const data = JSON.parse(saved);
+                FORM_FIELDS.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el && data[id]) el.value = data[id];
+                });
+                console.log('Form data restored from localStorage');
+            }
+        } catch (err) {
+            console.error('Error loading saved data:', err);
+        }
+    }
+
+    // Save data to localStorage (debounced)
+    let saveTimeout;
+    function saveFormData() {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            try {
+                const data = {};
+                FORM_FIELDS.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) data[id] = el.value;
+                });
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (err) {
+                console.error('Error saving data:', err);
+            }
+        }, 500); // Debounce by 500ms
+    }
+
+    // Attach auto-save listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        loadSavedData();
+        FORM_FIELDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', saveFormData);
+        });
+    });
+
     // --- 1. IMPORT ENGINE ---
     const dropArea = document.getElementById('drop-area');
     const statusDiv = document.getElementById('status');
@@ -140,9 +188,11 @@
         try {
             if (ext === 'pptx') {
                 const zip = await JSZip.loadAsync(file);
-                // Filter and numerical sort for slides
+                // Filter and numerical sort for slides (with safe number extraction)
                 const slides = Object.keys(zip.files).filter(n => n.match(/ppt\/slides\/slide\d+\.xml/)).sort((a,b)=>{
-                    return parseInt(a.match(/\d+/)[0]) - parseInt(b.match(/\d+/)[0]);
+                    const numA = a.match(/\d+/)?.[0] || '0';
+                    const numB = b.match(/\d+/)?.[0] || '0';
+                    return parseInt(numA, 10) - parseInt(numB, 10);
                 });
                 for(let s of slides) { 
                     const t = await zip.file(s).async("string"); 
@@ -195,8 +245,8 @@
     }
 
     // --- 3. PROMPT ---
-    function generateMagicPrompt() {
-        const v = (id) => document.getElementById(id).value;
+    async function generateMagicPrompt() {
+        const v = (id) => document.getElementById(id)?.value || '';
         const p = `Act as a Senior Geriatrician.
 I will provide clinical data. Please output a response with TWO SECTIONS:
 
@@ -213,14 +263,35 @@ ID: ${v('age_sex')}
 HPI: ${v('hpi')}
 MEDS/LABS: ${v('meds')}`;
 
-        navigator.clipboard.writeText(p);
-        alert("Prompt Copied! Paste into AI.");
+        try {
+            await navigator.clipboard.writeText(p);
+            alert("Prompt Copied! Paste into AI.");
+        } catch (err) {
+            console.error('Clipboard error:', err);
+            // Fallback: show prompt in a textarea for manual copy
+            const textarea = document.createElement('textarea');
+            textarea.value = p;
+            textarea.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80%;height:60%;z-index:9999;';
+            document.body.appendChild(textarea);
+            textarea.select();
+            alert("Auto-copy failed. The prompt is displayed - please copy manually (Ctrl+C), then close this dialog.");
+            document.body.removeChild(textarea);
+        }
     }
 
     // --- 4. SAFE EXPORTS ---
-    const getVal = (id) => document.getElementById(id).value || " ";
+    const getVal = (id) => document.getElementById(id)?.value || " ";
+
+    // HTML escape function to prevent XSS in Word export
+    const escapeHtml = (text) => {
+        if (!text || typeof text !== 'string') return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    };
 
     function exportPPT() {
+        console.log('Starting PPT export...');
         try {
             let pres = new PptxGenJS();
             
@@ -250,24 +321,28 @@ MEDS/LABS: ${v('meds')}`;
             }
 
             pres.writeFile({ fileName: `Case_${getVal('initials')}.pptx` });
+            console.log('PPT export completed successfully');
         } catch(e) {
+            console.error('PPT export failed:', e);
             alert("PPT Export Error: " + e.message);
         }
     }
 
     function exportDOC() {
+        console.log('Starting DOC export...');
+        try {
         // CORRUPTION FIX: Use UTF-8 BOM (\ufeff) and proper XML namespaces
         const preHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Case</title></head><body>";
         const postHtml = "</body></html>";
         
         const content = `
             <h1 style="color:#2c3e50">Geriatric Case Report</h1>
-            <p><strong>ID:</strong> ${getVal('age_sex')} (${getVal('initials')})</p>
-            <h3>HPI</h3><p>${getVal('hpi')}</p>
-            <h3>Meds/Labs</h3><p>${getVal('meds')}</p>
+            <p><strong>ID:</strong> ${escapeHtml(getVal('age_sex'))} (${escapeHtml(getVal('initials'))})</p>
+            <h3>HPI</h3><p>${escapeHtml(getVal('hpi'))}</p>
+            <h3>Meds/Labs</h3><p>${escapeHtml(getVal('meds'))}</p>
             <hr>
             <h3>Analysis & Plan</h3>
-            <div style="font-family: Arial; white-space: pre-wrap;">${getVal('ai-response')}</div>
+            <div style="font-family: Arial; white-space: pre-wrap;">${escapeHtml(getVal('ai-response'))}</div>
         `;
         
         const html = preHtml + content + postHtml;
@@ -284,6 +359,11 @@ MEDS/LABS: ${v('meds')}`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        console.log('DOC export completed successfully');
+        } catch(e) {
+            console.error('DOC export failed:', e);
+            alert("DOC Export Error: " + e.message);
+        }
     }
 </script>
 </body>
