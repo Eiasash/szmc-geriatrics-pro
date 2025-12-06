@@ -258,7 +258,7 @@
                 // Strip tags if HTML
                 if(ext.includes('htm')) {
                     const doc = new DOMParser().parseFromString(text, 'text/html');
-                    text = doc.body.innerText;
+                    text = doc.body?.innerText || doc.body?.textContent || '';
                 }
             }
             else if (['jpg','png','jpeg'].includes(ext)) {
@@ -331,7 +331,7 @@ MEDS/LABS: ${v('meds')}`;
     }
 
     // --- 4. SAFE EXPORTS ---
-    const getVal = (id) => document.getElementById(id)?.value || " ";
+    const getVal = (id) => document.getElementById(id)?.value || "";
 
     // HTML escape function to prevent XSS in Word export
     const escapeHtml = (text) => {
