@@ -35,8 +35,9 @@ MEDS/LABS: {meds}`;
 export function generatePrompt(data, template = PROMPT_TEMPLATE) {
   const { ageSex = '', hpi = '', meds = '', rawText = '' } = data || {};
 
-  // If structured fields are empty but raw text is available, use raw text
-  if ((!ageSex && !hpi && !meds) && rawText) {
+  // If all structured fields are empty but raw text is available, use raw text
+  const allStructuredFieldsEmpty = !ageSex && !hpi && !meds;
+  if (allStructuredFieldsEmpty && rawText) {
     return template
       .replace('{ageSex}', 'See below')
       .replace('{hpi}', 'See clinical data below')

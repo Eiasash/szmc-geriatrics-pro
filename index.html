@@ -310,6 +310,31 @@
     }
 
     // --- 3. PROMPT ---
+    // Constants for prompt generation
+    const PROMPT_MESSAGES = {
+        BYPASS_CONFIRM: 'Structured fields are empty, but raw text is available.\n\nDo you want to generate the AI prompt using the raw extracted text instead?',
+        SUCCESS_STANDARD: 'Prompt Copied! Paste into AI.',
+        SUCCESS_RAW_TEXT: 'Prompt generated from raw text and copied! Paste into AI.',
+        COPY_FAILED: 'Auto-copy failed. The prompt is displayed - please copy manually (Ctrl+C), then close this dialog.'
+    };
+
+    // Prompt template - matches src/prompt.js PROMPT_TEMPLATE
+    const PROMPT_TEMPLATE = `Act as a Senior Geriatrician.
+I will provide clinical data. Please output a response with TWO SECTIONS:
+
+SECTION 1: SAFETY AUDIT (Strict)
+- Flag Drug Interactions.
+- Flag Beers Criteria.
+
+SECTION 2: CLINICAL SUMMARY (Professional)
+- Case Presentation style.
+- Assessment & Plan.
+
+DATA:
+ID: {ageSex}
+HPI: {hpi}
+MEDS/LABS: {meds}`;
+
     async function generateMagicPrompt() {
         const v = (id) => document.getElementById(id)?.value || '';
         
@@ -324,7 +349,7 @@
         
         // If no structured data but raw text exists, offer to use raw text
         if (!hasStructuredData && rawText) {
-            const useRawText = confirm('Structured fields are empty, but raw text is available.\n\nDo you want to generate the AI prompt using the raw extracted text instead?');
+            const useRawText = confirm(PROMPT_MESSAGES.BYPASS_CONFIRM);
             if (!useRawText) {
                 return;
             }
@@ -338,49 +363,27 @@
             return;
         }
         
-        // Generate prompt
+        // Generate prompt using template
         let p;
         if (!hasStructuredData && rawText) {
             // Use raw text in prompt
-            p = `Act as a Senior Geriatrician.
-I will provide clinical data. Please output a response with TWO SECTIONS:
-
-SECTION 1: SAFETY AUDIT (Strict)
-- Flag Drug Interactions.
-- Flag Beers Criteria.
-
-SECTION 2: CLINICAL SUMMARY (Professional)
-- Case Presentation style.
-- Assessment & Plan.
-
-DATA:
-ID: See below
-HPI: See clinical data below
-MEDS/LABS: ${rawText}`;
+            p = PROMPT_TEMPLATE
+                .replace('{ageSex}', 'See below')
+                .replace('{hpi}', 'See clinical data below')
+                .replace('{meds}', rawText);
         } else {
             // Use structured fields
-            p = `Act as a Senior Geriatrician.
-I will provide clinical data. Please output a response with TWO SECTIONS:
-
-SECTION 1: SAFETY AUDIT (Strict)
-- Flag Drug Interactions.
-- Flag Beers Criteria.
-
-SECTION 2: CLINICAL SUMMARY (Professional)
-- Case Presentation style.
-- Assessment & Plan.
-
-DATA:
-ID: ${ageSex}
-HPI: ${hpi}
-MEDS/LABS: ${meds}`;
+            p = PROMPT_TEMPLATE
+                .replace('{ageSex}', ageSex)
+                .replace('{hpi}', hpi)
+                .replace('{meds}', meds);
         }
 
         try {
             await navigator.clipboard.writeText(p);
             const message = !hasStructuredData && rawText 
-                ? "Prompt generated from raw text and copied! Paste into AI."
-                : "Prompt Copied! Paste into AI.";
+                ? PROMPT_MESSAGES.SUCCESS_RAW_TEXT
+                : PROMPT_MESSAGES.SUCCESS_STANDARD;
             alert(message);
         } catch (err) {
             console.error('Clipboard error:', err);
@@ -390,7 +393,7 @@ MEDS/LABS: ${meds}`;
             textarea.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80%;height:60%;z-index:9999;';
             document.body.appendChild(textarea);
             textarea.select();
-            alert("Auto-copy failed. The prompt is displayed - please copy manually (Ctrl+C), then close this dialog.");
+            alert(PROMPT_MESSAGES.COPY_FAILED);
             document.body.removeChild(textarea);
         }
     }
