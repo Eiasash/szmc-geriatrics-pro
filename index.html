@@ -258,7 +258,7 @@
                 // Strip tags if HTML
                 if(ext.includes('htm')) {
                     const doc = new DOMParser().parseFromString(text, 'text/html');
-                    text = doc.body.innerText;
+                    text = doc.body?.innerText || doc.body?.textContent || '';
                 }
             }
             else if (['jpg','png','jpeg'].includes(ext)) {
@@ -289,9 +289,10 @@
             const el = document.getElementById(id);
             if(m && m[1] && el) el.value = m[1].trim();
         };
-        set('age_sex', /(\d{2,3}\s?[MmFf])/);
-        set('hpi', /(?:HPI|History)[:\s]+([\s\S]*?)(?=\n\s*(?:PMH|Meds)|$)/i);
-        set('meds', /(?:Meds|Medications)[:\s]+([\s\S]*?)(?=\n\s*(?:Labs|Plan)|$)/i);
+        // Enhanced patterns to match more variations (e.g., "85F", "72 M", "65 male", "78 female")
+        set('age_sex', /(\d{2,3}\s?(?:male|female|Male|Female|[MmFf]))/);
+        set('hpi', /(?:HPI|History of Present Illness|History)[:\s]+([\s\S]*?)(?=\n\s*(?:PMH|Past Medical History|Meds|Medications|Assessment|Physical Exam)|$)/i);
+        set('meds', /(?:Meds|Medications|Current Medications|Home Medications)[:\s]+([\s\S]*?)(?=\n\s*(?:Labs|Laboratory|Plan|Assessment|Allergies)|$)/i);
     }
 
     // --- 3. PROMPT ---
@@ -330,7 +331,7 @@ MEDS/LABS: ${v('meds')}`;
     }
 
     // --- 4. SAFE EXPORTS ---
-    const getVal = (id) => document.getElementById(id)?.value || " ";
+    const getVal = (id) => document.getElementById(id)?.value || "";
 
     // HTML escape function to prevent XSS in Word export
     const escapeHtml = (text) => {
@@ -412,6 +413,7 @@ MEDS/LABS: ${v('meds')}`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url); // Clean up to prevent memory leak
         console.log('DOC export completed successfully');
         } catch(e) {
             console.error('DOC export failed:', e);

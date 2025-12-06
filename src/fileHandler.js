@@ -4,6 +4,11 @@
  */
 
 /**
+ * Maximum file size in bytes (50MB)
+ */
+export const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+/**
  * Supported file extensions
  */
 export const SUPPORTED_EXTENSIONS = {
@@ -104,7 +109,7 @@ export async function extractFromPDF(file, pdfjsLib) {
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
-    const pageText = textContent.items.map(item => item.str).join(' ');
+    const pageText = (textContent.items || []).map(item => item.str).join(' ');
     text += pageText + ' ';
   }
 
@@ -179,6 +184,11 @@ export async function handleFile(file, libraries = {}, callbacks = {}) {
     throw new Error('No file provided');
   }
 
+  // File size validation
+  if (file.size && file.size > MAX_FILE_SIZE) {
+    throw new Error(`File too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`);
+  }
+
   const extension = getFileExtension(file.name);
 
   if (!isExtensionSupported(extension)) {
@@ -235,6 +245,7 @@ export async function handleFile(file, libraries = {}, callbacks = {}) {
 }
 
 export default {
+  MAX_FILE_SIZE,
   SUPPORTED_EXTENSIONS,
   getFileExtension,
   isExtensionSupported,

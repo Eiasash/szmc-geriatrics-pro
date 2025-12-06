@@ -58,7 +58,8 @@ export function validatePromptData(data) {
   }
 
   for (const field of requiredFields) {
-    if (!data[field] || data[field].trim() === '') {
+    const value = data[field];
+    if (!value || (typeof value === 'string' && value.trim() === '')) {
       missing.push(field);
     }
   }
