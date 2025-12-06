@@ -8,6 +8,7 @@ import {
   PPT_CONFIG,
   DOC_CONFIG,
   sanitizeText,
+  escapeHtml,
   truncateText,
   createSlideData,
   generatePPT,
@@ -91,6 +92,53 @@ describe('Exporters Module', () => {
     it('should preserve HTML entities', () => {
       const text = '&lt;div&gt; &amp; test';
       expect(sanitizeText(text)).toBe('&lt;div&gt; &amp; test');
+    });
+  });
+
+  describe('escapeHtml', () => {
+    it('should return empty string for null input', () => {
+      expect(escapeHtml(null)).toBe('');
+    });
+
+    it('should return empty string for undefined input', () => {
+      expect(escapeHtml(undefined)).toBe('');
+    });
+
+    it('should return empty string for non-string input', () => {
+      expect(escapeHtml(123)).toBe('');
+    });
+
+    it('should escape ampersands', () => {
+      expect(escapeHtml('A & B')).toBe('A &amp; B');
+    });
+
+    it('should escape less than signs', () => {
+      expect(escapeHtml('5 < 10')).toBe('5 &lt; 10');
+    });
+
+    it('should escape greater than signs', () => {
+      expect(escapeHtml('10 > 5')).toBe('10 &gt; 5');
+    });
+
+    it('should escape double quotes', () => {
+      expect(escapeHtml('Say "Hello"')).toBe('Say &quot;Hello&quot;');
+    });
+
+    it('should escape single quotes', () => {
+      expect(escapeHtml("It's")).toBe('It&#39;s');
+    });
+
+    it('should escape multiple special characters', () => {
+      expect(escapeHtml('<script>alert("XSS & stuff")</script>'))
+        .toBe('&lt;script&gt;alert(&quot;XSS &amp; stuff&quot;)&lt;/script&gt;');
+    });
+
+    it('should preserve normal text', () => {
+      expect(escapeHtml('Hello World')).toBe('Hello World');
+    });
+
+    it('should preserve Unicode characters', () => {
+      expect(escapeHtml('שלום 你好')).toBe('שלום 你好');
     });
   });
 
@@ -238,10 +286,10 @@ describe('Exporters Module', () => {
         addText: vi.fn()
       };
 
-      mockPptxGenJS = vi.fn().mockImplementation(() => ({
-        addSlide: vi.fn().mockReturnValue(mockSlide),
-        writeFile: vi.fn().mockResolvedValue(undefined)
-      }));
+      mockPptxGenJS = vi.fn(function() {
+        this.addSlide = vi.fn().mockReturnValue(mockSlide);
+        this.writeFile = vi.fn().mockResolvedValue(undefined);
+      });
     });
 
     it('should throw error if PptxGenJS is not provided', () => {

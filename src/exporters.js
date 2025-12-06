@@ -53,6 +53,25 @@ export function sanitizeText(text) {
 }
 
 /**
+ * Escapes HTML special characters to prevent XSS
+ * @param {string} text - The text to escape
+ * @returns {string} - HTML-escaped text
+ */
+export function escapeHtml(text) {
+  if (!text || typeof text !== 'string') {
+    return '';
+  }
+  const escapeMap = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  };
+  return text.replace(/[&<>"']/g, char => escapeMap[char]);
+}
+
+/**
  * Truncates text to a maximum length
  * @param {string} text - The text to truncate
  * @param {number} maxLength - Maximum length
@@ -174,12 +193,12 @@ export function createDocHTML(data) {
 
   const content = `
     <h1 style="color:#2c3e50">Geriatric Case Report</h1>
-    <p><strong>ID:</strong> ${sanitizeText(ageSex)} (${sanitizeText(initials)})</p>
-    <h3>HPI</h3><p>${sanitizeText(hpi)}</p>
-    <h3>Meds/Labs</h3><p>${sanitizeText(meds)}</p>
+    <p><strong>ID:</strong> ${escapeHtml(sanitizeText(ageSex))} (${escapeHtml(sanitizeText(initials))})</p>
+    <h3>HPI</h3><p>${escapeHtml(sanitizeText(hpi))}</p>
+    <h3>Meds/Labs</h3><p>${escapeHtml(sanitizeText(meds))}</p>
     <hr>
     <h3>Analysis & Plan</h3>
-    <div style="font-family: Arial; white-space: pre-wrap;">${sanitizeText(aiResponse)}</div>
+    <div style="font-family: Arial; white-space: pre-wrap;">${escapeHtml(sanitizeText(aiResponse))}</div>
   `;
 
   return preHtml + content + postHtml;
@@ -234,6 +253,7 @@ export default {
   PPT_CONFIG,
   DOC_CONFIG,
   sanitizeText,
+  escapeHtml,
   truncateText,
   createSlideData,
   generatePPT,
