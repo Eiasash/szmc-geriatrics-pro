@@ -52,7 +52,7 @@ export function generatePrompt(data, template = PROMPT_TEMPLATE) {
 /**
  * Validates that required fields are present
  * @param {Object} data - Patient data object
- * @param {boolean} allowBypass - If true, allows validation to pass if rawText is present
+ * @param {boolean} allowBypass - If true, allows validation to pass if rawText is present and ALL structured fields are empty
  * @returns {Object} - Validation result with isValid and missing fields
  */
 export function validatePromptData(data, allowBypass = false) {
@@ -74,8 +74,9 @@ export function validatePromptData(data, allowBypass = false) {
     }
   }
 
-  // If bypass is allowed and raw text is available, consider it valid
-  if (allowBypass && missing.length > 0 && data.rawText && data.rawText.trim()) {
+  // If bypass is allowed, ALL structured fields are empty, and raw text is available, allow bypass
+  const allFieldsEmpty = missing.length === requiredFields.length;
+  if (allowBypass && allFieldsEmpty && data.rawText && data.rawText.trim()) {
     return {
       isValid: true,
       missing: [],

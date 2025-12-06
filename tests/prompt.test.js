@@ -449,6 +449,21 @@ describe('Raw Text Bypass Functionality', () => {
       expect(result.usingRawText).toBe(false);
       expect(result.message).toBe('All fields present');
     });
+
+    it('should not allow bypass when only some fields are missing', () => {
+      const data = {
+        ageSex: '85F',
+        hpi: '',
+        meds: '',
+        rawText: 'Some raw text'
+      };
+
+      const result = validatePromptData(data, true);
+
+      expect(result.isValid).toBe(false);
+      expect(result.usingRawText).toBe(false);
+      expect(result.missing).toEqual(['hpi', 'meds']);
+    });
   });
 
   describe('generateMagicPrompt with bypass', () => {
