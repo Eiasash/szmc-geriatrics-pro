@@ -1,27 +1,47 @@
-# SZMC Geriatrics Pro: Auditor Edition (v15.4.0)
+# SZMC Geriatrics Pro: Auditor Edition (v15.5.0)
 
 **A Clinical Decision Support tool with an "Inner AI Auditor" for safety checks.**
 
-## New in v15.4.0 - Professional Export Enhancement
-* **📊 Comprehensive PowerPoint Presentations:** Enhanced PPT export now creates professional 15+ slide presentations including:
+## New in v15.5.0 - Import/Export Improvements
+* **📁 Enhanced File Import:** Fixed DOC file handling - now properly supports both .doc and .docx formats
+* **🔧 Improved Data Population:** Enhanced auto-population of clinical fields from imported documents
+* **📊 Comprehensive PowerPoint Presentations:** Professional 15+ slide presentations including:
   * Complete case overview with demographics
   * Detailed medication safety review (Beers Criteria, drug interactions)
   * Functional and cognitive assessment sections
   * Comprehensive management plan (pharmacological and non-pharmacological)
   * Safety considerations and discharge planning
   * Evidence-based clinical guidelines and references
-* **📝 Improved Word Document Export:** 
-  * Now generates proper DOCX format (not HTML-based DOC)
+* **📝 Robust Word Document Export:**
+  * Generates proper DOCX format
   * Comprehensive structured document with medical standards
-  * Includes full reference citations (Beers Criteria, STOPP/START, CGA, etc.)
+  * Full reference citations (Beers Criteria, STOPP/START, CGA, etc.)
   * Proper formatting with headings, bullets, and sections
-  * No more corruption issues with special characters or Unicode
 * **📚 Medical Standards Integration:** All exports include references to:
   * AGS Beers Criteria® (2023)
   * STOPP/START Criteria
   * Comprehensive Geriatric Assessment (CGA)
   * Clinical Frailty Scale (Rockwood)
   * CAM - Confusion Assessment Method
+
+## Supported File Formats
+
+### Import (Drag & Drop)
+| Format | Extension | Description |
+|--------|-----------|-------------|
+| PowerPoint | .pptx | Extracts text from all slides |
+| Word | .docx, .doc | Extracts document text |
+| PDF | .pdf | Extracts text content |
+| HTML | .html, .htm | Extracts plain text from HTML |
+| Text | .txt | Plain text files |
+| Images | .jpg, .jpeg, .png | OCR text extraction (Tesseract.js) |
+
+### Export
+| Format | Extension | Description |
+|--------|-----------|-------------|
+| PowerPoint | .pptx | Professional medical presentation |
+| Word | .docx | Structured clinical document |
+| JSON | .json | Data backup/portability |
 
 ## Previous Features (v15.3.0)
 * **Security Updates:** Updated all dependencies, fixed critical vulnerabilities (happy-dom, vitest)

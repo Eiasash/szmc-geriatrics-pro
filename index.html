@@ -264,7 +264,7 @@
                 const pdf = await pdfjsLib.getDocument(await file.arrayBuffer()).promise;
                 for(let i=1; i<=pdf.numPages; i++) text += (await (await pdf.getPage(i)).getTextContent()).items.map(s=>s.str).join(' ') + " ";
             } 
-            else if (ext === 'docx') {
+            else if (ext === 'docx' || ext === 'doc') {
                 if (typeof mammoth === 'undefined') throw new Error('Mammoth library not loaded');
                 const res = await mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()});
                 text = res.value;
