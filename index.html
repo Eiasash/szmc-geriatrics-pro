@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SZMC Pro: Mobile v15.3</title>
+    <title>SZMC Pro: Mobile v15.4</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
     
@@ -13,6 +13,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/build/index.js"></script>
     
     <style>
         :root { --primary: #2c3e50; --accent: #27ae60; --bg: #f4f6f7; --sidebar: #ffffff; }
@@ -64,7 +65,7 @@
 <body>
 
 <div class="sidebar">
-    <div class="logo"><span>SZMC Pro</span> <span class="badge">v15.3 Mobile</span></div>
+    <div class="logo"><span>SZMC Pro</span> <span class="badge">v15.4 Mobile</span></div>
     
     <div class="drop-zone" onclick="document.getElementById('file-in')?.click()" id="drop-area">
         <div style="font-size:1.8rem;">📂</div>
@@ -122,7 +123,7 @@
 
 <script>
     // --- 0. CONSTANTS ---
-    const APP_VERSION = '15.3.0';
+    const APP_VERSION = '15.4.0';
     const STORAGE_KEY = 'szmc-pro-form-data';
     const FORM_FIELDS = ['age_sex', 'initials', 'hpi', 'meds', 'ai-response', 'raw-text'];
 
@@ -471,46 +472,353 @@ MEDS/LABS: {meds}`;
         }
     }
 
-    function exportDOC() {
-        console.log('Starting DOC export...');
+    async function exportDOC() {
+        console.log('Starting DOCX export...');
         try {
-        // Validate minimum required data
-        if (!getVal('age_sex').trim() && !getVal('hpi').trim()) {
-            alert('Please add some patient data before exporting.');
-            return;
+            // Validate minimum required data
+            if (!getVal('age_sex').trim() && !getVal('hpi').trim()) {
+                alert('Please add some patient data before exporting.');
+                return;
+            }
+            
+            // Check if docx library is loaded
+            if (typeof docx === 'undefined') {
+                console.warn('DOCX library not loaded, falling back to HTML-based DOC export');
+                exportDOCLegacy();
+                return;
+            }
+            
+            const { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer } = docx;
+            
+            // Get sanitized data
+            const ageSex = sanitizeText(getVal('age_sex'));
+            const initials = sanitizeText(getVal('initials'));
+            const hpi = sanitizeText(getVal('hpi'));
+            const meds = sanitizeText(getVal('meds'));
+            const aiText = sanitizeText(getVal('ai-response'));
+            
+            // Medical references
+            const medicalRefs = {
+                beers: {
+                    citation: '2023 American Geriatrics Society Beers Criteria® Update Expert Panel',
+                    description: 'Potentially inappropriate medications in older adults'
+                },
+                stopp: {
+                    citation: 'O\'Mahony D, et al. Age Ageing. 2015',
+                    description: 'Screening Tool of Older Persons\' Prescriptions'
+                },
+                cga: {
+                    citation: 'Ellis G, et al. BMJ. 2011',
+                    description: 'Multidimensional interdisciplinary diagnostic process'
+                },
+                frailty: {
+                    citation: 'Rockwood K, et al. CMAJ. 2005',
+                    description: 'Rockwood Clinical Frailty Scale (CFS)'
+                },
+                delirium: {
+                    citation: 'Inouye SK, et al. Ann Intern Med. 1990',
+                    description: 'Gold standard for delirium diagnosis'
+                }
+            };
+            
+            // Create comprehensive document
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: [
+                        // Title
+                        new Paragraph({
+                            text: 'Geriatric Case Report',
+                            heading: HeadingLevel.HEADING_1,
+                            alignment: AlignmentType.CENTER,
+                            spacing: { after: 400 }
+                        }),
+                        
+                        // Patient Demographics
+                        new Paragraph({
+                            text: 'Patient Demographics',
+                            heading: HeadingLevel.HEADING_2,
+                            spacing: { before: 200, after: 200 }
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: 'Patient ID: ', bold: true }),
+                                new TextRun(ageSex + ' (' + initials + ')')
+                            ],
+                            spacing: { after: 200 }
+                        }),
+                        
+                        // Chief Complaint & HPI
+                        new Paragraph({
+                            text: 'Chief Complaint & History of Present Illness',
+                            heading: HeadingLevel.HEADING_2,
+                            spacing: { before: 300, after: 200 }
+                        }),
+                        new Paragraph({
+                            text: hpi || 'Not documented',
+                            spacing: { after: 300 }
+                        }),
+                        
+                        // Medications & Labs
+                        new Paragraph({
+                            text: 'Current Medications & Laboratory Results',
+                            heading: HeadingLevel.HEADING_2,
+                            spacing: { before: 300, after: 200 }
+                        }),
+                        new Paragraph({
+                            text: meds || 'Not documented',
+                            spacing: { after: 300 }
+                        }),
+                        
+                        // Medication Safety Review
+                        new Paragraph({
+                            text: 'Medication Safety Review',
+                            heading: HeadingLevel.HEADING_2,
+                            spacing: { before: 300, after: 200 }
+                        }),
+                        new Paragraph({
+                            text: 'Beers Criteria Assessment',
+                            bullet: { level: 0 }
+                        }),
+                        new Paragraph({
+                            text: 'Drug-Drug Interactions',
+                            bullet: { level: 0 }
+                        }),
+                        new Paragraph({
+                            text: 'Renal/Hepatic Dosing Adjustments',
+                            bullet: { level: 0 }
+                        }),
+                        new Paragraph({
+                            text: 'Anticholinergic Burden Score',
+                            bullet: { level: 0 }
+                        }),
+                        new Paragraph({
+                            text: 'Fall Risk Medication Review',
+                            bullet: { level: 0 },
+                            spacing: { after: 300 }
+                        }),
+                        
+                        // Functional Assessment
+                        new Paragraph({
+                            text: 'Functional & Cognitive Assessment',
+                            heading: HeadingLevel.HEADING_2,
+                            spacing: { before: 300, after: 200 }
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: 'Activities of Daily Living (ADLs): ', bold: true }),
+                                new TextRun('Assessment pending/documented in chart')
+                            ]
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: 'Instrumental ADLs (IADLs): ', bold: true }),
+                                new TextRun('Assessment pending/documented in chart')
+                            ]
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: 'Cognitive Status: ', bold: true }),
+                                new TextRun('Evaluated per CAM criteria')
+                            ],
+                            spacing: { after: 300 }
+                        }),
+                        
+                        // Clinical Assessment & Analysis
+                        new Paragraph({
+                            text: 'Clinical Assessment & Analysis',
+                            heading: HeadingLevel.HEADING_2,
+                            spacing: { before: 300, after: 200 }
+                        }),
+                        new Paragraph({
+                            text: aiText || 'Not documented',
+                            spacing: { after: 300 }
+                        }),
+                        
+                        // Management Plan
+                        new Paragraph({
+                            text: 'Comprehensive Management Plan',
+                            heading: HeadingLevel.HEADING_2,
+                            spacing: { before: 300, after: 200 }
+                        }),
+                        new Paragraph({
+                            text: 'Pharmacological Interventions:',
+                            heading: HeadingLevel.HEADING_3,
+                            spacing: { after: 100 }
+                        }),
+                        new Paragraph({
+                            text: 'Medication optimization per clinical guidelines',
+                            bullet: { level: 0 }
+                        }),
+                        new Paragraph({
+                            text: 'Deprescribing strategy for potentially inappropriate medications',
+                            bullet: { level: 0 }
+                        }),
+                        new Paragraph({
+                            text: 'Dose adjustments based on renal/hepatic function',
+                            bullet: { level: 0 },
+                            spacing: { after: 200 }
+                        }),
+                        new Paragraph({
+                            text: 'Non-Pharmacological Interventions:',
+                            heading: HeadingLevel.HEADING_3,
+                            spacing: { after: 100 }
+                        }),
+                        new Paragraph({
+                            text: 'Physical therapy evaluation and intervention',
+                            bullet: { level: 0 }
+                        }),
+                        new Paragraph({
+                            text: 'Occupational therapy for ADL optimization',
+                            bullet: { level: 0 }
+                        }),
+                        new Paragraph({
+                            text: 'Nutrition assessment and support',
+                            bullet: { level: 0 }
+                        }),
+                        new Paragraph({
+                            text: 'Social work assessment and care coordination',
+                            bullet: { level: 0 },
+                            spacing: { after: 300 }
+                        }),
+                        
+                        // Safety & Discharge Planning
+                        new Paragraph({
+                            text: 'Safety Considerations & Discharge Planning',
+                            heading: HeadingLevel.HEADING_2,
+                            spacing: { before: 300, after: 200 }
+                        }),
+                        new Paragraph({
+                            text: 'Fall prevention strategy and environmental modifications',
+                            bullet: { level: 0 }
+                        }),
+                        new Paragraph({
+                            text: 'Delirium prevention per HELP protocol',
+                            bullet: { level: 0 }
+                        }),
+                        new Paragraph({
+                            text: 'Home safety evaluation prior to discharge',
+                            bullet: { level: 0 }
+                        }),
+                        new Paragraph({
+                            text: 'Caregiver support and education',
+                            bullet: { level: 0 }
+                        }),
+                        new Paragraph({
+                            text: 'Follow-up appointments scheduled',
+                            bullet: { level: 0 },
+                            spacing: { after: 300 }
+                        }),
+                        
+                        // References
+                        new Paragraph({
+                            text: 'Clinical Guidelines & References',
+                            heading: HeadingLevel.HEADING_2,
+                            spacing: { before: 400, after: 200 }
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: '1. ', bold: true }),
+                                new TextRun(medicalRefs.beers.citation + '. '),
+                                new TextRun({ text: medicalRefs.beers.description, italics: true })
+                            ],
+                            spacing: { after: 100 }
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: '2. ', bold: true }),
+                                new TextRun(medicalRefs.stopp.citation + '. '),
+                                new TextRun({ text: medicalRefs.stopp.description, italics: true })
+                            ],
+                            spacing: { after: 100 }
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: '3. ', bold: true }),
+                                new TextRun(medicalRefs.cga.citation + '. '),
+                                new TextRun({ text: medicalRefs.cga.description, italics: true })
+                            ],
+                            spacing: { after: 100 }
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: '4. ', bold: true }),
+                                new TextRun(medicalRefs.frailty.citation + '. '),
+                                new TextRun({ text: medicalRefs.frailty.description, italics: true })
+                            ],
+                            spacing: { after: 100 }
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: '5. ', bold: true }),
+                                new TextRun(medicalRefs.delirium.citation + '. '),
+                                new TextRun({ text: medicalRefs.delirium.description, italics: true })
+                            ]
+                        })
+                    ]
+                }]
+            });
+            
+            // Generate and download
+            const blob = await Packer.toBlob(doc);
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const docInitials = initials.trim() || 'export';
+            link.download = `Case_${docInitials}.docx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            console.log('DOCX export completed successfully');
+        } catch(e) {
+            console.error('DOCX export failed:', e);
+            alert("DOCX Export Error: " + e.message + "\n\nTrying legacy export...");
+            exportDOCLegacy();
         }
-        
-        // CORRUPTION FIX: Use UTF-8 BOM (\ufeff) and proper XML namespaces
-        const preHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Case</title></head><body>";
-        const postHtml = "</body></html>";
-        
-        const content = `
-            <h1 style="color:#2c3e50">Geriatric Case Report</h1>
-            <p><strong>ID:</strong> ${escapeHtml(sanitizeText(getVal('age_sex')))} (${escapeHtml(sanitizeText(getVal('initials')))})</p>
-            <h3>HPI</h3><p>${escapeHtml(sanitizeText(getVal('hpi')))}</p>
-            <h3>Meds/Labs</h3><p>${escapeHtml(sanitizeText(getVal('meds')))}</p>
-            <hr>
-            <h3>Analysis & Plan</h3>
-            <div style="font-family: Arial; white-space: pre-wrap;">${escapeHtml(sanitizeText(getVal('ai-response')))}</div>
-        `;
-        
-        const html = preHtml + content + postHtml;
-        
-        // The \ufeff BOM is critical for Hebrew/Unicode in Word
-        const blob = new Blob(['\ufeff', html], {
-            type: 'application/msword'
-        });
-        
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        const docInitials = sanitizeText(getVal('initials')).trim() || 'export';
-        link.download = `Case_${docInitials}.doc`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url); // Clean up to prevent memory leak
-        console.log('DOC export completed successfully');
+    }
+    
+    // Legacy DOC export (HTML-based, fallback)
+    function exportDOCLegacy() {
+        console.log('Starting legacy DOC export...');
+        try {
+            // Validate minimum required data
+            if (!getVal('age_sex').trim() && !getVal('hpi').trim()) {
+                alert('Please add some patient data before exporting.');
+                return;
+            }
+            
+            // CORRUPTION FIX: Use UTF-8 BOM (\ufeff) and proper XML namespaces
+            const preHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Case</title></head><body>";
+            const postHtml = "</body></html>";
+            
+            const content = `
+                <h1 style="color:#2c3e50">Geriatric Case Report</h1>
+                <p><strong>ID:</strong> ${escapeHtml(sanitizeText(getVal('age_sex')))} (${escapeHtml(sanitizeText(getVal('initials')))})</p>
+                <h3>HPI</h3><p>${escapeHtml(sanitizeText(getVal('hpi')))}</p>
+                <h3>Meds/Labs</h3><p>${escapeHtml(sanitizeText(getVal('meds')))}</p>
+                <hr>
+                <h3>Analysis & Plan</h3>
+                <div style="font-family: Arial; white-space: pre-wrap;">${escapeHtml(sanitizeText(getVal('ai-response')))}</div>
+            `;
+            
+            const html = preHtml + content + postHtml;
+            
+            // The \ufeff BOM is critical for Hebrew/Unicode in Word
+            const blob = new Blob(['\ufeff', html], {
+                type: 'application/msword'
+            });
+            
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const docInitials = sanitizeText(getVal('initials')).trim() || 'export';
+            link.download = `Case_${docInitials}.doc`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            console.log('Legacy DOC export completed successfully');
         } catch(e) {
             console.error('DOC export failed:', e);
             alert("DOC Export Error: " + e.message);

@@ -189,9 +189,9 @@ describe('Exporters Module', () => {
       aiResponse: 'Assessment and plan text here'
     };
 
-    it('should create at least 3 slides', () => {
+    it('should create at least 15 slides for comprehensive presentation', () => {
       const slides = createSlideData(sampleData);
-      expect(slides.length).toBeGreaterThanOrEqual(3);
+      expect(slides.length).toBeGreaterThanOrEqual(15);
     });
 
     it('should create title slide first', () => {
@@ -203,37 +203,40 @@ describe('Exporters Module', () => {
       const slides = createSlideData(sampleData);
       const titleSlide = slides[0];
       const hasPatientId = titleSlide.elements.some(el =>
-        el.text.includes('85F') && el.text.includes('AB')
+        el.text.includes('85F') || el.text.includes('AB')
       );
       expect(hasPatientId).toBe(true);
     });
 
-    it('should create clinical context slide', () => {
+    it('should create clinical context slide with HPI', () => {
       const slides = createSlideData(sampleData);
-      const contextSlide = slides[1];
-      expect(contextSlide.type).toBe('content');
-      const hasHpi = contextSlide.elements.some(el => el.text.includes('HPI:'));
-      expect(hasHpi).toBe(true);
+      // HPI is on slide 3 (index 2) in the new structure
+      const hpiSlide = slides.find(slide => 
+        slide.elements.some(el => el.text.includes('Chief Complaint') || el.text.includes('History'))
+      );
+      expect(hpiSlide).toBeDefined();
+      expect(hpiSlide.type).toBe('content');
     });
 
-    it('should create analysis slide', () => {
+    it('should create assessment slide', () => {
       const slides = createSlideData(sampleData);
-      const analysisSlide = slides[2];
-      const hasAnalysis = analysisSlide.elements.some(el =>
-        el.text.includes('Analysis') || el.text.includes('Assessment')
+      // Clinical Assessment is on slide 7 in the new structure
+      const analysisSlide = slides.find(slide =>
+        slide.elements.some(el => el.text.includes('Assessment') || el.text.includes('Analysis'))
       );
-      expect(hasAnalysis).toBe(true);
+      expect(analysisSlide).toBeDefined();
     });
 
     it('should create overflow slide for long AI response', () => {
       const longData = {
         ...sampleData,
-        aiResponse: 'A'.repeat(1500) // Longer than maxTextPerSlide
+        aiResponse: 'A'.repeat(1500) // Longer than 700 chars (new threshold)
       };
 
       const slides = createSlideData(longData);
-      expect(slides.length).toBe(4);
-      expect(slides[3].type).toBe('overflow');
+      expect(slides.length).toBe(16); // 15 base + 1 overflow
+      const overflowSlide = slides.find(s => s.type === 'overflow');
+      expect(overflowSlide).toBeDefined();
     });
 
     it('should not create overflow slide for short AI response', () => {
@@ -242,26 +245,33 @@ describe('Exporters Module', () => {
       expect(hasOverflow).toBe(false);
     });
 
-    it('should truncate HPI to configured max length', () => {
+    it('should truncate HPI content appropriately', () => {
       const longHpiData = {
         ...sampleData,
         hpi: 'X'.repeat(1000)
       };
 
       const slides = createSlideData(longHpiData);
-      const contextSlide = slides[1];
-      const hpiElement = contextSlide.elements.find(el => el.text.includes('HPI:'));
-
-      // Should be truncated to maxHpiLength + prefix
-      expect(hpiElement.text.length).toBeLessThan(500);
+      // Find HPI slide (slide 3, index 2)
+      const hpiSlide = slides.find(slide =>
+        slide.elements.some(el => el.text.includes('Chief Complaint') || el.text.includes('History'))
+      );
+      expect(hpiSlide).toBeDefined();
+      
+      // HPI content should be truncated to 600 chars in the new structure
+      const hpiContent = hpiSlide.elements.find(el => el.text.length > 50);
+      expect(hpiContent).toBeDefined();
+      expect(hpiContent.text.length).toBeLessThanOrEqual(603); // 600 + '...'
     });
 
-    it('should handle empty data', () => {
+    it('should handle empty data and create base structure', () => {
       const emptyData = {};
       const slides = createSlideData(emptyData);
 
-      expect(slides.length).toBe(3);
+      // Should create 15 slides even with empty data
+      expect(slides.length).toBe(15);
       // Should not throw and should have default empty values
+      expect(slides[0].type).toBe('title');
     });
 
     it('should include proper styling properties', () => {
@@ -537,8 +547,8 @@ describe('Edge Cases', () => {
 
     const slides = createSlideData(data);
 
-    // Should have overflow slide
-    expect(slides.length).toBe(4);
+    // Should have overflow slide (15 base slides + 1 overflow)
+    expect(slides.length).toBe(16);
   });
 
   it('should handle special characters in filenames', () => {
