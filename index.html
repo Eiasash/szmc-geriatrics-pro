@@ -409,10 +409,15 @@ MEDS/LABS: {meds}`;
     // Sanitize text by removing control characters and HTML/XML tags (except newlines and tabs)
     const sanitizeText = (text) => {
         if (!text || typeof text !== 'string') return '';
-        // Remove HTML/XML tags first
-        text = text.replace(/<[^>]*>/g, '');
+        // Remove HTML/XML tags iteratively to handle nested/malformed tags
+        let sanitized = text;
+        let previous;
+        do {
+            previous = sanitized;
+            sanitized = sanitized.replace(/<[^>]*>/g, '');
+        } while (sanitized !== previous);
         // Remove control characters except newlines and tabs
-        return text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+        return sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
     };
 
     // HTML escape function to prevent XSS in Word export
@@ -911,7 +916,7 @@ MEDS/LABS: {meds}`;
 
             // Save the presentation
             const cleanInitials = initials.replace(/[^a-zA-Z0-9]/g, '') || 'Patient';
-            pres.writeFile({ fileName: `Professional_CGA_${cleanInitials}.pptx` });
+            await pres.writeFile({ fileName: `Professional_CGA_${cleanInitials}.pptx` });
             console.log('Professional medical presentation export completed successfully (16 slides)');
         } catch(e) {
             console.error('Professional PPT export failed:', e);
@@ -940,8 +945,15 @@ MEDS/LABS: {meds}`;
             // Enhanced text sanitization - remove control chars, HTML/XML tags, AND problematic Unicode
             const deepSanitize = (text) => {
                 if (!text || typeof text !== 'string') return '';
-                return text
-                    .replace(/<[^>]*>/g, '') // Remove HTML/XML tags
+                // Remove HTML/XML tags iteratively
+                let sanitized = text;
+                let previous;
+                do {
+                    previous = sanitized;
+                    sanitized = sanitized.replace(/<[^>]*>/g, '');
+                } while (sanitized !== previous);
+                
+                return sanitized
                     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Control characters
                     .replace(/[\uFFFE\uFFFF]/g, '') // Invalid Unicode
                     .replace(/\r\n/g, '\n') // Normalize line endings
@@ -1345,8 +1357,15 @@ MEDS/LABS: {meds}`;
             // Enhanced sanitization for RTF - remove HTML/XML tags
             const rtfSanitize = (text) => {
                 if (!text || typeof text !== 'string') return '';
-                return text
-                    .replace(/<[^>]*>/g, '') // Remove HTML/XML tags first
+                // Remove HTML/XML tags iteratively
+                let sanitized = text;
+                let previous;
+                do {
+                    previous = sanitized;
+                    sanitized = sanitized.replace(/<[^>]*>/g, '');
+                } while (sanitized !== previous);
+                
+                return sanitized
                     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Control chars
                     .replace(/\\/g, '\\\\') // Escape backslashes
                     .replace(/\{/g, '\\{') // Escape braces

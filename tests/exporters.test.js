@@ -116,6 +116,22 @@ describe('Exporters Module', () => {
       const text = '<p>Hello\x00</p> <span>World\x1F</span>';
       expect(sanitizeText(text)).toBe('Hello World');
     });
+
+    it('should handle malformed nested HTML tags', () => {
+      const text = '<script<script>alert("xss")</script>';
+      const result = sanitizeText(text);
+      expect(result).toBe('alert("xss")');
+      expect(result).not.toContain('<script');
+      expect(result).not.toContain('</script>');
+    });
+
+    it('should handle deeply nested tags', () => {
+      const text = '<div><span><b>Test</b></span></div>';
+      const result = sanitizeText(text);
+      expect(result).toBe('Test');
+      expect(result).not.toContain('<');
+      expect(result).not.toContain('>');
+    });
   });
 
   describe('escapeHtml', () => {

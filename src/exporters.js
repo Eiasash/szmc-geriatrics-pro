@@ -84,10 +84,16 @@ export function sanitizeText(text) {
   if (!text || typeof text !== 'string') {
     return '';
   }
-  // Remove HTML/XML tags first
-  text = text.replace(/<[^>]*>/g, '');
+  // Remove HTML/XML tags iteratively to handle nested/malformed tags
+  let sanitized = text;
+  let previous;
+  do {
+    previous = sanitized;
+    sanitized = sanitized.replace(/<[^>]*>/g, '');
+  } while (sanitized !== previous);
+  
   // Remove control characters except newlines and tabs
-  return text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  return sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 }
 
 /**
@@ -839,7 +845,9 @@ export function generateProfessionalPPT(data, PptxGenJS) {
  */
 export async function exportProfessionalPPT(data, PptxGenJS, filename) {
   const pres = generateProfessionalPPT(data, PptxGenJS);
-  const outputFilename = filename || `Professional_CGA_${sanitizeText(data.initials || 'Patient')}.pptx`;
+  // Sanitize initials for safe filename
+  const safeInitials = sanitizeText(data.initials || 'Patient').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50);
+  const outputFilename = filename || `Professional_CGA_${safeInitials}.pptx`;
   await pres.writeFile({ fileName: outputFilename });
   return outputFilename;
 }
