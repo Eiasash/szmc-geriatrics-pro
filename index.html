@@ -70,7 +70,7 @@
     <div class="drop-zone" onclick="document.getElementById('file-in')?.click()" id="drop-area">
         <div style="font-size:1.8rem;">📂</div>
         <div style="font-weight:700; color:#2c3e50; margin-top:5px;">Import File</div>
-        <div style="font-size:0.7rem; color:#7f8c8d;">PDF • DOCX • HTML • JPG</div>
+        <div style="font-size:0.7rem; color:#7f8c8d;">PDF • DOCX • JSON • HTML • JPG</div>
         <input type="file" id="file-in" style="display:none" onchange="handleFile(this)">
     </div>
     <div id="status"></div>
@@ -232,9 +232,9 @@
         }
 
         const ext = file.name.split('.').pop().toLowerCase();
-        const SUPPORTED_EXTENSIONS = ['pptx', 'pdf', 'docx', 'html', 'htm', 'txt', 'jpg', 'png', 'jpeg'];
+        const SUPPORTED_EXTENSIONS = ['pptx', 'pdf', 'docx', 'doc', 'html', 'htm', 'txt', 'json', 'rtf', 'jpg', 'png', 'jpeg'];
         if (!SUPPORTED_EXTENSIONS.includes(ext)) {
-            alert(`Unsupported file type: .${ext}. Supported: ${SUPPORTED_EXTENSIONS.join(', ')}`);
+            alert(`Unsupported file type: .${ext}.\nSupported: ${SUPPORTED_EXTENSIONS.join(', ')}`);
             return;
         }
 
@@ -242,49 +242,75 @@
         if (statusDiv) statusDiv.innerText = "Reading...";
 
         try {
-            if (ext === 'pptx') {
+            // JSON import - directly populates form fields
+            if (ext === 'json') {
+                const jsonText = await file.text();
+                const data = JSON.parse(jsonText);
+                // Map JSON fields to form fields
+                const fieldMap = {
+                    'age_sex': data.ageSex || data.age_sex || '',
+                    'initials': data.initials || '',
+                    'hpi': data.hpi || data.HPI || '',
+                    'meds': data.meds || data.medications || '',
+                    'ai-response': data.aiResponse || data.ai_response || data.analysis || '',
+                    'raw-text': data.rawText || data.raw_text || ''
+                };
+                Object.entries(fieldMap).forEach(([id, value]) => {
+                    const el = document.getElementById(id);
+                    if (el && value) el.value = value;
+                });
+                saveFormData();
+                if (statusDiv) statusDiv.innerText = "JSON Loaded!";
+                setTimeout(() => { if (statusDiv) statusDiv.innerText = ""; }, 2000);
+                return;
+            }
+            // PPTX
+            else if (ext === 'pptx') {
                 if (typeof JSZip === 'undefined') throw new Error('JSZip library not loaded');
                 const zip = await JSZip.loadAsync(file);
-                // Filter and numerical sort for slides (with safe number extraction)
-                const slides = Object.keys(zip.files).filter(n => n.match(/ppt\/slides\/slide\d+\.xml/)).sort((a,b)=>{
-                    const numA = a.match(/\d+/)?.[0] || '0';
-                    const numB = b.match(/\d+/)?.[0] || '0';
-                    return parseInt(numA, 10) - parseInt(numB, 10);
+                const slides = Object.keys(zip.files).filter(n => n.match(/ppt\/slides\/slide\d+\.xml/)).sort((a,b) => {
+                    return parseInt(a.match(/\d+/)?.[0] || '0', 10) - parseInt(b.match(/\d+/)?.[0] || '0', 10);
                 });
-                for(let s of slides) { 
-                    const t = await zip.file(s).async("string"); 
-                    const d = new DOMParser().parseFromString(t,"text/xml"); 
-                    // Safe access to textContent
-                    if(d.documentElement) text += (d.documentElement.textContent || "") + "\n\n"; 
+                for (const s of slides) {
+                    const t = await zip.file(s).async("string");
+                    const d = new DOMParser().parseFromString(t, "text/xml");
+                    if (d.documentElement) text += (d.documentElement.textContent || "") + "\n\n";
                 }
-            } 
+            }
+            // PDF
             else if (ext === 'pdf') {
                 if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js library not loaded');
                 const pdf = await pdfjsLib.getDocument(await file.arrayBuffer()).promise;
-                for(let i=1; i<=pdf.numPages; i++) text += (await (await pdf.getPage(i)).getTextContent()).items.map(s=>s.str).join(' ') + " ";
-            } 
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    text += content.items.map(s => s.str).join(' ') + " ";
+                }
+            }
+            // DOCX
             else if (ext === 'docx') {
                 if (typeof mammoth === 'undefined') throw new Error('Mammoth library not loaded');
-                const res = await mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()});
+                const res = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
                 text = res.value;
-            } 
-            else if (['html', 'htm', 'txt'].includes(ext)) {
+            }
+            // HTML, HTM, TXT, DOC (legacy), RTF
+            else if (['html', 'htm', 'txt', 'doc', 'rtf'].includes(ext)) {
                 text = await file.text();
-                // Strip tags if HTML
-                if(ext.includes('htm')) {
+                if (ext === 'html' || ext === 'htm') {
                     const doc = new DOMParser().parseFromString(text, 'text/html');
                     text = doc.body?.innerText || doc.body?.textContent || '';
                 }
             }
-            else if (['jpg','png','jpeg'].includes(ext)) {
+            // Images (OCR)
+            else if (['jpg', 'png', 'jpeg'].includes(ext)) {
                 if (typeof Tesseract === 'undefined') throw new Error('Tesseract.js library not loaded');
-                if (statusDiv) statusDiv.innerText = "OCR (Wait)...";
+                if (statusDiv) statusDiv.innerText = "OCR...";
                 const w = await Tesseract.createWorker('eng');
-                const r = await w.recognize(file); 
-                text = r.data.text; 
+                const r = await w.recognize(file);
+                text = r.data.text;
                 await w.terminate();
-            } 
-            
+            }
+
             const rawTextEl = document.getElementById('raw-text');
             if (rawTextEl) rawTextEl.value = text;
             smartPopulate(text);
@@ -293,7 +319,7 @@
         } catch (err) {
             console.error(err);
             if (statusDiv) statusDiv.innerText = "Error";
-            alert("Could not read file. " + err.message);
+            alert("Could not read file: " + err.message);
         }
     }
 
@@ -421,238 +447,150 @@ MEDS/LABS: {meds}`;
     };
 
     function exportPPT() {
-        console.log('Starting comprehensive PPT export (15+ slides)...');
         try {
-            // Validate minimum required data
             if (!getVal('age_sex').trim() && !getVal('hpi').trim()) {
                 alert('Please add some patient data before exporting.');
                 return;
             }
-
             if (typeof PptxGenJS === 'undefined') throw new Error('PptxGenJS library not loaded');
-            let pres = new PptxGenJS();
 
-            // Professional color scheme
-            const colors = {
-                primary: '2c3e50',
-                secondary: '7f8c8d',
-                accent: '27ae60',
-                highlight: 'c0392b',
-                text: '333333',
-                warning: 'e74c3c',
-                info: '3498db',
-                success: '27ae60',
-                lightBg: 'f8f9fa',
-                white: 'ffffff'
+            const pres = new PptxGenJS();
+            const C = { pri: '2c3e50', sec: '7f8c8d', acc: '27ae60', warn: 'e74c3c', info: '3498db', txt: '333333' };
+            const data = {
+                age: sanitizeText(getVal('age_sex')) || 'Not specified',
+                init: sanitizeText(getVal('initials')) || 'N/A',
+                hpi: sanitizeText(getVal('hpi')) || 'Not documented',
+                meds: sanitizeText(getVal('meds')) || 'Not documented',
+                ai: sanitizeText(getVal('ai-response')) || 'Pending analysis',
+                date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
             };
-
-            // Sanitize all text fields to remove control characters
-            const ageSex = sanitizeText(getVal('age_sex')) || 'Not specified';
-            const initials = sanitizeText(getVal('initials')) || 'N/A';
-            const hpi = sanitizeText(getVal('hpi')) || 'Not documented';
-            const meds = sanitizeText(getVal('meds')) || 'Not documented';
-            const aiText = sanitizeText(getVal('ai-response')) || 'Pending clinical analysis';
-            const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-            // Helper function to add styled header to slides
-            const addSlideHeader = (slide, title, color) => {
-                slide.addShape('rect', { x: 0, y: 0, w: '100%', h: 0.8, fill: { color: color } });
-                slide.addText(title, { x: 0.5, y: 0.2, w: '90%', fontSize: 24, color: 'ffffff', bold: true });
+            const trunc = (t, n) => t?.length > n ? t.substring(0, n) + '...' : t;
+            const header = (s, title, color) => {
+                s.addShape('rect', { x: 0, y: 0, w: '100%', h: 0.8, fill: { color } });
+                s.addText(title, { x: 0.5, y: 0.2, w: '90%', fontSize: 24, color: 'ffffff', bold: true });
             };
+            const bullets = (s, items, startY) => items.forEach((t, i) => s.addText(t, { x: 0.7, y: startY + i * 0.35, fontSize: 13, color: C.txt }));
 
-            // Helper function to truncate text
-            const truncate = (text, max) => text && text.length > max ? text.substring(0, max) + '...' : text;
+            // Slide 1: Title
+            let s = pres.addSlide();
+            s.addShape('rect', { x: 0, y: 0, w: '100%', h: '100%', fill: { color: C.pri } });
+            s.addText('GERIATRIC CASE PRESENTATION', { x: 0.5, y: 1.5, w: '90%', fontSize: 36, color: 'ffffff', bold: true, align: 'center' });
+            s.addText(`Patient: ${data.age} (${data.init})`, { x: 0.5, y: 2.5, w: '90%', fontSize: 24, color: 'ecf0f1', align: 'center' });
+            s.addShape('line', { x: 2, y: 3.2, w: 6, h: 0, line: { color: C.acc, width: 3 } });
+            s.addText('Comprehensive Geriatric Assessment', { x: 0.5, y: 3.5, w: '90%', fontSize: 18, color: 'bdc3c7', align: 'center' });
+            s.addText(`SZMC Geriatrics Pro | ${data.date}`, { x: 0.5, y: 4.8, w: '90%', fontSize: 12, color: '95a5a6', align: 'center' });
 
-            // ========== SLIDE 1: Title Page ==========
-            let s1 = pres.addSlide();
-            s1.addShape('rect', { x: 0, y: 0, w: '100%', h: '100%', fill: { color: colors.primary } });
-            s1.addText('GERIATRIC CASE PRESENTATION', { x: 0.5, y: 1.5, w: '90%', fontSize: 36, color: 'ffffff', bold: true, align: 'center' });
-            s1.addText(`Patient: ${ageSex} (${initials})`, { x: 0.5, y: 2.5, w: '90%', fontSize: 24, color: 'ecf0f1', align: 'center' });
-            s1.addShape('line', { x: 2, y: 3.2, w: 6, h: 0, line: { color: colors.accent, width: 3 } });
-            s1.addText('Comprehensive Geriatric Assessment', { x: 0.5, y: 3.5, w: '90%', fontSize: 18, color: 'bdc3c7', align: 'center' });
-            s1.addText(`SZMC Geriatrics Pro | ${currentDate}`, { x: 0.5, y: 4.8, w: '90%', fontSize: 12, color: '95a5a6', align: 'center' });
+            // Slide 2: Case Overview
+            s = pres.addSlide(); header(s, 'Case Overview', C.pri);
+            s.addText('Patient Demographics', { x: 0.5, y: 1.1, fontSize: 18, color: C.acc, bold: true });
+            s.addText([{ text: '• Age/Sex: ', options: { bold: true } }, { text: data.age }], { x: 0.7, y: 1.5, fontSize: 14, color: C.txt });
+            s.addText([{ text: '• Patient ID: ', options: { bold: true } }, { text: data.init }], { x: 0.7, y: 1.9, fontSize: 14, color: C.txt });
+            s.addText('Assessment: Comprehensive Geriatric Assessment (CGA)', { x: 0.7, y: 2.4, fontSize: 14, color: C.txt });
 
-            // ========== SLIDE 2: Case Overview ==========
-            let s2 = pres.addSlide();
-            addSlideHeader(s2, '📋 Case Overview', colors.primary);
-            s2.addText('Patient Demographics', { x: 0.5, y: 1.1, fontSize: 18, color: colors.accent, bold: true });
-            s2.addText([
-                { text: '• Age/Sex: ', options: { bold: true } }, { text: ageSex, options: { bold: false } }
-            ], { x: 0.7, y: 1.5, fontSize: 14, color: colors.text });
-            s2.addText([
-                { text: '• Patient ID: ', options: { bold: true } }, { text: initials, options: { bold: false } }
-            ], { x: 0.7, y: 1.9, fontSize: 14, color: colors.text });
-            s2.addText('Presentation Context', { x: 0.5, y: 2.5, fontSize: 18, color: colors.accent, bold: true });
-            s2.addText('• Comprehensive Geriatric Assessment (CGA)', { x: 0.7, y: 2.9, fontSize: 14, color: colors.text });
-            s2.addText('• Multidisciplinary evaluation approach', { x: 0.7, y: 3.3, fontSize: 14, color: colors.text });
-            s2.addText('• Evidence-based clinical decision support', { x: 0.7, y: 3.7, fontSize: 14, color: colors.text });
-            s2.addShape('rect', { x: 0.5, y: 4.3, w: 9, h: 0.6, fill: { color: colors.lightBg } });
-            s2.addText('⚕️ Aligned with AGS Beers Criteria® and STOPP/START Guidelines', { x: 0.6, y: 4.4, fontSize: 11, color: colors.secondary, italic: true });
+            // Slide 3: HPI
+            s = pres.addSlide(); header(s, 'Chief Complaint & HPI', C.info);
+            s.addText(trunc(data.hpi, 900), { x: 0.5, y: 1.1, w: 9, h: 3.8, fontSize: 13, color: C.txt, valign: 'top' });
 
-            // ========== SLIDE 3: Chief Complaint & HPI ==========
-            let s3 = pres.addSlide();
-            addSlideHeader(s3, '🏥 Chief Complaint & History of Present Illness', colors.info);
-            s3.addText(truncate(hpi, 800), { x: 0.5, y: 1.1, w: 9, h: 3.8, fontSize: 13, color: colors.text, valign: 'top' });
-
-            // ========== SLIDE 4: HPI Continued (if needed) ==========
-            if (hpi.length > 800) {
-                let s4 = pres.addSlide();
-                addSlideHeader(s4, '🏥 History of Present Illness (Continued)', colors.info);
-                s4.addText(truncate(hpi.substring(800), 1000), { x: 0.5, y: 1.1, w: 9, h: 3.8, fontSize: 13, color: colors.text, valign: 'top' });
+            // Slide 4: HPI Overflow
+            if (data.hpi.length > 900) {
+                s = pres.addSlide(); header(s, 'HPI (Continued)', C.info);
+                s.addText(trunc(data.hpi.substring(900), 1000), { x: 0.5, y: 1.1, w: 9, h: 3.8, fontSize: 13, color: C.txt, valign: 'top' });
             }
 
-            // ========== SLIDE 5: Medication Review ==========
-            let s5 = pres.addSlide();
-            addSlideHeader(s5, '💊 Current Medications & Labs', colors.accent);
-            s5.addText(truncate(meds, 900), { x: 0.5, y: 1.1, w: 9, h: 3.8, fontSize: 12, color: colors.text, valign: 'top' });
+            // Slide 5: Medications
+            s = pres.addSlide(); header(s, 'Current Medications & Labs', C.acc);
+            s.addText(trunc(data.meds, 900), { x: 0.5, y: 1.1, w: 9, h: 3.8, fontSize: 12, color: C.txt, valign: 'top' });
 
-            // ========== SLIDE 6: Medication Safety Review ==========
-            let s6 = pres.addSlide();
-            addSlideHeader(s6, '⚠️ Medication Safety Assessment', colors.warning);
-            s6.addText('Critical Safety Screening Points:', { x: 0.5, y: 1.1, fontSize: 16, color: colors.highlight, bold: true });
-            const safetyItems = [
-                '• Beers Criteria® Assessment - PIMs in older adults',
-                '• STOPP/START Criteria Review',
-                '• Drug-Drug Interactions (DDIs)',
-                '• Drug-Disease Interactions',
-                '• Renal Dosing Adjustments (CrCl-based)',
-                '• Hepatic Impairment Considerations',
-                '• Anticholinergic Burden Score (ABS)',
-                '• QTc Prolongation Risk',
-                '• Fall-Risk Increasing Drugs (FRIDs)'
-            ];
-            safetyItems.forEach((item, idx) => {
-                s6.addText(item, { x: 0.7, y: 1.5 + (idx * 0.35), fontSize: 13, color: colors.text });
-            });
+            // Slide 6: Medication Safety
+            s = pres.addSlide(); header(s, 'Medication Safety Assessment', C.warn);
+            s.addText('Safety Screening:', { x: 0.5, y: 1.1, fontSize: 16, color: C.warn, bold: true });
+            bullets(s, ['• Beers Criteria - PIMs in older adults', '• STOPP/START Criteria Review', '• Drug-Drug Interactions', '• Renal/Hepatic Dosing', '• Anticholinergic Burden Score', '• QTc Prolongation Risk', '• Fall-Risk Increasing Drugs'], 1.5);
 
-            // ========== SLIDE 7: Functional Assessment ==========
-            let s7 = pres.addSlide();
-            addSlideHeader(s7, '🚶 Functional Assessment', colors.accent);
-            s7.addText('Activities of Daily Living (ADLs)', { x: 0.5, y: 1.1, fontSize: 16, color: colors.primary, bold: true });
-            s7.addText('Bathing • Dressing • Toileting • Transferring • Continence • Feeding', { x: 0.7, y: 1.5, fontSize: 12, color: colors.secondary });
-            s7.addText('Instrumental ADLs (IADLs)', { x: 0.5, y: 2.1, fontSize: 16, color: colors.primary, bold: true });
-            s7.addText('Shopping • Cooking • Managing Medications • Finances • Transportation • Phone Use', { x: 0.7, y: 2.5, fontSize: 12, color: colors.secondary });
-            s7.addText('Mobility & Gait Assessment', { x: 0.5, y: 3.1, fontSize: 16, color: colors.primary, bold: true });
-            s7.addText('• Timed Up and Go (TUG) Test\n• Gait Speed Assessment\n• Fall History & Risk Stratification', { x: 0.7, y: 3.5, fontSize: 12, color: colors.text });
+            // Slide 7: Functional Assessment
+            s = pres.addSlide(); header(s, 'Functional Assessment', C.acc);
+            s.addText('ADLs: Bathing • Dressing • Toileting • Transferring • Continence • Feeding', { x: 0.5, y: 1.2, fontSize: 13, color: C.txt });
+            s.addText('IADLs: Shopping • Cooking • Medications • Finances • Transportation', { x: 0.5, y: 1.7, fontSize: 13, color: C.txt });
+            s.addText('Mobility:', { x: 0.5, y: 2.3, fontSize: 16, color: C.pri, bold: true });
+            s.addText('• Timed Up and Go (TUG)\n• Gait Speed Assessment\n• Fall Risk Stratification', { x: 0.7, y: 2.7, fontSize: 13, color: C.txt });
 
-            // ========== SLIDE 8: Cognitive Assessment ==========
-            let s8 = pres.addSlide();
-            addSlideHeader(s8, '🧠 Cognitive & Mental Status Assessment', colors.info);
-            s8.addText('Cognitive Screening', { x: 0.5, y: 1.1, fontSize: 16, color: colors.primary, bold: true });
-            s8.addText('• Mini-Mental State Examination (MMSE)\n• Montreal Cognitive Assessment (MoCA)\n• Clock Drawing Test', { x: 0.7, y: 1.5, fontSize: 13, color: colors.text });
-            s8.addText('Delirium Assessment', { x: 0.5, y: 2.5, fontSize: 16, color: colors.primary, bold: true });
-            s8.addText('• Confusion Assessment Method (CAM)\n• 4AT Rapid Delirium Screening\n• Delirium Observation Screening Scale', { x: 0.7, y: 2.9, fontSize: 13, color: colors.text });
-            s8.addText('Mood & Depression Screening', { x: 0.5, y: 3.9, fontSize: 16, color: colors.primary, bold: true });
-            s8.addText('• Geriatric Depression Scale (GDS-15)', { x: 0.7, y: 4.3, fontSize: 13, color: colors.text });
+            // Slide 8: Cognitive Assessment
+            s = pres.addSlide(); header(s, 'Cognitive & Mental Status', C.info);
+            s.addText('Cognitive: MMSE • MoCA • Clock Drawing Test', { x: 0.5, y: 1.2, fontSize: 13, color: C.txt });
+            s.addText('Delirium: CAM • 4AT Rapid Screening', { x: 0.5, y: 1.7, fontSize: 13, color: C.txt });
+            s.addText('Mood: Geriatric Depression Scale (GDS-15)', { x: 0.5, y: 2.2, fontSize: 13, color: C.txt });
 
-            // ========== SLIDE 9: Clinical Analysis Part 1 ==========
-            let s9 = pres.addSlide();
-            addSlideHeader(s9, '📊 Clinical Assessment & Analysis', colors.primary);
-            s9.addText(truncate(aiText, 900), { x: 0.5, y: 1.1, w: 9, h: 3.8, fontSize: 12, color: colors.text, valign: 'top' });
+            // Slide 9: Clinical Analysis
+            s = pres.addSlide(); header(s, 'Clinical Assessment & Analysis', C.pri);
+            s.addText(trunc(data.ai, 900), { x: 0.5, y: 1.1, w: 9, h: 3.8, fontSize: 12, color: C.txt, valign: 'top' });
 
-            // ========== SLIDE 10: Clinical Analysis Part 2 (if needed) ==========
-            if (aiText.length > 900) {
-                let s10 = pres.addSlide();
-                addSlideHeader(s10, '📊 Clinical Assessment (Continued)', colors.primary);
-                s10.addText(truncate(aiText.substring(900), 1000), { x: 0.5, y: 1.1, w: 9, h: 3.8, fontSize: 12, color: colors.text, valign: 'top' });
+            // Slide 10: Analysis Overflow
+            if (data.ai.length > 900) {
+                s = pres.addSlide(); header(s, 'Clinical Assessment (Continued)', C.pri);
+                s.addText(trunc(data.ai.substring(900), 1000), { x: 0.5, y: 1.1, w: 9, h: 3.8, fontSize: 12, color: C.txt, valign: 'top' });
             }
 
-            // ========== SLIDE 11: Differential Diagnosis ==========
-            let s11 = pres.addSlide();
-            addSlideHeader(s11, '🔍 Differential Diagnosis', colors.info);
-            s11.addText('Key Diagnostic Considerations:', { x: 0.5, y: 1.1, fontSize: 16, color: colors.primary, bold: true });
-            s11.addText('• Primary Working Diagnosis\n• Alternative Diagnoses to Consider\n• Comorbidity Assessment\n• Atypical Presentations in Elderly', { x: 0.7, y: 1.5, fontSize: 13, color: colors.text });
-            s11.addText('Geriatric Syndromes to Evaluate:', { x: 0.5, y: 3.0, fontSize: 16, color: colors.warning, bold: true });
-            s11.addText('• Frailty Syndrome\n• Sarcopenia\n• Polypharmacy\n• Falls & Mobility Issues\n• Delirium/Dementia\n• Incontinence\n• Malnutrition', { x: 0.7, y: 3.4, fontSize: 12, color: colors.text });
+            // Slide 11: Differential Diagnosis
+            s = pres.addSlide(); header(s, 'Differential Diagnosis', C.info);
+            s.addText('Diagnostic Considerations:', { x: 0.5, y: 1.1, fontSize: 16, color: C.pri, bold: true });
+            bullets(s, ['• Primary Working Diagnosis', '• Alternative Diagnoses', '• Comorbidity Assessment'], 1.5);
+            s.addText('Geriatric Syndromes:', { x: 0.5, y: 2.7, fontSize: 16, color: C.warn, bold: true });
+            bullets(s, ['• Frailty • Sarcopenia • Polypharmacy', '• Falls • Delirium/Dementia • Incontinence'], 3.1);
 
-            // ========== SLIDE 12: Pharmacological Management ==========
-            let s12 = pres.addSlide();
-            addSlideHeader(s12, '💉 Management: Pharmacological', colors.success);
-            s12.addText('Medication Optimization Strategy:', { x: 0.5, y: 1.1, fontSize: 16, color: colors.primary, bold: true });
-            s12.addText('• Review indication for each medication\n• Deprescribing candidates identified\n• Dose adjustments per renal/hepatic function\n• Time therapy optimization\n• Simplify regimen where possible', { x: 0.7, y: 1.5, fontSize: 13, color: colors.text });
-            s12.addText('Deprescribing Priorities:', { x: 0.5, y: 3.3, fontSize: 16, color: colors.warning, bold: true });
-            s12.addText('• High anticholinergic burden medications\n• Sedative-hypnotics (benzodiazepines, Z-drugs)\n• Proton pump inhibitors (if prolonged use)\n• Medications without clear indication', { x: 0.7, y: 3.7, fontSize: 12, color: colors.text });
+            // Slide 12: Pharmacological Management
+            s = pres.addSlide(); header(s, 'Management: Pharmacological', C.acc);
+            s.addText('Medication Optimization:', { x: 0.5, y: 1.1, fontSize: 16, color: C.pri, bold: true });
+            bullets(s, ['• Review indication for each medication', '• Identify deprescribing candidates', '• Dose adjustments per organ function', '• Simplify regimen where possible'], 1.5);
 
-            // ========== SLIDE 13: Non-Pharmacological Management ==========
-            let s13 = pres.addSlide();
-            addSlideHeader(s13, '🏃 Management: Non-Pharmacological', colors.success);
-            s13.addText('Multidisciplinary Interventions:', { x: 0.5, y: 1.1, fontSize: 16, color: colors.primary, bold: true });
-            s13.addText('• Physical Therapy - mobility, strength, balance training\n• Occupational Therapy - ADL/IADL optimization\n• Speech & Language Therapy - swallowing assessment\n• Nutrition/Dietitian - MNA screening, protein optimization\n• Social Work - care coordination, caregiver support\n• Pharmacy Consult - medication therapy management', { x: 0.7, y: 1.5, fontSize: 12, color: colors.text });
-            s13.addText('Lifestyle Modifications:', { x: 0.5, y: 3.5, fontSize: 16, color: colors.accent, bold: true });
-            s13.addText('• Regular physical activity program\n• Cognitive stimulation activities\n• Social engagement optimization\n• Sleep hygiene education', { x: 0.7, y: 3.9, fontSize: 12, color: colors.text });
+            // Slide 13: Non-Pharmacological
+            s = pres.addSlide(); header(s, 'Management: Non-Pharmacological', C.acc);
+            bullets(s, ['• Physical Therapy - mobility, balance', '• Occupational Therapy - ADL optimization', '• Nutrition - MNA screening', '• Social Work - care coordination', '• Pharmacy Consult - MTM'], 1.1);
 
-            // ========== SLIDE 14: Safety & Risk Management ==========
-            let s14 = pres.addSlide();
-            addSlideHeader(s14, '🛡️ Safety & Risk Management', colors.warning);
-            s14.addText('Fall Prevention Protocol:', { x: 0.5, y: 1.1, fontSize: 16, color: colors.highlight, bold: true });
-            s14.addText('• Environmental modifications\n• FRID review and optimization\n• Assistive device assessment\n• Vision/hearing correction\n• Footwear evaluation', { x: 0.7, y: 1.5, fontSize: 12, color: colors.text });
-            s14.addText('Delirium Prevention (HELP Protocol):', { x: 0.5, y: 3.0, fontSize: 16, color: colors.highlight, bold: true });
-            s14.addText('• Orientation protocols\n• Early mobilization\n• Sleep enhancement\n• Minimize psychoactive medications\n• Adequate hydration/nutrition', { x: 0.7, y: 3.4, fontSize: 12, color: colors.text });
+            // Slide 14: Safety
+            s = pres.addSlide(); header(s, 'Safety & Risk Management', C.warn);
+            s.addText('Fall Prevention:', { x: 0.5, y: 1.1, fontSize: 16, color: C.warn, bold: true });
+            bullets(s, ['• Environmental modifications', '• FRID review', '• Assistive devices', '• Vision/hearing correction'], 1.5);
+            s.addText('Delirium Prevention (HELP):', { x: 0.5, y: 3.0, fontSize: 16, color: C.warn, bold: true });
+            s.addText('Orientation • Mobilization • Sleep • Hydration', { x: 0.7, y: 3.4, fontSize: 13, color: C.txt });
 
-            // ========== SLIDE 15: Discharge Planning ==========
-            let s15 = pres.addSlide();
-            addSlideHeader(s15, '🏠 Discharge & Transition Planning', colors.info);
-            s15.addText('Disposition Considerations:', { x: 0.5, y: 1.1, fontSize: 16, color: colors.primary, bold: true });
-            s15.addText('• Home (with/without home health services)\n• Skilled Nursing Facility (SNF)\n• Acute Rehabilitation\n• Long-term Care', { x: 0.7, y: 1.5, fontSize: 13, color: colors.text });
-            s15.addText('Transition of Care Essentials:', { x: 0.5, y: 2.8, fontSize: 16, color: colors.primary, bold: true });
-            s15.addText('• Medication reconciliation at discharge\n• Clear follow-up appointments\n• Patient/caregiver education completed\n• Warning signs reviewed\n• DME orders placed\n• Home safety evaluation if needed', { x: 0.7, y: 3.2, fontSize: 12, color: colors.text });
+            // Slide 15: Discharge
+            s = pres.addSlide(); header(s, 'Discharge Planning', C.info);
+            bullets(s, ['• Disposition: Home / SNF / Rehab / LTC', '• Medication reconciliation', '• Follow-up appointments', '• Patient/caregiver education', '• DME orders', '• Home safety evaluation'], 1.1);
 
-            // ========== SLIDE 16: Follow-up & Monitoring ==========
-            let s16 = pres.addSlide();
-            addSlideHeader(s16, '📅 Follow-up & Monitoring Plan', colors.accent);
-            s16.addText('Short-term Follow-up (1-2 weeks):', { x: 0.5, y: 1.1, fontSize: 16, color: colors.primary, bold: true });
-            s16.addText('• Medication tolerance/efficacy check\n• Vital signs and symptom monitoring\n• Lab follow-up as indicated', { x: 0.7, y: 1.5, fontSize: 13, color: colors.text });
-            s16.addText('Long-term Monitoring:', { x: 0.5, y: 2.5, fontSize: 16, color: colors.primary, bold: true });
-            s16.addText('• Functional status reassessment\n• Cognitive screening at intervals\n• Annual comprehensive medication review\n• Preventive care and immunizations\n• Goals of care discussions', { x: 0.7, y: 2.9, fontSize: 13, color: colors.text });
-            s16.addText('Quality Metrics:', { x: 0.5, y: 4.1, fontSize: 14, color: colors.accent, bold: true });
-            s16.addText('30-day readmission prevention • ADL maintenance • QoL improvement', { x: 0.7, y: 4.4, fontSize: 11, color: colors.secondary });
+            // Slide 16: Follow-up
+            s = pres.addSlide(); header(s, 'Follow-up & Monitoring', C.acc);
+            s.addText('Short-term (1-2 weeks):', { x: 0.5, y: 1.1, fontSize: 16, color: C.pri, bold: true });
+            s.addText('Medication efficacy • Symptom monitoring • Labs', { x: 0.7, y: 1.5, fontSize: 13, color: C.txt });
+            s.addText('Long-term:', { x: 0.5, y: 2.1, fontSize: 16, color: C.pri, bold: true });
+            s.addText('Functional reassessment • Cognitive screening • Annual med review', { x: 0.7, y: 2.5, fontSize: 13, color: C.txt });
 
-            // ========== SLIDE 17: Evidence-Based Guidelines ==========
-            let s17 = pres.addSlide();
-            addSlideHeader(s17, '📚 Evidence-Based Clinical Standards', colors.primary);
-            s17.addText('Guidelines Applied in This Assessment:', { x: 0.5, y: 1.1, fontSize: 16, color: colors.accent, bold: true });
-            s17.addText('• AGS Beers Criteria® (2023 Update)', { x: 0.7, y: 1.5, fontSize: 13, color: colors.text });
-            s17.addText('   Potentially Inappropriate Medications in Older Adults', { x: 0.9, y: 1.8, fontSize: 11, color: colors.secondary, italic: true });
-            s17.addText('• STOPP/START Criteria v2', { x: 0.7, y: 2.2, fontSize: 13, color: colors.text });
-            s17.addText('   Screening Tool for Prescribing in Older Persons', { x: 0.9, y: 2.5, fontSize: 11, color: colors.secondary, italic: true });
-            s17.addText('• Comprehensive Geriatric Assessment (CGA)', { x: 0.7, y: 2.9, fontSize: 13, color: colors.text });
-            s17.addText('   Multidimensional interdisciplinary diagnostic process', { x: 0.9, y: 3.2, fontSize: 11, color: colors.secondary, italic: true });
-            s17.addText('• Clinical Frailty Scale (Rockwood CFS)', { x: 0.7, y: 3.6, fontSize: 13, color: colors.text });
-            s17.addText('   Validated frailty assessment tool', { x: 0.9, y: 3.9, fontSize: 11, color: colors.secondary, italic: true });
-            s17.addText('• Hospital Elder Life Program (HELP)', { x: 0.7, y: 4.3, fontSize: 13, color: colors.text });
-            s17.addText('   Evidence-based delirium prevention', { x: 0.9, y: 4.6, fontSize: 11, color: colors.secondary, italic: true });
+            // Slide 17: Guidelines
+            s = pres.addSlide(); header(s, 'Evidence-Based Guidelines', C.pri);
+            const guidelines = ['AGS Beers Criteria (2023)', 'STOPP/START Criteria v2', 'Comprehensive Geriatric Assessment', 'Clinical Frailty Scale (Rockwood)', 'CAM - Confusion Assessment Method', 'Hospital Elder Life Program (HELP)'];
+            guidelines.forEach((g, i) => s.addText('• ' + g, { x: 0.7, y: 1.2 + i * 0.5, fontSize: 14, color: C.txt }));
 
-            // ========== SLIDE 18: References ==========
-            let s18 = pres.addSlide();
-            addSlideHeader(s18, '📖 References & Citations', colors.secondary);
-            s18.addText('Key Clinical References:', { x: 0.5, y: 1.0, fontSize: 14, color: colors.primary, bold: true });
-            const references = [
-                '1. 2023 AGS Beers Criteria® Update Expert Panel. J Am Geriatr Soc. 2023;71(7):2052-2081.',
-                '2. O\'Mahony D, et al. STOPP/START criteria v2. Age Ageing. 2015;44(2):213-218.',
-                '3. Ellis G, et al. Comprehensive geriatric assessment. BMJ. 2011;343:d6553.',
-                '4. Rockwood K, et al. Clinical Frailty Scale. CMAJ. 2005;173(5):489-495.',
-                '5. Inouye SK, et al. CAM: Confusion Assessment Method. Ann Intern Med. 1990;113(12):941-948.',
-                '6. Inouye SK, et al. HELP: Hospital Elder Life Program. J Am Geriatr Soc. 2000;48(12):1697-1706.',
-                '7. Fick DM, et al. Anticholinergic Drug Burden. J Clin Pharm Ther. 2008;33(5):493-503.',
-                '8. Panel on Prevention of Falls in Older Persons. J Am Geriatr Soc. 2011;59(1):148-157.'
+            // Slide 18: References
+            s = pres.addSlide(); header(s, 'References', C.sec);
+            const refs = [
+                '1. AGS Beers Criteria. J Am Geriatr Soc. 2023;71(7):2052-2081',
+                '2. O\'Mahony D. STOPP/START v2. Age Ageing. 2015;44(2):213-218',
+                '3. Ellis G. CGA meta-analysis. BMJ. 2011;343:d6553',
+                '4. Rockwood K. Clinical Frailty Scale. CMAJ. 2005;173(5):489-495',
+                '5. Inouye SK. CAM. Ann Intern Med. 1990;113(12):941-948',
+                '6. Inouye SK. HELP. J Am Geriatr Soc. 2000;48(12):1697-1706'
             ];
-            references.forEach((ref, idx) => {
-                s18.addText(ref, { x: 0.5, y: 1.35 + (idx * 0.42), w: 9, fontSize: 10, color: colors.text });
-            });
+            refs.forEach((r, i) => s.addText(r, { x: 0.5, y: 1.1 + i * 0.5, w: 9, fontSize: 11, color: C.txt }));
 
-            // ========== SLIDE 19: Thank You / Questions ==========
-            let s19 = pres.addSlide();
-            s19.addShape('rect', { x: 0, y: 0, w: '100%', h: '100%', fill: { color: colors.primary } });
-            s19.addText('Thank You', { x: 0.5, y: 1.8, w: '90%', fontSize: 44, color: 'ffffff', bold: true, align: 'center' });
-            s19.addShape('line', { x: 3, y: 2.7, w: 4, h: 0, line: { color: colors.accent, width: 3 } });
-            s19.addText('Questions & Discussion', { x: 0.5, y: 3.0, w: '90%', fontSize: 24, color: 'ecf0f1', align: 'center' });
-            s19.addText(`Patient: ${ageSex} (${initials})`, { x: 0.5, y: 4.0, w: '90%', fontSize: 16, color: 'bdc3c7', align: 'center' });
-            s19.addText('Generated with SZMC Geriatrics Pro', { x: 0.5, y: 4.8, w: '90%', fontSize: 11, color: '7f8c8d', align: 'center' });
+            // Slide 19: Thank You
+            s = pres.addSlide();
+            s.addShape('rect', { x: 0, y: 0, w: '100%', h: '100%', fill: { color: C.pri } });
+            s.addText('Thank You', { x: 0.5, y: 1.8, w: '90%', fontSize: 44, color: 'ffffff', bold: true, align: 'center' });
+            s.addShape('line', { x: 3, y: 2.7, w: 4, h: 0, line: { color: C.acc, width: 3 } });
+            s.addText('Questions & Discussion', { x: 0.5, y: 3.0, w: '90%', fontSize: 24, color: 'ecf0f1', align: 'center' });
+            s.addText(`Patient: ${data.age} (${data.init})`, { x: 0.5, y: 4.0, w: '90%', fontSize: 16, color: 'bdc3c7', align: 'center' });
+            s.addText('SZMC Geriatrics Pro', { x: 0.5, y: 4.8, w: '90%', fontSize: 11, color: '7f8c8d', align: 'center' });
 
-            const outputInitials = initials.trim() !== 'N/A' ? initials.trim() : 'export';
-            pres.writeFile({ fileName: `Case_${outputInitials}.pptx` });
-            console.log('Comprehensive PPT export completed successfully (19 slides)');
-        } catch(e) {
+            pres.writeFile({ fileName: `Case_${data.init !== 'N/A' ? data.init : 'export'}.pptx` });
+        } catch (e) {
             console.error('PPT export failed:', e);
             alert("PPT Export Error: " + e.message);
         }
