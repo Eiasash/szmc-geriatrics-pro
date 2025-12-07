@@ -22,6 +22,7 @@ describe('File Handler Module', () => {
     it('should have document category', () => {
       expect(SUPPORTED_EXTENSIONS.document).toContain('pdf');
       expect(SUPPORTED_EXTENSIONS.document).toContain('docx');
+      expect(SUPPORTED_EXTENSIONS.document).toContain('doc');
     });
 
     it('should have text category', () => {
@@ -81,6 +82,7 @@ describe('File Handler Module', () => {
     it('should return true for supported extensions', () => {
       expect(isExtensionSupported('pdf')).toBe(true);
       expect(isExtensionSupported('docx')).toBe(true);
+      expect(isExtensionSupported('doc')).toBe(true);
       expect(isExtensionSupported('pptx')).toBe(true);
       expect(isExtensionSupported('html')).toBe(true);
       expect(isExtensionSupported('jpg')).toBe(true);
@@ -107,9 +109,10 @@ describe('File Handler Module', () => {
       expect(getFileCategory('pptx')).toBe('presentation');
     });
 
-    it('should return document for pdf and docx', () => {
+    it('should return document for pdf, docx, and doc', () => {
       expect(getFileCategory('pdf')).toBe('document');
       expect(getFileCategory('docx')).toBe('document');
+      expect(getFileCategory('doc')).toBe('document');
     });
 
     it('should return text for html and txt', () => {

@@ -93,6 +93,26 @@ describe('Exporters Module', () => {
       const text = '&lt;div&gt; &amp; test';
       expect(sanitizeText(text)).toBe('&lt;div&gt; &amp; test');
     });
+
+    it('should remove HTML tags', () => {
+      const text = '<p>Hello</p> <div>World</div>';
+      expect(sanitizeText(text)).toBe('Hello World');
+    });
+
+    it('should remove XML tags', () => {
+      const text = '<a:t>Patient data</a:t> <w:p>Test</w:p>';
+      expect(sanitizeText(text)).toBe('Patient data Test');
+    });
+
+    it('should remove nested HTML tags', () => {
+      const text = '<div><p><strong>Bold text</strong></p></div>';
+      expect(sanitizeText(text)).toBe('Bold text');
+    });
+
+    it('should handle mixed content with tags and control chars', () => {
+      const text = '<p>Hello\x00</p> <span>World\x1F</span>';
+      expect(sanitizeText(text)).toBe('Hello World');
+    });
   });
 
   describe('escapeHtml', () => {

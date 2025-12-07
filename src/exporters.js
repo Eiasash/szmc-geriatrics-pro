@@ -76,7 +76,7 @@ export const DOC_CONFIG = {
 };
 
 /**
- * Sanitizes text for safe export (removes potentially problematic characters)
+ * Sanitizes text for safe export (removes potentially problematic characters and HTML/XML tags)
  * @param {string} text - The text to sanitize
  * @returns {string} - Sanitized text
  */
@@ -84,6 +84,8 @@ export function sanitizeText(text) {
   if (!text || typeof text !== 'string') {
     return '';
   }
+  // Remove HTML/XML tags first
+  text = text.replace(/<[^>]*>/g, '');
   // Remove control characters except newlines and tabs
   return text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 }
