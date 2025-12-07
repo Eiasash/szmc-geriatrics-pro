@@ -209,7 +209,7 @@ export function createSlideData(data) {
       ]
     },
 
-    // Slide 7: Clinical Assessment Summary
+    // Slide 7: Clinical Assessment Summary (Part 1)
     {
       type: 'content',
       elements: [
@@ -218,7 +218,16 @@ export function createSlideData(data) {
       ]
     },
 
-    // Slide 8: Differential Diagnosis
+    // Slide 8: Clinical Assessment Summary (Part 2) - conditionally added if content is long
+    ...(aiResponse.length > 700 ? [{
+      type: 'overflow',
+      elements: [
+        { text: 'Clinical Assessment (Continued)', x: 0.5, y: 0.3, fontSize: PPT_CONFIG.fonts.heading, color: PPT_CONFIG.colors.primary, bold: true },
+        { text: aiResponse.substring(700, 1400), x: 0.5, y: 1, w: '90%', h: '80%', fontSize: PPT_CONFIG.fonts.small, valign: 'top' }
+      ]
+    }] : []),
+
+    // Slide 8/9: Differential Diagnosis
     {
       type: 'content',
       elements: [
@@ -335,17 +344,6 @@ export function createSlideData(data) {
       ]
     }
   ];
-
-  // Add overflow slide if AI response is very long
-  if (aiResponse.length > 700) {
-    slides.splice(8, 0, {
-      type: 'overflow',
-      elements: [
-        { text: 'Clinical Assessment (Continued)', x: 0.5, y: 0.3, fontSize: PPT_CONFIG.fonts.heading, color: PPT_CONFIG.colors.primary, bold: true },
-        { text: aiResponse.substring(700, 1400), x: 0.5, y: 1, w: '90%', h: '80%', fontSize: PPT_CONFIG.fonts.small, valign: 'top' }
-      ]
-    });
-  }
 
   return slides;
 }
