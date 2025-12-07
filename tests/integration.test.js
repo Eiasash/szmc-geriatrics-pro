@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { handleFile, SUPPORTED_EXTENSIONS } from '../src/fileHandler.js';
+import { handleFile, SUPPORTED_EXTENSIONS, MAX_FILE_SIZE } from '../src/fileHandler.js';
 import { smartPopulate, extractClinicalData } from '../src/populator.js';
 import { generatePrompt, validatePromptData } from '../src/prompt.js';
 import { sanitizeText, escapeHtml } from '../src/exporters.js';
@@ -101,9 +101,9 @@ Meds: Atorvastatin 40mg, Aspirin 81mg`;
       const sanitizedHpi = sanitizeText(unsafeData.hpi);
       const sanitizedMeds = sanitizeText(unsafeData.meds);
 
-      // Should remove script tags (but text content remains as per design)
+      // Should remove script tags and their content
       expect(sanitizedAge).not.toContain('<script>');
-      expect(sanitizedAge).toContain('85F'); // Data preserved
+      expect(sanitizedAge).toBe('85Falert("xss")'); // Tags removed, text preserved
       
       // Should remove HTML tags
       expect(sanitizedHpi).not.toContain('<b>');
@@ -207,11 +207,10 @@ Meds: Atorvastatin 40mg, Aspirin 81mg`;
     });
 
     it('should reject files that are too large', async () => {
-      const MAX_SIZE = 50 * 1024 * 1024; // 50MB
       const mockFile = {
         name: 'huge.pdf',
         text: async () => 'content',
-        size: MAX_SIZE + 1
+        size: MAX_FILE_SIZE + 1
       };
 
       await expect(handleFile(mockFile, {}, {})).rejects.toThrow('File too large');
@@ -223,12 +222,15 @@ Meds: Atorvastatin 40mg, Aspirin 81mg`;
       const data = {
         ageSex: '85F',
         hpi: 'Patient with delirium',
-        meds: 'Diphenhydramine, Alprazolam' // Both are Beers Criteria medications
+        meds: 'Diphenhydramine, Alprazolam' // Both are Beers Criteria PIMs
       };
 
       const prompt = generatePrompt(data);
       expect(prompt).toContain('Beers Criteria');
       expect(prompt).toContain('SAFETY AUDIT');
+      // Verify medications are included in prompt for AI to evaluate
+      expect(prompt).toContain('Diphenhydramine');
+      expect(prompt).toContain('Alprazolam');
     });
 
     it('should include drug interaction checking in prompt', () => {
