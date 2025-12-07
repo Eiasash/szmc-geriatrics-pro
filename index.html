@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SZMC Pro: Mobile v15.4</title>
+    <title>SZMC Pro: Mobile v15.5</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
     
@@ -65,7 +65,7 @@
 <body>
 
 <div class="sidebar">
-    <div class="logo"><span>SZMC Pro</span> <span class="badge">v15.4 Mobile</span></div>
+    <div class="logo"><span>SZMC Pro</span> <span class="badge">v15.5 Mobile</span></div>
     
     <div class="drop-zone" onclick="document.getElementById('file-in')?.click()" id="drop-area">
         <div style="font-size:1.8rem;">📂</div>
@@ -123,7 +123,7 @@
 
 <script>
     // --- 0. CONSTANTS ---
-    const APP_VERSION = '15.4.0';
+    const APP_VERSION = '15.5.0';
     const STORAGE_KEY = 'szmc-pro-form-data';
     const FORM_FIELDS = ['age_sex', 'initials', 'hpi', 'meds', 'ai-response', 'raw-text'];
 
@@ -421,51 +421,237 @@ MEDS/LABS: {meds}`;
     };
 
     function exportPPT() {
-        console.log('Starting PPT export...');
+        console.log('Starting comprehensive PPT export (15+ slides)...');
         try {
             // Validate minimum required data
             if (!getVal('age_sex').trim() && !getVal('hpi').trim()) {
                 alert('Please add some patient data before exporting.');
                 return;
             }
-            
+
             if (typeof PptxGenJS === 'undefined') throw new Error('PptxGenJS library not loaded');
             let pres = new PptxGenJS();
-            
+
+            // Professional color scheme
+            const colors = {
+                primary: '2c3e50',
+                secondary: '7f8c8d',
+                accent: '27ae60',
+                highlight: 'c0392b',
+                text: '333333',
+                warning: 'e74c3c',
+                info: '3498db',
+                success: '27ae60',
+                lightBg: 'f8f9fa',
+                white: 'ffffff'
+            };
+
             // Sanitize all text fields to remove control characters
-            const ageSex = sanitizeText(getVal('age_sex'));
-            const initials = sanitizeText(getVal('initials'));
-            const hpi = sanitizeText(getVal('hpi'));
-            const meds = sanitizeText(getVal('meds'));
-            const aiText = sanitizeText(getVal('ai-response'));
-            
-            // Slide 1
+            const ageSex = sanitizeText(getVal('age_sex')) || 'Not specified';
+            const initials = sanitizeText(getVal('initials')) || 'N/A';
+            const hpi = sanitizeText(getVal('hpi')) || 'Not documented';
+            const meds = sanitizeText(getVal('meds')) || 'Not documented';
+            const aiText = sanitizeText(getVal('ai-response')) || 'Pending clinical analysis';
+            const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            // Helper function to add styled header to slides
+            const addSlideHeader = (slide, title, color) => {
+                slide.addShape('rect', { x: 0, y: 0, w: '100%', h: 0.8, fill: { color: color } });
+                slide.addText(title, { x: 0.5, y: 0.2, w: '90%', fontSize: 24, color: 'ffffff', bold: true });
+            };
+
+            // Helper function to truncate text
+            const truncate = (text, max) => text && text.length > max ? text.substring(0, max) + '...' : text;
+
+            // ========== SLIDE 1: Title Page ==========
             let s1 = pres.addSlide();
-            s1.addText("Geriatric Case", {x:1, y:2, fontSize:32, color:'2c3e50', bold:true});
-            s1.addText(`${ageSex} - ${initials}`, {x:1, y:3, fontSize:24, color:'7f8c8d'});
-            
-            // Slide 2 (Data)
+            s1.addShape('rect', { x: 0, y: 0, w: '100%', h: '100%', fill: { color: colors.primary } });
+            s1.addText('GERIATRIC CASE PRESENTATION', { x: 0.5, y: 1.5, w: '90%', fontSize: 36, color: 'ffffff', bold: true, align: 'center' });
+            s1.addText(`Patient: ${ageSex} (${initials})`, { x: 0.5, y: 2.5, w: '90%', fontSize: 24, color: 'ecf0f1', align: 'center' });
+            s1.addShape('line', { x: 2, y: 3.2, w: 6, h: 0, line: { color: colors.accent, width: 3 } });
+            s1.addText('Comprehensive Geriatric Assessment', { x: 0.5, y: 3.5, w: '90%', fontSize: 18, color: 'bdc3c7', align: 'center' });
+            s1.addText(`SZMC Geriatrics Pro | ${currentDate}`, { x: 0.5, y: 4.8, w: '90%', fontSize: 12, color: '95a5a6', align: 'center' });
+
+            // ========== SLIDE 2: Case Overview ==========
             let s2 = pres.addSlide();
-            s2.addText("Clinical Context", {x:0.5, y:0.5, fontSize:18, color:'27ae60', bold:true});
-            s2.addText(`HPI: ${hpi.substring(0,400)}`, {x:0.5, y:1, w:'90%', h:2, fontSize:14});
-            s2.addText(`MEDS: ${meds.substring(0,400)}`, {x:0.5, y:3.5, w:'90%', h:2, fontSize:12});
-            
-            // Slide 3 (AI)
+            addSlideHeader(s2, '📋 Case Overview', colors.primary);
+            s2.addText('Patient Demographics', { x: 0.5, y: 1.1, fontSize: 18, color: colors.accent, bold: true });
+            s2.addText([
+                { text: '• Age/Sex: ', options: { bold: true } }, { text: ageSex, options: { bold: false } }
+            ], { x: 0.7, y: 1.5, fontSize: 14, color: colors.text });
+            s2.addText([
+                { text: '• Patient ID: ', options: { bold: true } }, { text: initials, options: { bold: false } }
+            ], { x: 0.7, y: 1.9, fontSize: 14, color: colors.text });
+            s2.addText('Presentation Context', { x: 0.5, y: 2.5, fontSize: 18, color: colors.accent, bold: true });
+            s2.addText('• Comprehensive Geriatric Assessment (CGA)', { x: 0.7, y: 2.9, fontSize: 14, color: colors.text });
+            s2.addText('• Multidisciplinary evaluation approach', { x: 0.7, y: 3.3, fontSize: 14, color: colors.text });
+            s2.addText('• Evidence-based clinical decision support', { x: 0.7, y: 3.7, fontSize: 14, color: colors.text });
+            s2.addShape('rect', { x: 0.5, y: 4.3, w: 9, h: 0.6, fill: { color: colors.lightBg } });
+            s2.addText('⚕️ Aligned with AGS Beers Criteria® and STOPP/START Guidelines', { x: 0.6, y: 4.4, fontSize: 11, color: colors.secondary, italic: true });
+
+            // ========== SLIDE 3: Chief Complaint & HPI ==========
             let s3 = pres.addSlide();
-            s3.addText("Analysis & Plan", {x:0.5, y:0.5, fontSize:18, color:'c0392b', bold:true});
-            // Split long text to prevent overflow
-            s3.addText(aiText.substring(0, 1000), {x:0.5, y:1, w:'90%', h:'80%', fontSize:12, color:'333333'});
-            
-            // Slide 4 (Overflow if needed)
-            if(aiText.length > 1000) {
+            addSlideHeader(s3, '🏥 Chief Complaint & History of Present Illness', colors.info);
+            s3.addText(truncate(hpi, 800), { x: 0.5, y: 1.1, w: 9, h: 3.8, fontSize: 13, color: colors.text, valign: 'top' });
+
+            // ========== SLIDE 4: HPI Continued (if needed) ==========
+            if (hpi.length > 800) {
                 let s4 = pres.addSlide();
-                s4.addText("Plan (Cont.)", {x:0.5, y:0.5, fontSize:18, color:'c0392b'});
-                s4.addText(aiText.substring(1000, 2000), {x:0.5, y:1, w:'90%', h:'80%', fontSize:12});
+                addSlideHeader(s4, '🏥 History of Present Illness (Continued)', colors.info);
+                s4.addText(truncate(hpi.substring(800), 1000), { x: 0.5, y: 1.1, w: 9, h: 3.8, fontSize: 13, color: colors.text, valign: 'top' });
             }
 
-            const outputInitials = initials.trim() || 'export';
+            // ========== SLIDE 5: Medication Review ==========
+            let s5 = pres.addSlide();
+            addSlideHeader(s5, '💊 Current Medications & Labs', colors.accent);
+            s5.addText(truncate(meds, 900), { x: 0.5, y: 1.1, w: 9, h: 3.8, fontSize: 12, color: colors.text, valign: 'top' });
+
+            // ========== SLIDE 6: Medication Safety Review ==========
+            let s6 = pres.addSlide();
+            addSlideHeader(s6, '⚠️ Medication Safety Assessment', colors.warning);
+            s6.addText('Critical Safety Screening Points:', { x: 0.5, y: 1.1, fontSize: 16, color: colors.highlight, bold: true });
+            const safetyItems = [
+                '• Beers Criteria® Assessment - PIMs in older adults',
+                '• STOPP/START Criteria Review',
+                '• Drug-Drug Interactions (DDIs)',
+                '• Drug-Disease Interactions',
+                '• Renal Dosing Adjustments (CrCl-based)',
+                '• Hepatic Impairment Considerations',
+                '• Anticholinergic Burden Score (ABS)',
+                '• QTc Prolongation Risk',
+                '• Fall-Risk Increasing Drugs (FRIDs)'
+            ];
+            safetyItems.forEach((item, idx) => {
+                s6.addText(item, { x: 0.7, y: 1.5 + (idx * 0.35), fontSize: 13, color: colors.text });
+            });
+
+            // ========== SLIDE 7: Functional Assessment ==========
+            let s7 = pres.addSlide();
+            addSlideHeader(s7, '🚶 Functional Assessment', colors.accent);
+            s7.addText('Activities of Daily Living (ADLs)', { x: 0.5, y: 1.1, fontSize: 16, color: colors.primary, bold: true });
+            s7.addText('Bathing • Dressing • Toileting • Transferring • Continence • Feeding', { x: 0.7, y: 1.5, fontSize: 12, color: colors.secondary });
+            s7.addText('Instrumental ADLs (IADLs)', { x: 0.5, y: 2.1, fontSize: 16, color: colors.primary, bold: true });
+            s7.addText('Shopping • Cooking • Managing Medications • Finances • Transportation • Phone Use', { x: 0.7, y: 2.5, fontSize: 12, color: colors.secondary });
+            s7.addText('Mobility & Gait Assessment', { x: 0.5, y: 3.1, fontSize: 16, color: colors.primary, bold: true });
+            s7.addText('• Timed Up and Go (TUG) Test\n• Gait Speed Assessment\n• Fall History & Risk Stratification', { x: 0.7, y: 3.5, fontSize: 12, color: colors.text });
+
+            // ========== SLIDE 8: Cognitive Assessment ==========
+            let s8 = pres.addSlide();
+            addSlideHeader(s8, '🧠 Cognitive & Mental Status Assessment', colors.info);
+            s8.addText('Cognitive Screening', { x: 0.5, y: 1.1, fontSize: 16, color: colors.primary, bold: true });
+            s8.addText('• Mini-Mental State Examination (MMSE)\n• Montreal Cognitive Assessment (MoCA)\n• Clock Drawing Test', { x: 0.7, y: 1.5, fontSize: 13, color: colors.text });
+            s8.addText('Delirium Assessment', { x: 0.5, y: 2.5, fontSize: 16, color: colors.primary, bold: true });
+            s8.addText('• Confusion Assessment Method (CAM)\n• 4AT Rapid Delirium Screening\n• Delirium Observation Screening Scale', { x: 0.7, y: 2.9, fontSize: 13, color: colors.text });
+            s8.addText('Mood & Depression Screening', { x: 0.5, y: 3.9, fontSize: 16, color: colors.primary, bold: true });
+            s8.addText('• Geriatric Depression Scale (GDS-15)', { x: 0.7, y: 4.3, fontSize: 13, color: colors.text });
+
+            // ========== SLIDE 9: Clinical Analysis Part 1 ==========
+            let s9 = pres.addSlide();
+            addSlideHeader(s9, '📊 Clinical Assessment & Analysis', colors.primary);
+            s9.addText(truncate(aiText, 900), { x: 0.5, y: 1.1, w: 9, h: 3.8, fontSize: 12, color: colors.text, valign: 'top' });
+
+            // ========== SLIDE 10: Clinical Analysis Part 2 (if needed) ==========
+            if (aiText.length > 900) {
+                let s10 = pres.addSlide();
+                addSlideHeader(s10, '📊 Clinical Assessment (Continued)', colors.primary);
+                s10.addText(truncate(aiText.substring(900), 1000), { x: 0.5, y: 1.1, w: 9, h: 3.8, fontSize: 12, color: colors.text, valign: 'top' });
+            }
+
+            // ========== SLIDE 11: Differential Diagnosis ==========
+            let s11 = pres.addSlide();
+            addSlideHeader(s11, '🔍 Differential Diagnosis', colors.info);
+            s11.addText('Key Diagnostic Considerations:', { x: 0.5, y: 1.1, fontSize: 16, color: colors.primary, bold: true });
+            s11.addText('• Primary Working Diagnosis\n• Alternative Diagnoses to Consider\n• Comorbidity Assessment\n• Atypical Presentations in Elderly', { x: 0.7, y: 1.5, fontSize: 13, color: colors.text });
+            s11.addText('Geriatric Syndromes to Evaluate:', { x: 0.5, y: 3.0, fontSize: 16, color: colors.warning, bold: true });
+            s11.addText('• Frailty Syndrome\n• Sarcopenia\n• Polypharmacy\n• Falls & Mobility Issues\n• Delirium/Dementia\n• Incontinence\n• Malnutrition', { x: 0.7, y: 3.4, fontSize: 12, color: colors.text });
+
+            // ========== SLIDE 12: Pharmacological Management ==========
+            let s12 = pres.addSlide();
+            addSlideHeader(s12, '💉 Management: Pharmacological', colors.success);
+            s12.addText('Medication Optimization Strategy:', { x: 0.5, y: 1.1, fontSize: 16, color: colors.primary, bold: true });
+            s12.addText('• Review indication for each medication\n• Deprescribing candidates identified\n• Dose adjustments per renal/hepatic function\n• Time therapy optimization\n• Simplify regimen where possible', { x: 0.7, y: 1.5, fontSize: 13, color: colors.text });
+            s12.addText('Deprescribing Priorities:', { x: 0.5, y: 3.3, fontSize: 16, color: colors.warning, bold: true });
+            s12.addText('• High anticholinergic burden medications\n• Sedative-hypnotics (benzodiazepines, Z-drugs)\n• Proton pump inhibitors (if prolonged use)\n• Medications without clear indication', { x: 0.7, y: 3.7, fontSize: 12, color: colors.text });
+
+            // ========== SLIDE 13: Non-Pharmacological Management ==========
+            let s13 = pres.addSlide();
+            addSlideHeader(s13, '🏃 Management: Non-Pharmacological', colors.success);
+            s13.addText('Multidisciplinary Interventions:', { x: 0.5, y: 1.1, fontSize: 16, color: colors.primary, bold: true });
+            s13.addText('• Physical Therapy - mobility, strength, balance training\n• Occupational Therapy - ADL/IADL optimization\n• Speech & Language Therapy - swallowing assessment\n• Nutrition/Dietitian - MNA screening, protein optimization\n• Social Work - care coordination, caregiver support\n• Pharmacy Consult - medication therapy management', { x: 0.7, y: 1.5, fontSize: 12, color: colors.text });
+            s13.addText('Lifestyle Modifications:', { x: 0.5, y: 3.5, fontSize: 16, color: colors.accent, bold: true });
+            s13.addText('• Regular physical activity program\n• Cognitive stimulation activities\n• Social engagement optimization\n• Sleep hygiene education', { x: 0.7, y: 3.9, fontSize: 12, color: colors.text });
+
+            // ========== SLIDE 14: Safety & Risk Management ==========
+            let s14 = pres.addSlide();
+            addSlideHeader(s14, '🛡️ Safety & Risk Management', colors.warning);
+            s14.addText('Fall Prevention Protocol:', { x: 0.5, y: 1.1, fontSize: 16, color: colors.highlight, bold: true });
+            s14.addText('• Environmental modifications\n• FRID review and optimization\n• Assistive device assessment\n• Vision/hearing correction\n• Footwear evaluation', { x: 0.7, y: 1.5, fontSize: 12, color: colors.text });
+            s14.addText('Delirium Prevention (HELP Protocol):', { x: 0.5, y: 3.0, fontSize: 16, color: colors.highlight, bold: true });
+            s14.addText('• Orientation protocols\n• Early mobilization\n• Sleep enhancement\n• Minimize psychoactive medications\n• Adequate hydration/nutrition', { x: 0.7, y: 3.4, fontSize: 12, color: colors.text });
+
+            // ========== SLIDE 15: Discharge Planning ==========
+            let s15 = pres.addSlide();
+            addSlideHeader(s15, '🏠 Discharge & Transition Planning', colors.info);
+            s15.addText('Disposition Considerations:', { x: 0.5, y: 1.1, fontSize: 16, color: colors.primary, bold: true });
+            s15.addText('• Home (with/without home health services)\n• Skilled Nursing Facility (SNF)\n• Acute Rehabilitation\n• Long-term Care', { x: 0.7, y: 1.5, fontSize: 13, color: colors.text });
+            s15.addText('Transition of Care Essentials:', { x: 0.5, y: 2.8, fontSize: 16, color: colors.primary, bold: true });
+            s15.addText('• Medication reconciliation at discharge\n• Clear follow-up appointments\n• Patient/caregiver education completed\n• Warning signs reviewed\n• DME orders placed\n• Home safety evaluation if needed', { x: 0.7, y: 3.2, fontSize: 12, color: colors.text });
+
+            // ========== SLIDE 16: Follow-up & Monitoring ==========
+            let s16 = pres.addSlide();
+            addSlideHeader(s16, '📅 Follow-up & Monitoring Plan', colors.accent);
+            s16.addText('Short-term Follow-up (1-2 weeks):', { x: 0.5, y: 1.1, fontSize: 16, color: colors.primary, bold: true });
+            s16.addText('• Medication tolerance/efficacy check\n• Vital signs and symptom monitoring\n• Lab follow-up as indicated', { x: 0.7, y: 1.5, fontSize: 13, color: colors.text });
+            s16.addText('Long-term Monitoring:', { x: 0.5, y: 2.5, fontSize: 16, color: colors.primary, bold: true });
+            s16.addText('• Functional status reassessment\n• Cognitive screening at intervals\n• Annual comprehensive medication review\n• Preventive care and immunizations\n• Goals of care discussions', { x: 0.7, y: 2.9, fontSize: 13, color: colors.text });
+            s16.addText('Quality Metrics:', { x: 0.5, y: 4.1, fontSize: 14, color: colors.accent, bold: true });
+            s16.addText('30-day readmission prevention • ADL maintenance • QoL improvement', { x: 0.7, y: 4.4, fontSize: 11, color: colors.secondary });
+
+            // ========== SLIDE 17: Evidence-Based Guidelines ==========
+            let s17 = pres.addSlide();
+            addSlideHeader(s17, '📚 Evidence-Based Clinical Standards', colors.primary);
+            s17.addText('Guidelines Applied in This Assessment:', { x: 0.5, y: 1.1, fontSize: 16, color: colors.accent, bold: true });
+            s17.addText('• AGS Beers Criteria® (2023 Update)', { x: 0.7, y: 1.5, fontSize: 13, color: colors.text });
+            s17.addText('   Potentially Inappropriate Medications in Older Adults', { x: 0.9, y: 1.8, fontSize: 11, color: colors.secondary, italic: true });
+            s17.addText('• STOPP/START Criteria v2', { x: 0.7, y: 2.2, fontSize: 13, color: colors.text });
+            s17.addText('   Screening Tool for Prescribing in Older Persons', { x: 0.9, y: 2.5, fontSize: 11, color: colors.secondary, italic: true });
+            s17.addText('• Comprehensive Geriatric Assessment (CGA)', { x: 0.7, y: 2.9, fontSize: 13, color: colors.text });
+            s17.addText('   Multidimensional interdisciplinary diagnostic process', { x: 0.9, y: 3.2, fontSize: 11, color: colors.secondary, italic: true });
+            s17.addText('• Clinical Frailty Scale (Rockwood CFS)', { x: 0.7, y: 3.6, fontSize: 13, color: colors.text });
+            s17.addText('   Validated frailty assessment tool', { x: 0.9, y: 3.9, fontSize: 11, color: colors.secondary, italic: true });
+            s17.addText('• Hospital Elder Life Program (HELP)', { x: 0.7, y: 4.3, fontSize: 13, color: colors.text });
+            s17.addText('   Evidence-based delirium prevention', { x: 0.9, y: 4.6, fontSize: 11, color: colors.secondary, italic: true });
+
+            // ========== SLIDE 18: References ==========
+            let s18 = pres.addSlide();
+            addSlideHeader(s18, '📖 References & Citations', colors.secondary);
+            s18.addText('Key Clinical References:', { x: 0.5, y: 1.0, fontSize: 14, color: colors.primary, bold: true });
+            const references = [
+                '1. 2023 AGS Beers Criteria® Update Expert Panel. J Am Geriatr Soc. 2023;71(7):2052-2081.',
+                '2. O\'Mahony D, et al. STOPP/START criteria v2. Age Ageing. 2015;44(2):213-218.',
+                '3. Ellis G, et al. Comprehensive geriatric assessment. BMJ. 2011;343:d6553.',
+                '4. Rockwood K, et al. Clinical Frailty Scale. CMAJ. 2005;173(5):489-495.',
+                '5. Inouye SK, et al. CAM: Confusion Assessment Method. Ann Intern Med. 1990;113(12):941-948.',
+                '6. Inouye SK, et al. HELP: Hospital Elder Life Program. J Am Geriatr Soc. 2000;48(12):1697-1706.',
+                '7. Fick DM, et al. Anticholinergic Drug Burden. J Clin Pharm Ther. 2008;33(5):493-503.',
+                '8. Panel on Prevention of Falls in Older Persons. J Am Geriatr Soc. 2011;59(1):148-157.'
+            ];
+            references.forEach((ref, idx) => {
+                s18.addText(ref, { x: 0.5, y: 1.35 + (idx * 0.42), w: 9, fontSize: 10, color: colors.text });
+            });
+
+            // ========== SLIDE 19: Thank You / Questions ==========
+            let s19 = pres.addSlide();
+            s19.addShape('rect', { x: 0, y: 0, w: '100%', h: '100%', fill: { color: colors.primary } });
+            s19.addText('Thank You', { x: 0.5, y: 1.8, w: '90%', fontSize: 44, color: 'ffffff', bold: true, align: 'center' });
+            s19.addShape('line', { x: 3, y: 2.7, w: 4, h: 0, line: { color: colors.accent, width: 3 } });
+            s19.addText('Questions & Discussion', { x: 0.5, y: 3.0, w: '90%', fontSize: 24, color: 'ecf0f1', align: 'center' });
+            s19.addText(`Patient: ${ageSex} (${initials})`, { x: 0.5, y: 4.0, w: '90%', fontSize: 16, color: 'bdc3c7', align: 'center' });
+            s19.addText('Generated with SZMC Geriatrics Pro', { x: 0.5, y: 4.8, w: '90%', fontSize: 11, color: '7f8c8d', align: 'center' });
+
+            const outputInitials = initials.trim() !== 'N/A' ? initials.trim() : 'export';
             pres.writeFile({ fileName: `Case_${outputInitials}.pptx` });
-            console.log('PPT export completed successfully');
+            console.log('Comprehensive PPT export completed successfully (19 slides)');
         } catch(e) {
             console.error('PPT export failed:', e);
             alert("PPT Export Error: " + e.message);
@@ -473,354 +659,547 @@ MEDS/LABS: {meds}`;
     }
 
     async function exportDOC() {
-        console.log('Starting DOCX export...');
+        console.log('Starting comprehensive DOCX export...');
         try {
             // Validate minimum required data
             if (!getVal('age_sex').trim() && !getVal('hpi').trim()) {
                 alert('Please add some patient data before exporting.');
                 return;
             }
-            
+
             // Check if docx library is loaded
             if (typeof docx === 'undefined') {
                 console.warn('DOCX library not loaded, falling back to HTML-based DOC export');
                 exportDOCLegacy();
                 return;
             }
-            
-            const { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer } = docx;
-            
-            // Get sanitized data
-            const ageSex = sanitizeText(getVal('age_sex'));
-            const initials = sanitizeText(getVal('initials'));
-            const hpi = sanitizeText(getVal('hpi'));
-            const meds = sanitizeText(getVal('meds'));
-            const aiText = sanitizeText(getVal('ai-response'));
-            
-            // Medical references
-            const medicalRefs = {
-                beers: {
-                    citation: '2023 American Geriatrics Society Beers Criteria® Update Expert Panel',
-                    description: 'Potentially inappropriate medications in older adults'
-                },
-                stopp: {
-                    citation: 'O\'Mahony D, et al. Age Ageing. 2015',
-                    description: 'Screening Tool of Older Persons\' Prescriptions'
-                },
-                cga: {
-                    citation: 'Ellis G, et al. BMJ. 2011',
-                    description: 'Multidimensional interdisciplinary diagnostic process'
-                },
-                frailty: {
-                    citation: 'Rockwood K, et al. CMAJ. 2005',
-                    description: 'Rockwood Clinical Frailty Scale (CFS)'
-                },
-                delirium: {
-                    citation: 'Inouye SK, et al. Ann Intern Med. 1990',
-                    description: 'Gold standard for delirium diagnosis'
-                }
+
+            const { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer, BorderStyle, PageBreak, Tab, TabStopType, TabStopPosition } = docx;
+
+            // Enhanced text sanitization - remove control chars AND problematic Unicode
+            const deepSanitize = (text) => {
+                if (!text || typeof text !== 'string') return '';
+                return text
+                    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Control characters
+                    .replace(/[\uFFFE\uFFFF]/g, '') // Invalid Unicode
+                    .replace(/\r\n/g, '\n') // Normalize line endings
+                    .replace(/\r/g, '\n');
             };
-            
-            // Create comprehensive document
-            const doc = new Document({
-                sections: [{
-                    properties: {},
+
+            // Get sanitized data
+            const ageSex = deepSanitize(getVal('age_sex')) || 'Not specified';
+            const initials = deepSanitize(getVal('initials')) || 'N/A';
+            const hpi = deepSanitize(getVal('hpi')) || 'Not documented';
+            const meds = deepSanitize(getVal('meds')) || 'Not documented';
+            const aiText = deepSanitize(getVal('ai-response')) || 'Pending clinical analysis';
+            const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            // Helper to create bullet paragraphs
+            const createBullet = (text, level = 0, spacing = {}) => new Paragraph({
+                text: deepSanitize(text),
+                bullet: { level },
+                spacing: { after: 120, ...spacing }
+            });
+
+            // Helper to create section header
+            const createSectionHeader = (text) => new Paragraph({
+                text: text,
+                heading: HeadingLevel.HEADING_2,
+                spacing: { before: 300, after: 200 },
+                border: {
+                    bottom: { color: '27ae60', space: 1, size: 6, style: BorderStyle.SINGLE }
+                }
+            });
+
+            // Helper to create subsection header
+            const createSubHeader = (text) => new Paragraph({
+                text: text,
+                heading: HeadingLevel.HEADING_3,
+                spacing: { before: 200, after: 100 }
+            });
+
+            // Helper to split long text into paragraphs
+            const createTextParagraphs = (text, spacing = { after: 200 }) => {
+                if (!text) return [new Paragraph({ text: 'Not documented', spacing })];
+                const lines = text.split('\n').filter(line => line.trim());
+                if (lines.length === 0) return [new Paragraph({ text: 'Not documented', spacing })];
+                return lines.map((line, idx) => new Paragraph({
+                    text: line,
+                    spacing: idx === lines.length - 1 ? spacing : { after: 120 }
+                }));
+            };
+
+            // Build document sections
+            const children = [
+                // ========== TITLE PAGE ==========
+                new Paragraph({
                     children: [
-                        // Title
-                        new Paragraph({
-                            text: 'Geriatric Case Report',
-                            heading: HeadingLevel.HEADING_1,
-                            alignment: AlignmentType.CENTER,
-                            spacing: { after: 400 }
-                        }),
-                        
-                        // Patient Demographics
-                        new Paragraph({
-                            text: 'Patient Demographics',
-                            heading: HeadingLevel.HEADING_2,
-                            spacing: { before: 200, after: 200 }
-                        }),
-                        new Paragraph({
-                            children: [
-                                new TextRun({ text: 'Patient ID: ', bold: true }),
-                                new TextRun(ageSex + ' (' + initials + ')')
-                            ],
-                            spacing: { after: 200 }
-                        }),
-                        
-                        // Chief Complaint & HPI
-                        new Paragraph({
-                            text: 'Chief Complaint & History of Present Illness',
-                            heading: HeadingLevel.HEADING_2,
-                            spacing: { before: 300, after: 200 }
-                        }),
-                        new Paragraph({
-                            text: hpi || 'Not documented',
-                            spacing: { after: 300 }
-                        }),
-                        
-                        // Medications & Labs
-                        new Paragraph({
-                            text: 'Current Medications & Laboratory Results',
-                            heading: HeadingLevel.HEADING_2,
-                            spacing: { before: 300, after: 200 }
-                        }),
-                        new Paragraph({
-                            text: meds || 'Not documented',
-                            spacing: { after: 300 }
-                        }),
-                        
-                        // Medication Safety Review
-                        new Paragraph({
-                            text: 'Medication Safety Review',
-                            heading: HeadingLevel.HEADING_2,
-                            spacing: { before: 300, after: 200 }
-                        }),
-                        new Paragraph({
-                            text: 'Beers Criteria Assessment',
-                            bullet: { level: 0 }
-                        }),
-                        new Paragraph({
-                            text: 'Drug-Drug Interactions',
-                            bullet: { level: 0 }
-                        }),
-                        new Paragraph({
-                            text: 'Renal/Hepatic Dosing Adjustments',
-                            bullet: { level: 0 }
-                        }),
-                        new Paragraph({
-                            text: 'Anticholinergic Burden Score',
-                            bullet: { level: 0 }
-                        }),
-                        new Paragraph({
-                            text: 'Fall Risk Medication Review',
-                            bullet: { level: 0 },
-                            spacing: { after: 300 }
-                        }),
-                        
-                        // Functional Assessment
-                        new Paragraph({
-                            text: 'Functional & Cognitive Assessment',
-                            heading: HeadingLevel.HEADING_2,
-                            spacing: { before: 300, after: 200 }
-                        }),
-                        new Paragraph({
-                            children: [
-                                new TextRun({ text: 'Activities of Daily Living (ADLs): ', bold: true }),
-                                new TextRun('Assessment pending/documented in chart')
-                            ]
-                        }),
-                        new Paragraph({
-                            children: [
-                                new TextRun({ text: 'Instrumental ADLs (IADLs): ', bold: true }),
-                                new TextRun('Assessment pending/documented in chart')
-                            ]
-                        }),
-                        new Paragraph({
-                            children: [
-                                new TextRun({ text: 'Cognitive Status: ', bold: true }),
-                                new TextRun('Evaluated per CAM criteria')
-                            ],
-                            spacing: { after: 300 }
-                        }),
-                        
-                        // Clinical Assessment & Analysis
-                        new Paragraph({
-                            text: 'Clinical Assessment & Analysis',
-                            heading: HeadingLevel.HEADING_2,
-                            spacing: { before: 300, after: 200 }
-                        }),
-                        new Paragraph({
-                            text: aiText || 'Not documented',
-                            spacing: { after: 300 }
-                        }),
-                        
-                        // Management Plan
-                        new Paragraph({
-                            text: 'Comprehensive Management Plan',
-                            heading: HeadingLevel.HEADING_2,
-                            spacing: { before: 300, after: 200 }
-                        }),
-                        new Paragraph({
-                            text: 'Pharmacological Interventions:',
-                            heading: HeadingLevel.HEADING_3,
-                            spacing: { after: 100 }
-                        }),
-                        new Paragraph({
-                            text: 'Medication optimization per clinical guidelines',
-                            bullet: { level: 0 }
-                        }),
-                        new Paragraph({
-                            text: 'Deprescribing strategy for potentially inappropriate medications',
-                            bullet: { level: 0 }
-                        }),
-                        new Paragraph({
-                            text: 'Dose adjustments based on renal/hepatic function',
-                            bullet: { level: 0 },
-                            spacing: { after: 200 }
-                        }),
-                        new Paragraph({
-                            text: 'Non-Pharmacological Interventions:',
-                            heading: HeadingLevel.HEADING_3,
-                            spacing: { after: 100 }
-                        }),
-                        new Paragraph({
-                            text: 'Physical therapy evaluation and intervention',
-                            bullet: { level: 0 }
-                        }),
-                        new Paragraph({
-                            text: 'Occupational therapy for ADL optimization',
-                            bullet: { level: 0 }
-                        }),
-                        new Paragraph({
-                            text: 'Nutrition assessment and support',
-                            bullet: { level: 0 }
-                        }),
-                        new Paragraph({
-                            text: 'Social work assessment and care coordination',
-                            bullet: { level: 0 },
-                            spacing: { after: 300 }
-                        }),
-                        
-                        // Safety & Discharge Planning
-                        new Paragraph({
-                            text: 'Safety Considerations & Discharge Planning',
-                            heading: HeadingLevel.HEADING_2,
-                            spacing: { before: 300, after: 200 }
-                        }),
-                        new Paragraph({
-                            text: 'Fall prevention strategy and environmental modifications',
-                            bullet: { level: 0 }
-                        }),
-                        new Paragraph({
-                            text: 'Delirium prevention per HELP protocol',
-                            bullet: { level: 0 }
-                        }),
-                        new Paragraph({
-                            text: 'Home safety evaluation prior to discharge',
-                            bullet: { level: 0 }
-                        }),
-                        new Paragraph({
-                            text: 'Caregiver support and education',
-                            bullet: { level: 0 }
-                        }),
-                        new Paragraph({
-                            text: 'Follow-up appointments scheduled',
-                            bullet: { level: 0 },
-                            spacing: { after: 300 }
-                        }),
-                        
-                        // References
-                        new Paragraph({
-                            text: 'Clinical Guidelines & References',
-                            heading: HeadingLevel.HEADING_2,
-                            spacing: { before: 400, after: 200 }
-                        }),
-                        new Paragraph({
-                            children: [
-                                new TextRun({ text: '1. ', bold: true }),
-                                new TextRun(medicalRefs.beers.citation + '. '),
-                                new TextRun({ text: medicalRefs.beers.description, italics: true })
-                            ],
-                            spacing: { after: 100 }
-                        }),
-                        new Paragraph({
-                            children: [
-                                new TextRun({ text: '2. ', bold: true }),
-                                new TextRun(medicalRefs.stopp.citation + '. '),
-                                new TextRun({ text: medicalRefs.stopp.description, italics: true })
-                            ],
-                            spacing: { after: 100 }
-                        }),
-                        new Paragraph({
-                            children: [
-                                new TextRun({ text: '3. ', bold: true }),
-                                new TextRun(medicalRefs.cga.citation + '. '),
-                                new TextRun({ text: medicalRefs.cga.description, italics: true })
-                            ],
-                            spacing: { after: 100 }
-                        }),
-                        new Paragraph({
-                            children: [
-                                new TextRun({ text: '4. ', bold: true }),
-                                new TextRun(medicalRefs.frailty.citation + '. '),
-                                new TextRun({ text: medicalRefs.frailty.description, italics: true })
-                            ],
-                            spacing: { after: 100 }
-                        }),
-                        new Paragraph({
-                            children: [
-                                new TextRun({ text: '5. ', bold: true }),
-                                new TextRun(medicalRefs.delirium.citation + '. '),
-                                new TextRun({ text: medicalRefs.delirium.description, italics: true })
-                            ]
-                        })
-                    ]
+                        new TextRun({ text: 'GERIATRIC CASE REPORT', bold: true, size: 56, color: '2c3e50' })
+                    ],
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 400 }
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: 'Comprehensive Geriatric Assessment', size: 28, color: '7f8c8d', italics: true })
+                    ],
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 600 }
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: 'Patient: ', bold: true, size: 24 }),
+                        new TextRun({ text: `${ageSex} (${initials})`, size: 24 })
+                    ],
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 200 }
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: `Date: ${currentDate}`, size: 20, color: '7f8c8d' })
+                    ],
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 400 }
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: 'Generated by SZMC Geriatrics Pro', size: 18, color: '95a5a6', italics: true })
+                    ],
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 800 }
+                }),
+
+                // ========== PATIENT DEMOGRAPHICS ==========
+                createSectionHeader('1. Patient Demographics'),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: 'Age/Sex: ', bold: true }),
+                        new TextRun(ageSex)
+                    ],
+                    spacing: { after: 120 }
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: 'Patient Identifier: ', bold: true }),
+                        new TextRun(initials)
+                    ],
+                    spacing: { after: 120 }
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: 'Assessment Type: ', bold: true }),
+                        new TextRun('Comprehensive Geriatric Assessment (CGA)')
+                    ],
+                    spacing: { after: 300 }
+                }),
+
+                // ========== CHIEF COMPLAINT & HPI ==========
+                createSectionHeader('2. Chief Complaint & History of Present Illness'),
+                ...createTextParagraphs(hpi, { after: 300 }),
+
+                // ========== MEDICATIONS & LABS ==========
+                createSectionHeader('3. Current Medications & Laboratory Results'),
+                ...createTextParagraphs(meds, { after: 300 }),
+
+                // ========== MEDICATION SAFETY REVIEW ==========
+                createSectionHeader('4. Medication Safety Review'),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: 'Safety Screening Checklist:', bold: true, color: 'c0392b' })
+                    ],
+                    spacing: { after: 150 }
+                }),
+                createBullet('AGS Beers Criteria Assessment - Potentially Inappropriate Medications (PIMs)'),
+                createBullet('STOPP/START Criteria Review'),
+                createBullet('Drug-Drug Interactions (DDIs) Analysis'),
+                createBullet('Drug-Disease Interactions'),
+                createBullet('Renal Dosing Adjustments (CrCl-based calculations)'),
+                createBullet('Hepatic Impairment Considerations'),
+                createBullet('Anticholinergic Burden Score (ABS)'),
+                createBullet('QTc Prolongation Risk Assessment'),
+                createBullet('Fall-Risk Increasing Drugs (FRIDs) Review', 0, { after: 300 }),
+
+                // ========== FUNCTIONAL ASSESSMENT ==========
+                createSectionHeader('5. Functional & Cognitive Assessment'),
+                createSubHeader('Activities of Daily Living (ADLs)'),
+                new Paragraph({
+                    text: 'Bathing, Dressing, Toileting, Transferring, Continence, Feeding',
+                    spacing: { after: 150 }
+                }),
+                createSubHeader('Instrumental ADLs (IADLs)'),
+                new Paragraph({
+                    text: 'Shopping, Cooking, Managing Medications, Finances, Transportation, Phone Use',
+                    spacing: { after: 150 }
+                }),
+                createSubHeader('Mobility Assessment'),
+                createBullet('Timed Up and Go (TUG) Test'),
+                createBullet('Gait Speed Assessment'),
+                createBullet('Fall History & Risk Stratification'),
+                createSubHeader('Cognitive Screening'),
+                createBullet('Mini-Mental State Examination (MMSE)'),
+                createBullet('Montreal Cognitive Assessment (MoCA)'),
+                createBullet('Clock Drawing Test'),
+                createSubHeader('Delirium Assessment'),
+                createBullet('Confusion Assessment Method (CAM)'),
+                createBullet('4AT Rapid Delirium Screening', 0, { after: 150 }),
+                createSubHeader('Mood Screening'),
+                createBullet('Geriatric Depression Scale (GDS-15)', 0, { after: 300 }),
+
+                // ========== CLINICAL ASSESSMENT ==========
+                createSectionHeader('6. Clinical Assessment & Analysis'),
+                ...createTextParagraphs(aiText, { after: 300 }),
+
+                // ========== DIFFERENTIAL DIAGNOSIS ==========
+                createSectionHeader('7. Differential Diagnosis'),
+                createSubHeader('Diagnostic Considerations'),
+                createBullet('Primary Working Diagnosis'),
+                createBullet('Alternative Diagnoses'),
+                createBullet('Comorbidity Assessment'),
+                createBullet('Atypical Presentations in Elderly'),
+                createSubHeader('Geriatric Syndromes Evaluation'),
+                createBullet('Frailty Syndrome'),
+                createBullet('Sarcopenia'),
+                createBullet('Polypharmacy'),
+                createBullet('Falls & Mobility Impairment'),
+                createBullet('Delirium / Dementia'),
+                createBullet('Urinary Incontinence'),
+                createBullet('Malnutrition', 0, { after: 300 }),
+
+                // ========== MANAGEMENT PLAN ==========
+                createSectionHeader('8. Comprehensive Management Plan'),
+                createSubHeader('Pharmacological Interventions'),
+                createBullet('Medication indication review for each agent'),
+                createBullet('Deprescribing candidates identified'),
+                createBullet('Dose adjustments per renal/hepatic function'),
+                createBullet('Therapy timing optimization'),
+                createBullet('Regimen simplification where possible'),
+                createSubHeader('Deprescribing Priorities'),
+                createBullet('High anticholinergic burden medications'),
+                createBullet('Sedative-hypnotics (benzodiazepines, Z-drugs)'),
+                createBullet('Proton pump inhibitors (if prolonged use without indication)'),
+                createBullet('Medications without clear current indication'),
+                createSubHeader('Non-Pharmacological Interventions'),
+                createBullet('Physical Therapy - mobility, strength, balance training'),
+                createBullet('Occupational Therapy - ADL/IADL optimization'),
+                createBullet('Speech & Language Therapy - swallowing assessment'),
+                createBullet('Nutrition/Dietitian - MNA screening, protein optimization'),
+                createBullet('Social Work - care coordination, caregiver support'),
+                createBullet('Pharmacy Consult - medication therapy management', 0, { after: 300 }),
+
+                // ========== SAFETY & RISK MANAGEMENT ==========
+                createSectionHeader('9. Safety & Risk Management'),
+                createSubHeader('Fall Prevention Protocol'),
+                createBullet('Environmental modifications'),
+                createBullet('FRID review and optimization'),
+                createBullet('Assistive device assessment'),
+                createBullet('Vision/hearing correction'),
+                createBullet('Footwear evaluation'),
+                createSubHeader('Delirium Prevention (HELP Protocol)'),
+                createBullet('Orientation protocols'),
+                createBullet('Early mobilization'),
+                createBullet('Sleep enhancement'),
+                createBullet('Minimize psychoactive medications'),
+                createBullet('Adequate hydration/nutrition', 0, { after: 300 }),
+
+                // ========== DISCHARGE PLANNING ==========
+                createSectionHeader('10. Discharge & Transition Planning'),
+                createSubHeader('Disposition Options'),
+                createBullet('Home (with/without home health services)'),
+                createBullet('Skilled Nursing Facility (SNF)'),
+                createBullet('Acute Rehabilitation'),
+                createBullet('Long-term Care'),
+                createSubHeader('Transition of Care Essentials'),
+                createBullet('Medication reconciliation at discharge'),
+                createBullet('Clear follow-up appointments scheduled'),
+                createBullet('Patient/caregiver education completed'),
+                createBullet('Warning signs reviewed'),
+                createBullet('DME orders placed'),
+                createBullet('Home safety evaluation if indicated', 0, { after: 300 }),
+
+                // ========== FOLLOW-UP ==========
+                createSectionHeader('11. Follow-up & Monitoring Plan'),
+                createSubHeader('Short-term Follow-up (1-2 weeks)'),
+                createBullet('Medication tolerance/efficacy assessment'),
+                createBullet('Vital signs and symptom monitoring'),
+                createBullet('Laboratory follow-up as indicated'),
+                createSubHeader('Long-term Monitoring'),
+                createBullet('Functional status reassessment'),
+                createBullet('Cognitive screening at intervals'),
+                createBullet('Annual comprehensive medication review'),
+                createBullet('Preventive care and immunizations'),
+                createBullet('Goals of care discussions', 0, { after: 300 }),
+
+                // ========== REFERENCES ==========
+                createSectionHeader('12. Clinical Guidelines & References'),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: '1. ', bold: true }),
+                        new TextRun('2023 AGS Beers Criteria Update Expert Panel. '),
+                        new TextRun({ text: 'American Geriatrics Society 2023 updated AGS Beers Criteria for potentially inappropriate medication use in older adults. ', italics: true }),
+                        new TextRun('J Am Geriatr Soc. 2023;71(7):2052-2081.')
+                    ],
+                    spacing: { after: 120 }
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: '2. ', bold: true }),
+                        new TextRun('O\'Mahony D, O\'Sullivan D, Byrne S, et al. '),
+                        new TextRun({ text: 'STOPP/START criteria for potentially inappropriate prescribing in older people: version 2. ', italics: true }),
+                        new TextRun('Age Ageing. 2015;44(2):213-218.')
+                    ],
+                    spacing: { after: 120 }
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: '3. ', bold: true }),
+                        new TextRun('Ellis G, Whitehead MA, Robinson D, et al. '),
+                        new TextRun({ text: 'Comprehensive geriatric assessment for older adults admitted to hospital: meta-analysis of randomised controlled trials. ', italics: true }),
+                        new TextRun('BMJ. 2011;343:d6553.')
+                    ],
+                    spacing: { after: 120 }
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: '4. ', bold: true }),
+                        new TextRun('Rockwood K, Song X, MacKnight C, et al. '),
+                        new TextRun({ text: 'A global clinical measure of fitness and frailty in elderly people. ', italics: true }),
+                        new TextRun('CMAJ. 2005;173(5):489-495.')
+                    ],
+                    spacing: { after: 120 }
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: '5. ', bold: true }),
+                        new TextRun('Inouye SK, van Dyck CH, Alessi CA, et al. '),
+                        new TextRun({ text: 'Clarifying confusion: the confusion assessment method. A new method for detection of delirium. ', italics: true }),
+                        new TextRun('Ann Intern Med. 1990;113(12):941-948.')
+                    ],
+                    spacing: { after: 120 }
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: '6. ', bold: true }),
+                        new TextRun('Inouye SK, Bogardus ST Jr, Baker DI, et al. '),
+                        new TextRun({ text: 'The Hospital Elder Life Program: a model of care to prevent cognitive and functional decline in older hospitalized patients. ', italics: true }),
+                        new TextRun('J Am Geriatr Soc. 2000;48(12):1697-1706.')
+                    ],
+                    spacing: { after: 120 }
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: '7. ', bold: true }),
+                        new TextRun('Panel on Prevention of Falls in Older Persons, American Geriatrics Society and British Geriatrics Society. '),
+                        new TextRun({ text: 'Summary of the Updated American Geriatrics Society/British Geriatrics Society clinical practice guideline for prevention of falls in older persons. ', italics: true }),
+                        new TextRun('J Am Geriatr Soc. 2011;59(1):148-157.')
+                    ],
+                    spacing: { after: 120 }
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: '8. ', bold: true }),
+                        new TextRun('Fick DM, Semla TP, Steinman M, et al. '),
+                        new TextRun({ text: 'American Geriatrics Society 2019 Updated AGS Beers Criteria for Potentially Inappropriate Medication Use in Older Adults. ', italics: true }),
+                        new TextRun('J Am Geriatr Soc. 2019;67(4):674-694.')
+                    ],
+                    spacing: { after: 400 }
+                }),
+
+                // ========== FOOTER ==========
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: '---', color: 'cccccc' })
+                    ],
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 400, after: 200 }
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: 'Document generated by SZMC Geriatrics Pro | ', size: 18, color: '95a5a6' }),
+                        new TextRun({ text: currentDate, size: 18, color: '95a5a6' })
+                    ],
+                    alignment: AlignmentType.CENTER
+                })
+            ];
+
+            // Create document with proper settings
+            const doc = new Document({
+                creator: 'SZMC Geriatrics Pro',
+                title: `Geriatric Case Report - ${initials}`,
+                description: 'Comprehensive Geriatric Assessment Report',
+                sections: [{
+                    properties: {
+                        page: {
+                            margin: {
+                                top: 1440, // 1 inch
+                                right: 1440,
+                                bottom: 1440,
+                                left: 1440
+                            }
+                        }
+                    },
+                    children: children
                 }]
             });
-            
-            // Generate and download
+
+            // Generate and download with proper MIME type
             const blob = await Packer.toBlob(doc);
+
+            // Create proper download link
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            const docInitials = initials.trim() || 'export';
+            const docInitials = initials !== 'N/A' ? initials.trim() : 'export';
             link.download = `Case_${docInitials}.docx`;
+            link.style.display = 'none';
             document.body.appendChild(link);
             link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            console.log('DOCX export completed successfully');
+
+            // Cleanup
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }, 100);
+
+            console.log('Comprehensive DOCX export completed successfully');
         } catch(e) {
             console.error('DOCX export failed:', e);
-            alert("DOCX Export Error: " + e.message + "\n\nTrying legacy export...");
+            console.error('Error details:', e.stack);
+            alert("DOCX Export Error: " + e.message + "\n\nFalling back to RTF export...");
             exportDOCLegacy();
         }
     }
-    
-    // Legacy DOC export (HTML-based, fallback)
+
+    // Legacy DOC export (RTF-based, more compatible fallback)
     function exportDOCLegacy() {
-        console.log('Starting legacy DOC export...');
+        console.log('Starting RTF-based DOC export...');
         try {
             // Validate minimum required data
             if (!getVal('age_sex').trim() && !getVal('hpi').trim()) {
                 alert('Please add some patient data before exporting.');
                 return;
             }
-            
-            // CORRUPTION FIX: Use UTF-8 BOM (\ufeff) and proper XML namespaces
-            const preHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Case</title></head><body>";
-            const postHtml = "</body></html>";
-            
-            const content = `
-                <h1 style="color:#2c3e50">Geriatric Case Report</h1>
-                <p><strong>ID:</strong> ${escapeHtml(sanitizeText(getVal('age_sex')))} (${escapeHtml(sanitizeText(getVal('initials')))})</p>
-                <h3>HPI</h3><p>${escapeHtml(sanitizeText(getVal('hpi')))}</p>
-                <h3>Meds/Labs</h3><p>${escapeHtml(sanitizeText(getVal('meds')))}</p>
-                <hr>
-                <h3>Analysis & Plan</h3>
-                <div style="font-family: Arial; white-space: pre-wrap;">${escapeHtml(sanitizeText(getVal('ai-response')))}</div>
-            `;
-            
-            const html = preHtml + content + postHtml;
-            
-            // The \ufeff BOM is critical for Hebrew/Unicode in Word
-            const blob = new Blob(['\ufeff', html], {
-                type: 'application/msword'
+
+            // Enhanced sanitization for RTF
+            const rtfSanitize = (text) => {
+                if (!text || typeof text !== 'string') return '';
+                return text
+                    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Control chars
+                    .replace(/\\/g, '\\\\') // Escape backslashes
+                    .replace(/\{/g, '\\{') // Escape braces
+                    .replace(/\}/g, '\\}')
+                    .replace(/\n/g, '\\par\n') // Line breaks to RTF paragraphs
+                    .replace(/[^\x00-\x7F]/g, (char) => { // Unicode to RTF
+                        const code = char.charCodeAt(0);
+                        return `\\u${code}?`;
+                    });
+            };
+
+            // Get sanitized data
+            const ageSex = rtfSanitize(getVal('age_sex')) || 'Not specified';
+            const initials = rtfSanitize(getVal('initials')) || 'N/A';
+            const hpi = rtfSanitize(getVal('hpi')) || 'Not documented';
+            const meds = rtfSanitize(getVal('meds')) || 'Not documented';
+            const aiText = rtfSanitize(getVal('ai-response')) || 'Pending clinical analysis';
+            const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            // RTF document with proper header
+            const rtf = `{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang1033
+{\\fonttbl{\\f0\\fswiss\\fcharset0 Arial;}{\\f1\\fmodern\\fcharset0 Courier New;}}
+{\\colortbl;\\red44\\green62\\blue80;\\red39\\green174\\blue96;\\red192\\green57\\blue43;\\red127\\green140\\blue141;}
+\\viewkind4\\uc1\\pard\\qc\\b\\f0\\fs44\\cf1 GERIATRIC CASE REPORT\\par
+\\fs24\\b0\\cf4\\i Comprehensive Geriatric Assessment\\i0\\par
+\\par
+\\b Patient: \\b0 ${ageSex} (${initials})\\par
+\\b Date: \\b0 ${currentDate}\\par
+\\par
+\\pard\\ql
+\\par
+\\b\\fs28\\cf2 1. Patient Demographics\\b0\\fs22\\cf0\\par
+\\b Age/Sex: \\b0 ${ageSex}\\par
+\\b Patient ID: \\b0 ${initials}\\par
+\\b Assessment: \\b0 Comprehensive Geriatric Assessment (CGA)\\par
+\\par
+\\b\\fs28\\cf2 2. Chief Complaint & History of Present Illness\\b0\\fs22\\cf0\\par
+${hpi}\\par
+\\par
+\\b\\fs28\\cf2 3. Current Medications & Labs\\b0\\fs22\\cf0\\par
+${meds}\\par
+\\par
+\\b\\fs28\\cf3 4. Medication Safety Review\\b0\\fs22\\cf0\\par
+\\bullet  AGS Beers Criteria Assessment\\par
+\\bullet  STOPP/START Criteria Review\\par
+\\bullet  Drug-Drug Interactions\\par
+\\bullet  Renal Dosing Adjustments\\par
+\\bullet  Anticholinergic Burden Score\\par
+\\bullet  Fall-Risk Medications\\par
+\\par
+\\b\\fs28\\cf2 5. Functional & Cognitive Assessment\\b0\\fs22\\cf0\\par
+\\b ADLs: \\b0 Bathing, Dressing, Toileting, Transferring, Continence, Feeding\\par
+\\b IADLs: \\b0 Shopping, Cooking, Medications, Finances, Transportation\\par
+\\b Cognitive: \\b0 MMSE/MoCA, CAM for delirium\\par
+\\b Mood: \\b0 GDS-15 screening\\par
+\\par
+\\b\\fs28\\cf1 6. Clinical Assessment & Analysis\\b0\\fs22\\cf0\\par
+${aiText}\\par
+\\par
+\\b\\fs28\\cf2 7. Management Plan\\b0\\fs22\\cf0\\par
+\\b Pharmacological:\\b0\\par
+\\bullet  Medication optimization\\par
+\\bullet  Deprescribing strategy\\par
+\\bullet  Dose adjustments for organ function\\par
+\\b Non-Pharmacological:\\b0\\par
+\\bullet  Physical Therapy\\par
+\\bullet  Occupational Therapy\\par
+\\bullet  Nutrition support\\par
+\\bullet  Social work coordination\\par
+\\par
+\\b\\fs28\\cf3 8. Safety & Risk Management\\b0\\fs22\\cf0\\par
+\\bullet  Fall prevention protocol\\par
+\\bullet  Delirium prevention (HELP)\\par
+\\bullet  Pressure injury prevention\\par
+\\bullet  Caregiver support\\par
+\\par
+\\b\\fs28\\cf2 9. Discharge Planning\\b0\\fs22\\cf0\\par
+\\bullet  Disposition planning\\par
+\\bullet  Medication reconciliation\\par
+\\bullet  Follow-up appointments\\par
+\\bullet  Patient/family education\\par
+\\bullet  Home safety evaluation\\par
+\\par
+\\b\\fs28\\cf1 10. Clinical References\\b0\\fs22\\cf0\\par
+1. AGS Beers Criteria (2023) - J Am Geriatr Soc\\par
+2. STOPP/START Criteria v2 - Age Ageing 2015\\par
+3. CGA Guidelines - BMJ 2011\\par
+4. Clinical Frailty Scale - CMAJ 2005\\par
+5. CAM Method - Ann Intern Med 1990\\par
+\\par
+\\pard\\qc\\cf4\\fs18 ---\\par
+Generated by SZMC Geriatrics Pro | ${currentDate}\\par
+}`;
+
+            // Create blob with RTF MIME type
+            const blob = new Blob([rtf], {
+                type: 'application/rtf'
             });
-            
+
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            const docInitials = sanitizeText(getVal('initials')).trim() || 'export';
-            link.download = `Case_${docInitials}.doc`;
+            const cleanInitials = getVal('initials').replace(/[^a-zA-Z0-9]/g, '') || 'export';
+            link.download = `Case_${cleanInitials}.rtf`;
+            link.style.display = 'none';
             document.body.appendChild(link);
             link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            console.log('Legacy DOC export completed successfully');
+
+            // Cleanup
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }, 100);
+
+            console.log('RTF DOC export completed successfully');
         } catch(e) {
-            console.error('DOC export failed:', e);
+            console.error('RTF export failed:', e);
             alert("DOC Export Error: " + e.message);
         }
     }
