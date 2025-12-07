@@ -404,6 +404,13 @@ MEDS/LABS: {meds}`;
     // --- 4. SAFE EXPORTS ---
     const getVal = (id) => document.getElementById(id)?.value || "";
 
+    // Sanitize text by removing control characters (except newlines and tabs)
+    const sanitizeText = (text) => {
+        if (!text || typeof text !== 'string') return '';
+        // Remove control characters except newlines and tabs
+        return text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    };
+
     // HTML escape function to prevent XSS in Word export
     const escapeHtml = (text) => {
         if (!text || typeof text !== 'string') return '';
@@ -424,22 +431,28 @@ MEDS/LABS: {meds}`;
             if (typeof PptxGenJS === 'undefined') throw new Error('PptxGenJS library not loaded');
             let pres = new PptxGenJS();
             
+            // Sanitize all text fields to remove control characters
+            const ageSex = sanitizeText(getVal('age_sex'));
+            const initials = sanitizeText(getVal('initials'));
+            const hpi = sanitizeText(getVal('hpi'));
+            const meds = sanitizeText(getVal('meds'));
+            const aiText = sanitizeText(getVal('ai-response'));
+            
             // Slide 1
             let s1 = pres.addSlide();
             s1.addText("Geriatric Case", {x:1, y:2, fontSize:32, color:'2c3e50', bold:true});
-            s1.addText(`${getVal('age_sex')} - ${getVal('initials')}`, {x:1, y:3, fontSize:24, color:'7f8c8d'});
+            s1.addText(`${ageSex} - ${initials}`, {x:1, y:3, fontSize:24, color:'7f8c8d'});
             
             // Slide 2 (Data)
             let s2 = pres.addSlide();
             s2.addText("Clinical Context", {x:0.5, y:0.5, fontSize:18, color:'27ae60', bold:true});
-            s2.addText(`HPI: ${getVal('hpi').substring(0,400)}`, {x:0.5, y:1, w:'90%', h:2, fontSize:14});
-            s2.addText(`MEDS: ${getVal('meds').substring(0,400)}`, {x:0.5, y:3.5, w:'90%', h:2, fontSize:12});
+            s2.addText(`HPI: ${hpi.substring(0,400)}`, {x:0.5, y:1, w:'90%', h:2, fontSize:14});
+            s2.addText(`MEDS: ${meds.substring(0,400)}`, {x:0.5, y:3.5, w:'90%', h:2, fontSize:12});
             
             // Slide 3 (AI)
             let s3 = pres.addSlide();
             s3.addText("Analysis & Plan", {x:0.5, y:0.5, fontSize:18, color:'c0392b', bold:true});
             // Split long text to prevent overflow
-            const aiText = getVal('ai-response');
             s3.addText(aiText.substring(0, 1000), {x:0.5, y:1, w:'90%', h:'80%', fontSize:12, color:'333333'});
             
             // Slide 4 (Overflow if needed)
@@ -449,8 +462,8 @@ MEDS/LABS: {meds}`;
                 s4.addText(aiText.substring(1000, 2000), {x:0.5, y:1, w:'90%', h:'80%', fontSize:12});
             }
 
-            const initials = getVal('initials').trim() || 'export';
-            pres.writeFile({ fileName: `Case_${initials}.pptx` });
+            const outputInitials = initials.trim() || 'export';
+            pres.writeFile({ fileName: `Case_${outputInitials}.pptx` });
             console.log('PPT export completed successfully');
         } catch(e) {
             console.error('PPT export failed:', e);
@@ -473,12 +486,12 @@ MEDS/LABS: {meds}`;
         
         const content = `
             <h1 style="color:#2c3e50">Geriatric Case Report</h1>
-            <p><strong>ID:</strong> ${escapeHtml(getVal('age_sex'))} (${escapeHtml(getVal('initials'))})</p>
-            <h3>HPI</h3><p>${escapeHtml(getVal('hpi'))}</p>
-            <h3>Meds/Labs</h3><p>${escapeHtml(getVal('meds'))}</p>
+            <p><strong>ID:</strong> ${escapeHtml(sanitizeText(getVal('age_sex')))} (${escapeHtml(sanitizeText(getVal('initials')))})</p>
+            <h3>HPI</h3><p>${escapeHtml(sanitizeText(getVal('hpi')))}</p>
+            <h3>Meds/Labs</h3><p>${escapeHtml(sanitizeText(getVal('meds')))}</p>
             <hr>
             <h3>Analysis & Plan</h3>
-            <div style="font-family: Arial; white-space: pre-wrap;">${escapeHtml(getVal('ai-response'))}</div>
+            <div style="font-family: Arial; white-space: pre-wrap;">${escapeHtml(sanitizeText(getVal('ai-response')))}</div>
         `;
         
         const html = preHtml + content + postHtml;
@@ -491,7 +504,7 @@ MEDS/LABS: {meds}`;
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        const docInitials = getVal('initials').trim() || 'export';
+        const docInitials = sanitizeText(getVal('initials')).trim() || 'export';
         link.download = `Case_${docInitials}.doc`;
         document.body.appendChild(link);
         link.click();
