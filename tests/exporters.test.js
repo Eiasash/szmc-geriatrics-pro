@@ -7,11 +7,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   PPT_CONFIG,
   DOC_CONFIG,
+  MEDICAL_REFERENCES,
   sanitizeText,
   escapeHtml,
   truncateText,
   createSlideData,
   generatePPT,
+  createProfessionalSlides,
+  generateProfessionalPPT,
   createDocHTML,
   createDocBlob,
   exportDOC,
@@ -594,5 +597,161 @@ describe('Edge Cases', () => {
     // Should not throw
     expect(() => createSlideData(data)).not.toThrow();
     expect(() => exportDOC(data)).not.toThrow();
+  });
+
+  describe('Professional Presentation Generator (No AI Required)', () => {
+    it('should create professional slides without AI response', () => {
+      const data = {
+        ageSex: '85F',
+        initials: 'AB',
+        hpi: 'Patient with multiple comorbidities',
+        meds: 'Aspirin 81mg, Metoprolol 25mg'
+      };
+
+      const slides = createProfessionalSlides(data);
+      
+      // Should create 16 slides
+      expect(slides).toHaveLength(16);
+      
+      // First slide should be title
+      expect(slides[0].title).toBe('Title Slide');
+      expect(slides[0].background).toBe(PPT_CONFIG.colors.primary);
+      
+      // Last slide should be references
+      expect(slides[15].title).toBe('References');
+    });
+
+    it('should include medical references in slides', () => {
+      const data = {
+        ageSex: '78M',
+        initials: 'CD',
+        hpi: 'Fall risk assessment',
+        meds: 'Multiple medications'
+      };
+
+      const slides = createProfessionalSlides(data);
+      
+      // Check that references slide exists
+      const referencesSlide = slides.find(s => s.title === 'References');
+      expect(referencesSlide).toBeDefined();
+      
+      // Should include Beers Criteria reference
+      const hasBeersRef = referencesSlide.elements.some(e => 
+        e.text.includes('Beers Criteria')
+      );
+      expect(hasBeersRef).toBe(true);
+    });
+
+    it('should create header bars for content slides', () => {
+      const data = {
+        ageSex: '70F',
+        initials: 'EF',
+        hpi: 'CGA needed',
+        meds: 'Review required'
+      };
+
+      const slides = createProfessionalSlides(data);
+      
+      // Most slides should have headers (except title and maybe references)
+      const slidesWithHeaders = slides.filter(s => s.header);
+      expect(slidesWithHeaders.length).toBeGreaterThan(10);
+    });
+
+    it('should include citations on each content slide', () => {
+      const data = {
+        ageSex: '82M',
+        initials: 'GH',
+        hpi: 'Comprehensive assessment',
+        meds: 'Polypharmacy'
+      };
+
+      const slides = createProfessionalSlides(data);
+      
+      // Count slides with citation elements
+      const slidesWithCitations = slides.filter(slide => 
+        slide.elements.some(e => 
+          e.text && (e.text.includes('Reference:') || e.text.includes('References:'))
+        )
+      );
+      
+      // Most slides should have citations
+      expect(slidesWithCitations.length).toBeGreaterThan(8);
+    });
+
+    it('should handle minimal data', () => {
+      const data = {
+        ageSex: '75M',
+        initials: 'XY'
+      };
+
+      // Should not throw even with minimal data
+      expect(() => createProfessionalSlides(data)).not.toThrow();
+      
+      const slides = createProfessionalSlides(data);
+      expect(slides).toHaveLength(16);
+    });
+
+    it('should include all key geriatric assessment domains', () => {
+      const data = {
+        ageSex: '88F',
+        initials: 'IJ',
+        hpi: 'Multimorbidity',
+        meds: 'Complex regimen'
+      };
+
+      const slides = createProfessionalSlides(data);
+      const titles = slides.map(s => s.title);
+      
+      // Check for key assessment domains
+      expect(titles).toContain('Medication Safety');
+      expect(titles).toContain('Functional Assessment');
+      expect(titles).toContain('Cognitive Assessment');
+      expect(titles).toContain('Frailty Assessment');
+      expect(titles).toContain('Fall Prevention');
+      expect(titles).toContain('Delirium Prevention');
+    });
+
+    it('should generate professional PPT with PptxGenJS', () => {
+      // Create mock constructor function
+      const MockPptxGenJS = vi.fn(function() {
+        this.addSlide = vi.fn(() => ({
+          background: {},
+          addShape: vi.fn(),
+          addText: vi.fn()
+        }));
+        this.ShapeType = { rect: 'rect' };
+        this.layout = '';
+        this.author = '';
+        this.company = '';
+        this.subject = '';
+        this.title = '';
+      });
+
+      const data = {
+        ageSex: '80F',
+        initials: 'KL',
+        hpi: 'Assessment needed',
+        meds: 'Medication review'
+      };
+
+      const result = generateProfessionalPPT(data, MockPptxGenJS);
+      
+      // Should have instantiated PptxGenJS
+      expect(MockPptxGenJS).toHaveBeenCalledTimes(1);
+      
+      // Should return pres object
+      expect(result).toBeDefined();
+      expect(result.layout).toBe('LAYOUT_WIDE');
+      expect(result.author).toBe('SZMC Geriatrics Pro');
+      
+      // Should have called addSlide 16 times (16 slides)
+      expect(result.addSlide).toHaveBeenCalledTimes(16);
+    });
+
+    it('should throw error if PptxGenJS not provided', () => {
+      const data = { ageSex: '70M', initials: 'MN' };
+      
+      expect(() => generateProfessionalPPT(data, null)).toThrow('PptxGenJS library is required');
+    });
   });
 });

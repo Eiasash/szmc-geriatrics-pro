@@ -396,6 +396,455 @@ export async function exportPPT(data, PptxGenJS, filename) {
 }
 
 /**
+ * Creates professional medical presentation slides without AI audit requirement
+ * @param {Object} data - Case data with patient information
+ * @returns {Array} - Array of professionally formatted slide definitions
+ */
+export function createProfessionalSlides(data) {
+  const { ageSex = '', initials = '', hpi = '', meds = '' } = data;
+  const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  
+  // Helper function to create citation text
+  const getCitation = (refKey) => {
+    const ref = MEDICAL_REFERENCES[refKey];
+    return ref ? `[${ref.citation}]` : '';
+  };
+
+  const slides = [
+    // ===== SLIDE 1: Title Slide =====
+    {
+      title: 'Title Slide',
+      background: PPT_CONFIG.colors.primary,
+      elements: [
+        { 
+          text: 'COMPREHENSIVE GERIATRIC ASSESSMENT', 
+          x: 0.5, y: 1.8, w: '90%', 
+          fontSize: 36, color: 'FFFFFF', bold: true, align: 'center' 
+        },
+        { 
+          text: `Patient: ${ageSex} | ID: ${initials}`, 
+          x: 0.5, y: 2.8, w: '90%', 
+          fontSize: 24, color: 'ECF0F1', align: 'center' 
+        },
+        { 
+          text: `Date: ${currentDate}`, 
+          x: 0.5, y: 3.5, w: '90%', 
+          fontSize: 18, color: 'BDC3C7', align: 'center' 
+        },
+        { 
+          text: 'Evidence-Based Clinical Decision Support', 
+          x: 0.5, y: 4.2, w: '90%', 
+          fontSize: 16, color: '95A5A6', align: 'center', italic: true 
+        }
+      ]
+    },
+
+    // ===== SLIDE 2: Case Overview =====
+    {
+      title: 'Case Overview',
+      header: { text: '📋 CASE OVERVIEW', color: PPT_CONFIG.colors.primary },
+      elements: [
+        { text: 'Patient Demographics', x: 0.5, y: 1.2, fontSize: 20, color: PPT_CONFIG.colors.accent, bold: true },
+        { text: `• Age/Sex: ${ageSex}`, x: 0.8, y: 1.7, fontSize: 16 },
+        { text: `• Patient Identifier: ${initials}`, x: 0.8, y: 2.1, fontSize: 16 },
+        { text: 'Assessment Framework', x: 0.5, y: 2.7, fontSize: 20, color: PPT_CONFIG.colors.accent, bold: true },
+        { text: '• Comprehensive Geriatric Assessment (CGA)', x: 0.8, y: 3.2, fontSize: 16 },
+        { text: '• Multidisciplinary evaluation approach', x: 0.8, y: 3.6, fontSize: 16 },
+        { text: '• Evidence-based guideline adherence', x: 0.8, y: 4.0, fontSize: 16 },
+        { 
+          text: `Reference: ${getCitation('cga')}`, 
+          x: 0.5, y: 4.6, fontSize: 11, color: PPT_CONFIG.colors.secondary, italic: true 
+        }
+      ]
+    },
+
+    // ===== SLIDE 3: Chief Complaint & HPI =====
+    {
+      title: 'Chief Complaint & HPI',
+      header: { text: '🏥 CHIEF COMPLAINT & HISTORY', color: PPT_CONFIG.colors.info },
+      elements: [
+        { 
+          text: truncateText(sanitizeText(hpi), 900) || 'History of present illness to be documented', 
+          x: 0.5, y: 1.2, w: 9, h: 4.0, 
+          fontSize: 14, valign: 'top', color: PPT_CONFIG.colors.text 
+        },
+        { 
+          text: 'Clinical Documentation Standards Applied', 
+          x: 0.5, y: 5.3, fontSize: 10, color: PPT_CONFIG.colors.secondary, italic: true 
+        }
+      ]
+    },
+
+    // ===== SLIDE 4: Current Medications =====
+    {
+      title: 'Current Medications',
+      header: { text: '💊 MEDICATION REVIEW', color: PPT_CONFIG.colors.accent },
+      elements: [
+        { text: 'Current Medication Regimen', x: 0.5, y: 1.2, fontSize: 18, bold: true },
+        { 
+          text: truncateText(sanitizeText(meds), 850) || 'Medication list to be documented', 
+          x: 0.5, y: 1.7, w: 9, h: 3.5, 
+          fontSize: 12, valign: 'top' 
+        },
+        { 
+          text: `Medication Safety Reference: ${getCitation('beers')}`, 
+          x: 0.5, y: 5.3, fontSize: 11, color: PPT_CONFIG.colors.secondary, italic: true 
+        }
+      ]
+    },
+
+    // ===== SLIDE 5: Medication Safety Assessment =====
+    {
+      title: 'Medication Safety',
+      header: { text: '⚠️ MEDICATION SAFETY ASSESSMENT', color: PPT_CONFIG.colors.warning },
+      elements: [
+        { text: 'Critical Safety Screening', x: 0.5, y: 1.2, fontSize: 18, color: PPT_CONFIG.colors.highlight, bold: true },
+        { text: '✓ AGS Beers Criteria® - Potentially Inappropriate Medications', x: 0.8, y: 1.8, fontSize: 14 },
+        { text: '✓ STOPP/START Criteria for Prescribing', x: 0.8, y: 2.2, fontSize: 14 },
+        { text: '✓ Drug-Drug Interaction Analysis', x: 0.8, y: 2.6, fontSize: 14 },
+        { text: '✓ Renal/Hepatic Dosing Assessment (CrCl-based)', x: 0.8, y: 3.0, fontSize: 14 },
+        { text: '✓ Anticholinergic Burden Score', x: 0.8, y: 3.4, fontSize: 14 },
+        { text: '✓ Fall-Risk Increasing Drugs (FRIDs)', x: 0.8, y: 3.8, fontSize: 14 },
+        { text: '✓ QTc Prolongation Risk', x: 0.8, y: 4.2, fontSize: 14 },
+        { 
+          text: `References: ${getCitation('beers')} | ${getCitation('stopp')}`, 
+          x: 0.5, y: 4.8, fontSize: 11, color: PPT_CONFIG.colors.secondary, italic: true 
+        }
+      ]
+    },
+
+    // ===== SLIDE 6: Functional Assessment =====
+    {
+      title: 'Functional Assessment',
+      header: { text: '🚶 FUNCTIONAL STATUS EVALUATION', color: PPT_CONFIG.colors.accent },
+      elements: [
+        { text: 'Activities of Daily Living (ADLs)', x: 0.5, y: 1.2, fontSize: 18, bold: true, color: PPT_CONFIG.colors.primary },
+        { text: 'Bathing • Dressing • Toileting • Transferring • Continence • Feeding', x: 0.8, y: 1.7, fontSize: 13, color: PPT_CONFIG.colors.secondary },
+        { text: 'Instrumental ADLs (IADLs)', x: 0.5, y: 2.3, fontSize: 18, bold: true, color: PPT_CONFIG.colors.primary },
+        { text: 'Shopping • Cooking • Medications • Finances • Transportation • Phone', x: 0.8, y: 2.8, fontSize: 13, color: PPT_CONFIG.colors.secondary },
+        { text: 'Mobility Assessment', x: 0.5, y: 3.4, fontSize: 18, bold: true, color: PPT_CONFIG.colors.primary },
+        { text: '• Timed Up and Go (TUG) Test', x: 0.8, y: 3.9, fontSize: 14 },
+        { text: '• Gait Speed Assessment', x: 0.8, y: 4.3, fontSize: 14 },
+        { text: '• Fall History & Risk Stratification', x: 0.8, y: 4.7, fontSize: 14 },
+        { 
+          text: `Reference: ${getCitation('cga')}`, 
+          x: 0.5, y: 5.2, fontSize: 11, color: PPT_CONFIG.colors.secondary, italic: true 
+        }
+      ]
+    },
+
+    // ===== SLIDE 7: Cognitive Assessment =====
+    {
+      title: 'Cognitive Assessment',
+      header: { text: '🧠 COGNITIVE & MENTAL STATUS', color: PPT_CONFIG.colors.info },
+      elements: [
+        { text: 'Cognitive Screening Tools', x: 0.5, y: 1.2, fontSize: 18, bold: true },
+        { text: '• Mini-Mental State Examination (MMSE)', x: 0.8, y: 1.7, fontSize: 14 },
+        { text: '• Montreal Cognitive Assessment (MoCA)', x: 0.8, y: 2.1, fontSize: 14 },
+        { text: '• Clock Drawing Test', x: 0.8, y: 2.5, fontSize: 14 },
+        { text: 'Delirium Screening', x: 0.5, y: 3.0, fontSize: 18, bold: true },
+        { text: '• Confusion Assessment Method (CAM)', x: 0.8, y: 3.5, fontSize: 14 },
+        { text: '• 4AT Rapid Delirium Assessment', x: 0.8, y: 3.9, fontSize: 14 },
+        { text: 'Depression Screening', x: 0.5, y: 4.4, fontSize: 18, bold: true },
+        { text: '• Geriatric Depression Scale (GDS-15)', x: 0.8, y: 4.9, fontSize: 14 },
+        { 
+          text: `References: ${getCitation('delirium')} | ${getCitation('cga')}`, 
+          x: 0.5, y: 5.4, fontSize: 11, color: PPT_CONFIG.colors.secondary, italic: true 
+        }
+      ]
+    },
+
+    // ===== SLIDE 8: Frailty Assessment =====
+    {
+      title: 'Frailty Assessment',
+      header: { text: '📊 FRAILTY EVALUATION', color: PPT_CONFIG.colors.primary },
+      elements: [
+        { text: 'Clinical Frailty Scale (Rockwood)', x: 0.5, y: 1.2, fontSize: 18, bold: true },
+        { text: '1. Very Fit - Robust, active, energetic', x: 0.8, y: 1.8, fontSize: 13 },
+        { text: '2. Well - No active disease symptoms', x: 0.8, y: 2.2, fontSize: 13 },
+        { text: '3. Managing Well - Medical problems controlled', x: 0.8, y: 2.6, fontSize: 13 },
+        { text: '4. Vulnerable - Symptoms limit activities', x: 0.8, y: 3.0, fontSize: 13 },
+        { text: '5. Mildly Frail - Limited dependence on others', x: 0.8, y: 3.4, fontSize: 13 },
+        { text: '6. Moderately Frail - Help with ADLs and IADLs', x: 0.8, y: 3.8, fontSize: 13 },
+        { text: '7. Severely Frail - Completely dependent', x: 0.8, y: 4.2, fontSize: 13 },
+        { 
+          text: `Reference: ${getCitation('frailty')}`, 
+          x: 0.5, y: 4.8, fontSize: 11, color: PPT_CONFIG.colors.secondary, italic: true 
+        }
+      ]
+    },
+
+    // ===== SLIDE 9: Geriatric Syndromes =====
+    {
+      title: 'Geriatric Syndromes',
+      header: { text: '🔍 GERIATRIC SYNDROMES SCREENING', color: PPT_CONFIG.colors.info },
+      elements: [
+        { text: 'Key Geriatric Syndromes to Evaluate', x: 0.5, y: 1.2, fontSize: 18, bold: true },
+        { text: '• Frailty - Physical decline and vulnerability', x: 0.8, y: 1.8, fontSize: 14 },
+        { text: '• Falls - History, risk factors, prevention', x: 0.8, y: 2.2, fontSize: 14 },
+        { text: '• Delirium - Acute confusion, CAM screening', x: 0.8, y: 2.6, fontSize: 14 },
+        { text: '• Dementia - Cognitive impairment progression', x: 0.8, y: 3.0, fontSize: 14 },
+        { text: '• Incontinence - Urinary and fecal', x: 0.8, y: 3.4, fontSize: 14 },
+        { text: '• Malnutrition - MNA screening, protein status', x: 0.8, y: 3.8, fontSize: 14 },
+        { text: '• Polypharmacy - ≥5 medications, interactions', x: 0.8, y: 4.2, fontSize: 14 },
+        { text: '• Sarcopenia - Muscle mass and strength loss', x: 0.8, y: 4.6, fontSize: 14 },
+        { 
+          text: `Reference: ${getCitation('cga')}`, 
+          x: 0.5, y: 5.1, fontSize: 11, color: PPT_CONFIG.colors.secondary, italic: true 
+        }
+      ]
+    },
+
+    // ===== SLIDE 10: Pharmacological Management =====
+    {
+      title: 'Pharmacological Management',
+      header: { text: '💉 MEDICATION OPTIMIZATION', color: PPT_CONFIG.colors.success },
+      elements: [
+        { text: 'Medication Review Strategy', x: 0.5, y: 1.2, fontSize: 18, bold: true },
+        { text: '✓ Review indication for each medication', x: 0.8, y: 1.8, fontSize: 14 },
+        { text: '✓ Assess risk-benefit ratio in elderly', x: 0.8, y: 2.2, fontSize: 14 },
+        { text: '✓ Consider deprescribing opportunities', x: 0.8, y: 2.6, fontSize: 14 },
+        { text: '✓ Adjust doses for organ function', x: 0.8, y: 3.0, fontSize: 14 },
+        { text: '✓ Simplify regimen where possible', x: 0.8, y: 3.4, fontSize: 14 },
+        { text: 'Deprescribing Priorities', x: 0.5, y: 3.9, fontSize: 16, bold: true, color: PPT_CONFIG.colors.warning },
+        { text: '• High anticholinergic burden agents', x: 0.8, y: 4.4, fontSize: 13 },
+        { text: '• Benzodiazepines and Z-drugs', x: 0.8, y: 4.8, fontSize: 13 },
+        { 
+          text: `References: ${getCitation('beers')} | ${getCitation('stopp')}`, 
+          x: 0.5, y: 5.3, fontSize: 11, color: PPT_CONFIG.colors.secondary, italic: true 
+        }
+      ]
+    },
+
+    // ===== SLIDE 11: Non-Pharmacological Interventions =====
+    {
+      title: 'Non-Pharmacological',
+      header: { text: '🏃 NON-PHARMACOLOGICAL CARE', color: PPT_CONFIG.colors.success },
+      elements: [
+        { text: 'Multidisciplinary Team Approach', x: 0.5, y: 1.2, fontSize: 18, bold: true },
+        { text: '• Physical Therapy', x: 0.8, y: 1.8, fontSize: 14, bold: true },
+        { text: '  Mobility, strength training, balance exercises', x: 1.0, y: 2.1, fontSize: 12, color: PPT_CONFIG.colors.secondary },
+        { text: '• Occupational Therapy', x: 0.8, y: 2.5, fontSize: 14, bold: true },
+        { text: '  ADL/IADL optimization, adaptive equipment', x: 1.0, y: 2.8, fontSize: 12, color: PPT_CONFIG.colors.secondary },
+        { text: '• Speech & Language Therapy', x: 0.8, y: 3.2, fontSize: 14, bold: true },
+        { text: '  Swallowing assessment, communication', x: 1.0, y: 3.5, fontSize: 12, color: PPT_CONFIG.colors.secondary },
+        { text: '• Nutrition/Dietitian', x: 0.8, y: 3.9, fontSize: 14, bold: true },
+        { text: '  MNA screening, protein optimization', x: 1.0, y: 4.2, fontSize: 12, color: PPT_CONFIG.colors.secondary },
+        { text: '• Social Work', x: 0.8, y: 4.6, fontSize: 14, bold: true },
+        { text: '  Care coordination, caregiver support', x: 1.0, y: 4.9, fontSize: 12, color: PPT_CONFIG.colors.secondary },
+        { 
+          text: `Reference: ${getCitation('cga')}`, 
+          x: 0.5, y: 5.4, fontSize: 11, color: PPT_CONFIG.colors.secondary, italic: true 
+        }
+      ]
+    },
+
+    // ===== SLIDE 12: Fall Prevention =====
+    {
+      title: 'Fall Prevention',
+      header: { text: '🛡️ FALL PREVENTION PROTOCOL', color: PPT_CONFIG.colors.warning },
+      elements: [
+        { text: 'Multifactorial Fall Risk Assessment', x: 0.5, y: 1.2, fontSize: 18, bold: true },
+        { text: 'Intrinsic Risk Factors', x: 0.5, y: 1.8, fontSize: 16, bold: true, color: PPT_CONFIG.colors.highlight },
+        { text: '• Advanced age, prior falls, gait/balance impairment', x: 0.8, y: 2.2, fontSize: 13 },
+        { text: '• Muscle weakness, vision impairment, cognitive deficit', x: 0.8, y: 2.6, fontSize: 13 },
+        { text: 'Extrinsic Risk Factors', x: 0.5, y: 3.1, fontSize: 16, bold: true, color: PPT_CONFIG.colors.highlight },
+        { text: '• Environmental hazards, inappropriate footwear', x: 0.8, y: 3.5, fontSize: 13 },
+        { text: '• Polypharmacy, fall-risk increasing drugs', x: 0.8, y: 3.9, fontSize: 13 },
+        { text: 'Prevention Strategies', x: 0.5, y: 4.4, fontSize: 16, bold: true, color: PPT_CONFIG.colors.success },
+        { text: '✓ Exercise programs • Medication review • Vision correction', x: 0.8, y: 4.9, fontSize: 13 },
+        { 
+          text: 'Reference: AGS/BGS Fall Prevention Guidelines', 
+          x: 0.5, y: 5.4, fontSize: 11, color: PPT_CONFIG.colors.secondary, italic: true 
+        }
+      ]
+    },
+
+    // ===== SLIDE 13: Delirium Prevention =====
+    {
+      title: 'Delirium Prevention',
+      header: { text: '⚕️ DELIRIUM PREVENTION (HELP)', color: PPT_CONFIG.colors.warning },
+      elements: [
+        { text: 'Hospital Elder Life Program (HELP)', x: 0.5, y: 1.2, fontSize: 18, bold: true },
+        { text: 'Core Intervention Protocols', x: 0.5, y: 1.8, fontSize: 16, bold: true },
+        { text: '• Orientation Protocol', x: 0.8, y: 2.3, fontSize: 14, bold: true },
+        { text: '  Orientation board, calendar, family photos', x: 1.0, y: 2.6, fontSize: 12, color: PPT_CONFIG.colors.secondary },
+        { text: '• Early Mobilization', x: 0.8, y: 3.0, fontSize: 14, bold: true },
+        { text: '  Ambulation 3x daily, minimize restraints', x: 1.0, y: 3.3, fontSize: 12, color: PPT_CONFIG.colors.secondary },
+        { text: '• Sleep Enhancement', x: 0.8, y: 3.7, fontSize: 14, bold: true },
+        { text: '  Reduce nighttime noise/lights, sleep protocol', x: 1.0, y: 4.0, fontSize: 12, color: PPT_CONFIG.colors.secondary },
+        { text: '• Medication Review', x: 0.8, y: 4.4, fontSize: 14, bold: true },
+        { text: '  Avoid deliriogenic medications', x: 1.0, y: 4.7, fontSize: 12, color: PPT_CONFIG.colors.secondary },
+        { 
+          text: `References: ${getCitation('delirium')} | HELP Protocol`, 
+          x: 0.5, y: 5.2, fontSize: 11, color: PPT_CONFIG.colors.secondary, italic: true 
+        }
+      ]
+    },
+
+    // ===== SLIDE 14: Discharge Planning =====
+    {
+      title: 'Discharge Planning',
+      header: { text: '🏠 TRANSITION OF CARE', color: PPT_CONFIG.colors.info },
+      elements: [
+        { text: 'Comprehensive Discharge Strategy', x: 0.5, y: 1.2, fontSize: 18, bold: true },
+        { text: 'Disposition Planning', x: 0.5, y: 1.8, fontSize: 16, bold: true },
+        { text: '□ Home with/without home health', x: 0.8, y: 2.2, fontSize: 14 },
+        { text: '□ Skilled Nursing Facility (SNF)', x: 0.8, y: 2.6, fontSize: 14 },
+        { text: '□ Acute Rehabilitation', x: 0.8, y: 3.0, fontSize: 14 },
+        { text: 'Essential Components', x: 0.5, y: 3.5, fontSize: 16, bold: true },
+        { text: '✓ Medication reconciliation completed', x: 0.8, y: 3.9, fontSize: 13 },
+        { text: '✓ Follow-up appointments scheduled', x: 0.8, y: 4.2, fontSize: 13 },
+        { text: '✓ Patient/caregiver education provided', x: 0.8, y: 4.5, fontSize: 13 },
+        { text: '✓ DME orders and prescriptions', x: 0.8, y: 4.8, fontSize: 13 },
+        { text: '✓ Home safety evaluation if needed', x: 0.8, y: 5.1, fontSize: 13 }
+      ]
+    },
+
+    // ===== SLIDE 15: Evidence-Based Guidelines =====
+    {
+      title: 'Guidelines Applied',
+      header: { text: '📚 CLINICAL PRACTICE GUIDELINES', color: PPT_CONFIG.colors.primary },
+      elements: [
+        { text: 'Evidence-Based Standards', x: 0.5, y: 1.2, fontSize: 18, bold: true },
+        { text: '• AGS Beers Criteria® (2023)', x: 0.7, y: 1.8, fontSize: 15, bold: true },
+        { text: '  Potentially Inappropriate Medications in Older Adults', x: 0.9, y: 2.1, fontSize: 12, color: PPT_CONFIG.colors.secondary, italic: true },
+        { text: '• STOPP/START Criteria v2', x: 0.7, y: 2.5, fontSize: 15, bold: true },
+        { text: '  Screening Tool for Prescribing Appropriateness', x: 0.9, y: 2.8, fontSize: 12, color: PPT_CONFIG.colors.secondary, italic: true },
+        { text: '• Comprehensive Geriatric Assessment', x: 0.7, y: 3.2, fontSize: 15, bold: true },
+        { text: '  Multidimensional interdisciplinary evaluation', x: 0.9, y: 3.5, fontSize: 12, color: PPT_CONFIG.colors.secondary, italic: true },
+        { text: '• Clinical Frailty Scale (Rockwood)', x: 0.7, y: 3.9, fontSize: 15, bold: true },
+        { text: '  Validated assessment of fitness and frailty', x: 0.9, y: 4.2, fontSize: 12, color: PPT_CONFIG.colors.secondary, italic: true },
+        { text: '• CAM & HELP Protocol', x: 0.7, y: 4.6, fontSize: 15, bold: true },
+        { text: '  Delirium assessment and prevention', x: 0.9, y: 4.9, fontSize: 12, color: PPT_CONFIG.colors.secondary, italic: true }
+      ]
+    },
+
+    // ===== SLIDE 16: References =====
+    {
+      title: 'References',
+      header: { text: '📖 REFERENCES & CITATIONS', color: PPT_CONFIG.colors.secondary },
+      elements: [
+        { text: 'Clinical References', x: 0.5, y: 1.0, fontSize: 16, bold: true },
+        { 
+          text: `1. ${MEDICAL_REFERENCES.beers.citation}. ${MEDICAL_REFERENCES.beers.title}. ${MEDICAL_REFERENCES.beers.description}.`, 
+          x: 0.5, y: 1.5, w: 9, fontSize: 11, color: PPT_CONFIG.colors.text 
+        },
+        { 
+          text: `2. ${MEDICAL_REFERENCES.stopp.citation}. ${MEDICAL_REFERENCES.stopp.title}. ${MEDICAL_REFERENCES.stopp.description}.`, 
+          x: 0.5, y: 2.0, w: 9, fontSize: 11, color: PPT_CONFIG.colors.text 
+        },
+        { 
+          text: `3. ${MEDICAL_REFERENCES.cga.citation}. ${MEDICAL_REFERENCES.cga.title}. ${MEDICAL_REFERENCES.cga.description}.`, 
+          x: 0.5, y: 2.5, w: 9, fontSize: 11, color: PPT_CONFIG.colors.text 
+        },
+        { 
+          text: `4. ${MEDICAL_REFERENCES.frailty.citation}. ${MEDICAL_REFERENCES.frailty.title}. ${MEDICAL_REFERENCES.frailty.description}.`, 
+          x: 0.5, y: 3.0, w: 9, fontSize: 11, color: PPT_CONFIG.colors.text 
+        },
+        { 
+          text: `5. ${MEDICAL_REFERENCES.delirium.citation}. ${MEDICAL_REFERENCES.delirium.title}. ${MEDICAL_REFERENCES.delirium.description}.`, 
+          x: 0.5, y: 3.5, w: 9, fontSize: 11, color: PPT_CONFIG.colors.text 
+        },
+        { 
+          text: '6. Inouye SK, et al. The Hospital Elder Life Program. J Am Geriatr Soc. 2000;48(12):1697-1706.', 
+          x: 0.5, y: 4.0, w: 9, fontSize: 11, color: PPT_CONFIG.colors.text 
+        },
+        { 
+          text: '7. Panel on Prevention of Falls in Older Persons. AGS/BGS Clinical Practice Guideline. J Am Geriatr Soc. 2011;59(1):148-157.', 
+          x: 0.5, y: 4.5, w: 9, fontSize: 11, color: PPT_CONFIG.colors.text 
+        },
+        { 
+          text: `Generated: ${currentDate} | SZMC Geriatrics Pro v15.5`, 
+          x: 0.5, y: 5.2, w: 9, fontSize: 10, align: 'center', color: '95A5A6', italic: true 
+        }
+      ]
+    }
+  ];
+
+  return slides;
+}
+
+/**
+ * Generates a professional medical presentation without AI audit requirement
+ * @param {Object} data - Case data
+ * @param {Object} PptxGenJS - The PptxGenJS library
+ * @returns {Object} - The presentation object
+ */
+export function generateProfessionalPPT(data, PptxGenJS) {
+  if (!PptxGenJS) {
+    throw new Error('PptxGenJS library is required for PPT generation');
+  }
+
+  const pres = new PptxGenJS();
+  pres.layout = 'LAYOUT_WIDE';
+  pres.author = 'SZMC Geriatrics Pro';
+  pres.company = 'SZMC';
+  pres.subject = 'Comprehensive Geriatric Assessment';
+  pres.title = `CGA - ${data.initials || 'Patient'}`;
+
+  const slides = createProfessionalSlides(data);
+
+  for (const slideData of slides) {
+    const slide = pres.addSlide();
+    
+    // Add background for title slide
+    if (slideData.background) {
+      slide.background = { color: slideData.background };
+    } else {
+      slide.background = { color: 'FFFFFF' };
+    }
+
+    // Add header bar if present
+    if (slideData.header) {
+      slide.addShape(pres.ShapeType.rect, {
+        x: 0, y: 0, w: '100%', h: 0.7,
+        fill: { color: slideData.header.color }
+      });
+      slide.addText(slideData.header.text, {
+        x: 0.5, y: 0.15, w: '90%',
+        fontSize: 22, color: 'FFFFFF', bold: true
+      });
+    }
+
+    // Add all elements
+    for (const element of slideData.elements) {
+      const textOptions = {
+        x: element.x,
+        y: element.y,
+        fontSize: element.fontSize || 14,
+        color: element.color || PPT_CONFIG.colors.text
+      };
+
+      if (element.w) textOptions.w = element.w;
+      if (element.h) textOptions.h = element.h;
+      if (element.bold) textOptions.bold = true;
+      if (element.italic) textOptions.italic = true;
+      if (element.align) textOptions.align = element.align;
+      if (element.valign) textOptions.valign = element.valign;
+
+      slide.addText(sanitizeText(element.text), textOptions);
+    }
+  }
+
+  return pres;
+}
+
+/**
+ * Exports professional medical presentation without AI audit requirement
+ * @param {Object} data - Case data
+ * @param {Object} PptxGenJS - The PptxGenJS library
+ * @param {string} filename - Output filename
+ * @returns {Promise<string>} - Output filename
+ */
+export async function exportProfessionalPPT(data, PptxGenJS, filename) {
+  const pres = generateProfessionalPPT(data, PptxGenJS);
+  const outputFilename = filename || `Professional_CGA_${sanitizeText(data.initials || 'Patient')}.pptx`;
+  await pres.writeFile({ fileName: outputFilename });
+  return outputFilename;
+}
+
+/**
  * Creates HTML content for Word document
  * @param {Object} data - Case data
  * @returns {string} - HTML string
@@ -766,6 +1215,9 @@ export default {
   createSlideData,
   generatePPT,
   exportPPT,
+  createProfessionalSlides,
+  generateProfessionalPPT,
+  exportProfessionalPPT,
   createDocHTML,
   createDocBlob,
   createDocxDocument,
