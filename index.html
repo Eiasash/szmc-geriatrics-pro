@@ -649,7 +649,8 @@ MEDS/LABS: {meds}`;
             s19.addText(`Patient: ${ageSex} (${initials})`, { x: 0.5, y: 4.0, w: '90%', fontSize: 16, color: 'bdc3c7', align: 'center' });
             s19.addText('Generated with SZMC Geriatrics Pro', { x: 0.5, y: 4.8, w: '90%', fontSize: 11, color: '7f8c8d', align: 'center' });
 
-            const outputInitials = initials.trim() !== 'N/A' ? initials.trim() : 'export';
+            const trimmedPptInitials = initials ? initials.trim() : '';
+            const outputInitials = (trimmedPptInitials && trimmedPptInitials !== 'N/A') ? trimmedPptInitials : 'export';
             pres.writeFile({ fileName: `Case_${outputInitials}.pptx` });
             console.log('Comprehensive PPT export completed successfully (19 slides)');
         } catch(e) {
@@ -1048,7 +1049,8 @@ MEDS/LABS: {meds}`;
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            const docInitials = initials !== 'N/A' ? initials.trim() : 'export';
+            const trimmedDocInitials = initials ? initials.trim() : '';
+            const docInitials = (trimmedDocInitials && trimmedDocInitials !== 'N/A') ? trimmedDocInitials : 'export';
             link.download = `Case_${docInitials}.docx`;
             link.style.display = 'none';
             document.body.appendChild(link);
