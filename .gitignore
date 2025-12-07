@@ -4,6 +4,7 @@ node_modules/
 *.log
 *.tmp
 local_storage_backup.json
+test-export.html
 
 # Test coverage
 coverage/

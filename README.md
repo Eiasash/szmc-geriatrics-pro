@@ -1,8 +1,29 @@
-# SZMC Geriatrics Pro: Auditor Edition (v15.3.0)
+# SZMC Geriatrics Pro: Auditor Edition (v15.4.0)
 
 **A Clinical Decision Support tool with an "Inner AI Auditor" for safety checks.**
 
-## New in v15.3.0
+## New in v15.4.0 - Professional Export Enhancement
+* **📊 Comprehensive PowerPoint Presentations:** Enhanced PPT export now creates professional 15+ slide presentations including:
+  * Complete case overview with demographics
+  * Detailed medication safety review (Beers Criteria, drug interactions)
+  * Functional and cognitive assessment sections
+  * Comprehensive management plan (pharmacological and non-pharmacological)
+  * Safety considerations and discharge planning
+  * Evidence-based clinical guidelines and references
+* **📝 Improved Word Document Export:** 
+  * Now generates proper DOCX format (not HTML-based DOC)
+  * Comprehensive structured document with medical standards
+  * Includes full reference citations (Beers Criteria, STOPP/START, CGA, etc.)
+  * Proper formatting with headings, bullets, and sections
+  * No more corruption issues with special characters or Unicode
+* **📚 Medical Standards Integration:** All exports include references to:
+  * AGS Beers Criteria® (2023)
+  * STOPP/START Criteria
+  * Comprehensive Geriatric Assessment (CGA)
+  * Clinical Frailty Scale (Rockwood)
+  * CAM - Confusion Assessment Method
+
+## Previous Features (v15.3.0)
 * **Security Updates:** Updated all dependencies, fixed critical vulnerabilities (happy-dom, vitest)
 * **Enhanced XSS Protection:** Added comprehensive HTML escaping for all exports to prevent security issues
 * **New Features:**
@@ -11,7 +32,7 @@
   * Keyboard shortcuts (Ctrl/⌘ + G for prompt, Ctrl/⌘ + E for PPTX, Ctrl/⌘ + Shift + E for DOC)
 * **Improved Validation:** Added input validation for all major functions with helpful error messages
 * **Better Accessibility:** Added ARIA labels to all form inputs and buttons
-* **Enhanced Testing:** Expanded test suite to 183 tests with comprehensive coverage
+* **Enhanced Testing:** Expanded test suite to 194 tests with comprehensive coverage
 
 ## Previous Features (v15.2.0)
 * **Auto-Save:** Form data is automatically saved to localStorage to prevent data loss
