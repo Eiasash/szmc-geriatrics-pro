@@ -97,6 +97,99 @@ export function sanitizeText(text) {
 }
 
 /**
+ * Formats medical text for better readability in presentations
+ * - Converts medication lists to bullet points
+ * - Formats lab values more cleanly
+ * - Improves line breaks
+ * @param {string} text - The text to format
+ * @param {Object} options - Formatting options
+ * @returns {string} - Formatted text
+ */
+export function formatMedicalText(text, options = {}) {
+  if (!text || typeof text !== 'string') {
+    return '';
+  }
+  
+  const { maxLineLength = 80, bulletChar = '•' } = options;
+  
+  let formatted = text;
+  
+  // Split by common medication/lab separators and add bullets
+  // Match patterns like: "medication name dose", "Lab: value", etc.
+  const medPatterns = [
+    // Medications: "Aspirin 81mg daily" or "1. Aspirin 81mg"
+    /^(\d+\.|[-•]|\*)\s*/gm,  // Remove existing bullets/numbers
+    /^([A-Z][a-zA-Z]+\s+\d+\s*(mg|mcg|g|ml|units))/gm,  // Match medication pattern
+  ];
+  
+  // Clean up excessive whitespace
+  formatted = formatted.replace(/\n{3,}/g, '\n\n'); // Max 2 consecutive newlines
+  formatted = formatted.replace(/[ \t]+/g, ' '); // Single spaces
+  formatted = formatted.trim();
+  
+  // Ensure proper line breaks after common medical punctuation
+  formatted = formatted.replace(/([.!?])\s+([A-Z])/g, '$1\n$2'); // Break after sentences
+  
+  // Add line breaks for very long lines (but preserve intentional formatting)
+  const lines = formatted.split('\n');
+  const wrappedLines = lines.map(line => {
+    if (line.length <= maxLineLength) {
+      return line;
+    }
+    // Try to break at natural points (commas, semicolons)
+    const words = line.split(/([,;])\s+/);
+    let currentLine = '';
+    const wrappedParts = [];
+    
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      if ((currentLine + word).length <= maxLineLength) {
+        currentLine += word;
+      } else {
+        if (currentLine) {
+          wrappedParts.push(currentLine.trim());
+        }
+        currentLine = word.replace(/^[,;]\s*/, '');  // Remove leading punctuation from new line
+      }
+    }
+    if (currentLine) {
+      wrappedParts.push(currentLine.trim());
+    }
+    
+    return wrappedParts.join('\n');
+  });
+  
+  return wrappedLines.join('\n');
+}
+
+/**
+ * Formats a medication list for clean display
+ * @param {string} medsText - Raw medication text
+ * @returns {string} - Formatted medication list
+ */
+export function formatMedicationList(medsText) {
+  if (!medsText || typeof medsText !== 'string') {
+    return '';
+  }
+  
+  // Split by common delimiters
+  const lines = medsText.split(/\n|;|,(?=\s*[A-Z])/).map(line => line.trim()).filter(Boolean);
+  
+  // Clean and format each line
+  const formatted = lines.map(line => {
+    // Remove existing bullets or numbers
+    line = line.replace(/^(\d+\.|[-•*])\s*/, '');
+    // Ensure it starts with capital letter
+    if (line && line.length > 0) {
+      line = line.charAt(0).toUpperCase() + line.slice(1);
+    }
+    return line;
+  });
+  
+  return formatted.join('\n');
+}
+
+/**
  * HTML escape map for preventing XSS
  */
 const HTML_ESCAPE_MAP = {
@@ -416,6 +509,10 @@ export function createProfessionalSlides(data) {
     return ref ? `[${ref.citation}]` : '';
   };
 
+  // Format clinical text for better presentation
+  const formattedHpi = formatMedicalText(sanitizeText(hpi), { maxLineLength: 90 }) || 'History of present illness to be documented';
+  const formattedMeds = formatMedicationList(sanitizeText(meds)) || 'Medication list to be documented';
+  
   const slides = [
     // ===== SLIDE 1: Title Slide =====
     {
@@ -470,9 +567,9 @@ export function createProfessionalSlides(data) {
       header: { text: '🏥 CHIEF COMPLAINT & HISTORY', color: PPT_CONFIG.colors.info },
       elements: [
         { 
-          text: truncateText(sanitizeText(hpi), 900) || 'History of present illness to be documented', 
+          text: truncateText(formattedHpi, 900), 
           x: 0.5, y: 1.2, w: 9, h: 4.0, 
-          fontSize: 14, valign: 'top', color: PPT_CONFIG.colors.text 
+          fontSize: 14, valign: 'top', color: PPT_CONFIG.colors.text, lineSpacing: 18
         },
         { 
           text: 'Clinical Documentation Standards Applied', 
@@ -488,9 +585,9 @@ export function createProfessionalSlides(data) {
       elements: [
         { text: 'Current Medication Regimen', x: 0.5, y: 1.2, fontSize: 18, bold: true },
         { 
-          text: truncateText(sanitizeText(meds), 850) || 'Medication list to be documented', 
+          text: truncateText(formattedMeds, 850), 
           x: 0.5, y: 1.7, w: 9, h: 3.5, 
-          fontSize: 12, valign: 'top' 
+          fontSize: 12, valign: 'top', lineSpacing: 16
         },
         { 
           text: `Medication Safety Reference: ${getCitation('beers')}`, 
@@ -1220,6 +1317,8 @@ export default {
   sanitizeText,
   escapeHtml,
   truncateText,
+  formatMedicalText,
+  formatMedicationList,
   createSlideData,
   generatePPT,
   exportPPT,
