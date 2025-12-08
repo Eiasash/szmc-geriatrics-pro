@@ -421,7 +421,7 @@ MEDS/LABS: {meds}`;
     };
 
     // Format medical text for better readability
-    const formatMedicalText = (text) => {
+    const formatMedicalText = (text, maxLineLength = 90) => {
         if (!text || typeof text !== 'string') return '';
         let formatted = text;
         // Clean up excessive whitespace
@@ -430,7 +430,28 @@ MEDS/LABS: {meds}`;
         formatted = formatted.trim();
         // Ensure proper line breaks after common medical punctuation
         formatted = formatted.replace(/([.!?])\s+([A-Z])/g, '$1\n$2');
-        return formatted;
+        
+        // Add line breaks for very long lines
+        const lines = formatted.split('\n');
+        const wrappedLines = lines.map(line => {
+            if (line.length <= maxLineLength) return line;
+            // Try to break at natural points (commas, semicolons)
+            const words = line.split(/([,;])\s+/);
+            let currentLine = '';
+            const wrappedParts = [];
+            for (let i = 0; i < words.length; i++) {
+                const word = words[i];
+                if ((currentLine + word).length <= maxLineLength) {
+                    currentLine += word;
+                } else {
+                    if (currentLine) wrappedParts.push(currentLine.trim());
+                    currentLine = word.replace(/^[,;]\s*/, '');
+                }
+            }
+            if (currentLine) wrappedParts.push(currentLine.trim());
+            return wrappedParts.join('\n');
+        });
+        return wrappedLines.join('\n');
     };
 
     // Format medication list for clean display

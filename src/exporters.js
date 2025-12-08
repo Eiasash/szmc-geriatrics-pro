@@ -98,9 +98,9 @@ export function sanitizeText(text) {
 
 /**
  * Formats medical text for better readability in presentations
- * - Converts medication lists to bullet points
- * - Formats lab values more cleanly
- * - Improves line breaks
+ * - Cleans up excessive whitespace
+ * - Adds proper line breaks after sentences
+ * - Wraps long lines at natural break points
  * @param {string} text - The text to format
  * @param {Object} options - Formatting options
  * @returns {string} - Formatted text
@@ -110,17 +110,9 @@ export function formatMedicalText(text, options = {}) {
     return '';
   }
   
-  const { maxLineLength = 80, bulletChar = '•' } = options;
+  const { maxLineLength = 80 } = options;
   
   let formatted = text;
-  
-  // Split by common medication/lab separators and add bullets
-  // Match patterns like: "medication name dose", "Lab: value", etc.
-  const medPatterns = [
-    // Medications: "Aspirin 81mg daily" or "1. Aspirin 81mg"
-    /^(\d+\.|[-•]|\*)\s*/gm,  // Remove existing bullets/numbers
-    /^([A-Z][a-zA-Z]+\s+\d+\s*(mg|mcg|g|ml|units))/gm,  // Match medication pattern
-  ];
   
   // Clean up excessive whitespace
   formatted = formatted.replace(/\n{3,}/g, '\n\n'); // Max 2 consecutive newlines
