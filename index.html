@@ -420,6 +420,58 @@ MEDS/LABS: {meds}`;
         return sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
     };
 
+    // Format medical text for better readability
+    const formatMedicalText = (text, maxLineLength = 90) => {
+        if (!text || typeof text !== 'string') return '';
+        let formatted = text;
+        // Clean up excessive whitespace
+        formatted = formatted.replace(/\n{3,}/g, '\n\n'); // Max 2 consecutive newlines
+        formatted = formatted.replace(/[ \t]+/g, ' '); // Single spaces
+        formatted = formatted.trim();
+        // Ensure proper line breaks after common medical punctuation
+        formatted = formatted.replace(/([.!?])\s+([A-Z])/g, '$1\n$2');
+        
+        // Add line breaks for very long lines
+        const lines = formatted.split('\n');
+        const wrappedLines = lines.map(line => {
+            if (line.length <= maxLineLength) return line;
+            // Try to break at natural points (commas, semicolons)
+            const words = line.split(/([,;])\s+/);
+            let currentLine = '';
+            const wrappedParts = [];
+            for (let i = 0; i < words.length; i++) {
+                const word = words[i];
+                if ((currentLine + word).length <= maxLineLength) {
+                    currentLine += word;
+                } else {
+                    if (currentLine) wrappedParts.push(currentLine.trim());
+                    currentLine = word.replace(/^[,;]\s*/, '');
+                }
+            }
+            if (currentLine) wrappedParts.push(currentLine.trim());
+            return wrappedParts.join('\n');
+        });
+        return wrappedLines.join('\n');
+    };
+
+    // Format medication list for clean display
+    const formatMedicationList = (medsText) => {
+        if (!medsText || typeof medsText !== 'string') return '';
+        // Split by common delimiters and clean up
+        const lines = medsText.split(/\n|;|,(?=\s*[A-Z])/).map(line => {
+            line = line.trim();
+            if (!line) return null;
+            // Remove existing bullets or numbers
+            line = line.replace(/^(\d+\.|[-•*])\s*/, '');
+            // Capitalize first letter
+            if (line && line.length > 0) {
+                line = line.charAt(0).toUpperCase() + line.slice(1);
+            }
+            return line;
+        }).filter(Boolean);
+        return lines.join('\n');
+    };
+
     // HTML escape function to prevent XSS in Word export
     const escapeHtml = (text) => {
         if (!text || typeof text !== 'string') return '';
@@ -454,12 +506,15 @@ MEDS/LABS: {meds}`;
                 white: 'ffffff'
             };
 
-            // Sanitize all text fields to remove control characters
+            // Sanitize and format all text fields
             const ageSex = sanitizeText(getVal('age_sex')) || 'Not specified';
             const initials = sanitizeText(getVal('initials')) || 'N/A';
-            const hpi = sanitizeText(getVal('hpi')) || 'Not documented';
-            const meds = sanitizeText(getVal('meds')) || 'Not documented';
-            const aiText = sanitizeText(getVal('ai-response')) || 'Pending clinical analysis';
+            const rawHpi = sanitizeText(getVal('hpi'));
+            const rawMeds = sanitizeText(getVal('meds'));
+            const rawAiText = sanitizeText(getVal('ai-response'));
+            const hpi = formatMedicalText(rawHpi) || 'Not documented';
+            const meds = formatMedicationList(rawMeds) || 'Not documented';
+            const aiText = formatMedicalText(rawAiText) || 'Pending clinical analysis';
             const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
             // Helper function to add styled header to slides
@@ -685,11 +740,13 @@ MEDS/LABS: {meds}`;
             pres.company = 'SZMC';
             pres.subject = 'Comprehensive Geriatric Assessment';
             
-            // Sanitize all input data
+            // Sanitize and format all input data
             const ageSex = sanitizeText(getVal('age_sex')) || 'Not specified';
             const initials = sanitizeText(getVal('initials')) || 'N/A';
-            const hpi = sanitizeText(getVal('hpi')) || 'History of present illness to be documented';
-            const meds = sanitizeText(getVal('meds')) || 'Medication list to be documented';
+            const rawHpi = sanitizeText(getVal('hpi'));
+            const rawMeds = sanitizeText(getVal('meds'));
+            const hpi = formatMedicalText(rawHpi) || 'History of present illness to be documented';
+            const meds = formatMedicationList(rawMeds) || 'Medication list to be documented';
             const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
             // Color scheme
@@ -960,12 +1017,15 @@ MEDS/LABS: {meds}`;
                     .replace(/\r/g, '\n');
             };
 
-            // Get sanitized data
+            // Get sanitized and formatted data
             const ageSex = deepSanitize(getVal('age_sex')) || 'Not specified';
             const initials = deepSanitize(getVal('initials')) || 'N/A';
-            const hpi = deepSanitize(getVal('hpi')) || 'Not documented';
-            const meds = deepSanitize(getVal('meds')) || 'Not documented';
-            const aiText = deepSanitize(getVal('ai-response')) || 'Pending clinical analysis';
+            const rawHpi = deepSanitize(getVal('hpi'));
+            const rawMeds = deepSanitize(getVal('meds'));
+            const rawAiText = deepSanitize(getVal('ai-response'));
+            const hpi = formatMedicalText(rawHpi) || 'Not documented';
+            const meds = formatMedicationList(rawMeds) || 'Not documented';
+            const aiText = formatMedicalText(rawAiText) || 'Pending clinical analysis';
             const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
             // Helper to create bullet paragraphs
@@ -1377,12 +1437,15 @@ MEDS/LABS: {meds}`;
                     });
             };
 
-            // Get sanitized data
+            // Get sanitized and formatted data
             const ageSex = rtfSanitize(getVal('age_sex')) || 'Not specified';
             const initials = rtfSanitize(getVal('initials')) || 'N/A';
-            const hpi = rtfSanitize(getVal('hpi')) || 'Not documented';
-            const meds = rtfSanitize(getVal('meds')) || 'Not documented';
-            const aiText = rtfSanitize(getVal('ai-response')) || 'Pending clinical analysis';
+            const rawHpi = getVal('hpi');
+            const rawMeds = getVal('meds');
+            const rawAiText = getVal('ai-response');
+            const hpi = rtfSanitize(formatMedicalText(rawHpi)) || 'Not documented';
+            const meds = rtfSanitize(formatMedicationList(rawMeds)) || 'Not documented';
+            const aiText = rtfSanitize(formatMedicalText(rawAiText)) || 'Pending clinical analysis';
             const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
             // RTF document with proper header
