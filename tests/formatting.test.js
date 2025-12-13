@@ -230,4 +230,474 @@ describe('Medical Text Formatting', () => {
       expect(formatted).toContain('85F');
     });
   });
+
+  describe('ENHANCED STRESS TESTS - Large Text Formatting', () => {
+    it('should format extremely long medical text (1MB)', () => {
+      const longText = 'Patient presents with multiple comorbidities including hypertension and diabetes. '.repeat(12000); // ~1MB
+
+      const startTime = Date.now();
+      const formatted = formatMedicalText(longText);
+      const duration = Date.now() - startTime;
+
+      expect(formatted).toBeDefined();
+      expect(formatted.length).toBeGreaterThan(10000);
+      expect(duration).toBeLessThan(2000); // Should format quickly
+    });
+
+    it('should format massive medication list (1000 medications)', () => {
+      const medications = Array.from({ length: 1000 }, (_, i) =>
+        `${i + 1}. Medication${i} ${10 + (i % 100)}mg ${i % 3 === 0 ? 'daily' : i % 3 === 1 ? 'BID' : 'TID'}`
+      ).join('\n');
+
+      const startTime = Date.now();
+      const formatted = formatMedicationList(medications);
+      const duration = Date.now() - startTime;
+
+      const lines = formatted.split('\n').filter(Boolean);
+
+      expect(lines.length).toBeGreaterThanOrEqual(1000);
+      expect(formatted).toContain('Medication0');
+      expect(formatted).toContain('Medication999');
+      expect(duration).toBeLessThan(1000);
+    });
+
+    it('should handle text with thousands of sentences', () => {
+      const sentences = Array.from({ length: 5000 }, (_, i) =>
+        `Patient finding ${i}.`
+      ).join(' ');
+
+      const formatted = formatMedicalText(sentences);
+
+      expect(formatted).toBeDefined();
+      expect(formatted.length).toBeGreaterThan(10000);
+    });
+
+    it('should format text with extremely long single sentence', () => {
+      const longSentence = 'Patient presents with ' +
+        Array.from({ length: 500 }, (_, i) => `condition${i}`).join(', ') +
+        ' and requires comprehensive evaluation.';
+
+      const formatted = formatMedicalText(longSentence, { maxLineLength: 100 });
+
+      expect(formatted).toBeDefined();
+      expect(formatted).toContain('condition0');
+      expect(formatted).toContain('condition499');
+    });
+
+    it('should handle medication list with complex formatting', () => {
+      const complexMeds = Array.from({ length: 100 }, (_, i) => {
+        const formats = [
+          `• Medication${i} ${10 + i}mg PO daily`,
+          `- Drug${i} ${5 + i}mg IV q12h`,
+          `* Med${i} ${20 + i}mg SQ weekly`,
+          `${i + 1}. Rx${i} ${15 + i}mg NG BID`
+        ];
+        return formats[i % 4];
+      }).join('\n');
+
+      const formatted = formatMedicationList(complexMeds);
+      const lines = formatted.split('\n').filter(Boolean);
+
+      expect(lines.length).toBeGreaterThanOrEqual(100);
+      // Should remove bullets and numbers
+      expect(lines[0]).not.toMatch(/^[•\-*\d]/);
+    });
+  });
+
+  describe('ENHANCED STRESS TESTS - Special Characters & Unicode', () => {
+    it('should handle medical text with Unicode characters', () => {
+      const unicodeText = `
+        Patient presents with café-au-lait spots.
+        Naïve presentation of résumé of symptoms.
+        São Paulo protocol applied.
+        Temperature: 38°C.
+        Dosage: 500μg/mL.
+      `;
+
+      const formatted = formatMedicalText(unicodeText);
+
+      expect(formatted).toContain('café-au-lait');
+      expect(formatted).toContain('naïve');
+      expect(formatted).toContain('São');
+      expect(formatted).toContain('°C');
+      expect(formatted).toContain('μg');
+    });
+
+    it('should handle medications with international characters', () => {
+      const intlMeds = `
+        Paracétamol 500mg
+        Ibuprofen™ 400mg
+        Aspirin® 81mg
+        Naproxen℞ 250mg
+      `;
+
+      const formatted = formatMedicationList(intlMeds);
+
+      expect(formatted).toContain('Paracétamol');
+      expect(formatted).toContain('™');
+      expect(formatted).toContain('®');
+    });
+
+    it('should handle medical text with emoji', () => {
+      const emojiText = `
+        Patient mood: 😊 improved
+        Pain level: 🤕 moderate
+        Fever: 🤒 present
+        Treatment: 💊 prescribed
+      `;
+
+      const formatted = formatMedicalText(emojiText);
+
+      expect(formatted).toContain('😊');
+      expect(formatted).toContain('🤕');
+      expect(formatted).toContain('🤒');
+      expect(formatted).toContain('💊');
+    });
+
+    it('should handle text with RTL characters', () => {
+      const rtlText = `
+        Patient: שלום Smith
+        Condition: مرحبا symptoms
+        Notes: 患者 presentation
+      `;
+
+      const formatted = formatMedicalText(rtlText);
+
+      expect(formatted).toContain('שלום');
+      expect(formatted).toContain('مرحبا');
+      expect(formatted).toContain('患者');
+    });
+
+    it('should handle medications with diacritical marks', () => {
+      const diacriticalMeds = `
+        Café-based medication 100mg
+        Naïve formulation 200mg
+        Zürich protocol drug 50mg
+        São compound 75mg
+      `;
+
+      const formatted = formatMedicationList(diacriticalMeds);
+
+      expect(formatted).toContain('Café');
+      expect(formatted).toContain('Naïve');
+      expect(formatted).toContain('Zürich');
+      expect(formatted).toContain('São');
+    });
+  });
+
+  describe('ENHANCED STRESS TESTS - Complex Medical Formatting', () => {
+    it('should handle text with multiple medical abbreviations', () => {
+      const abbrevText = `
+        s/p CABG, h/o CVA, c/o SOB.
+        PMH: HTN, DM2, CKD3, CHF, COPD, CAD.
+        ROS: (+) for CP, (-) for n/v/d.
+        PE: HEENT wnl, CV RRR, Lungs CTAB.
+      `;
+
+      const formatted = formatMedicalText(abbrevText);
+
+      expect(formatted).toContain('s/p');
+      expect(formatted).toContain('h/o');
+      expect(formatted).toContain('c/o');
+      expect(formatted).toContain('HTN');
+      expect(formatted).toContain('HEENT');
+    });
+
+    it('should format medications with complex dosing', () => {
+      const complexDosing = `
+        Aspirin 81mg PO daily with food
+        Metformin 1000mg PO BID with meals, max 2000mg/day
+        Insulin glargine 20 units SQ qHS, titrate by 2 units q3days
+        Warfarin 5mg PO daily, adjust based on INR goal 2-3
+        Furosemide 40mg IV q12h PRN for edema
+      `;
+
+      const formatted = formatMedicationList(complexDosing);
+
+      expect(formatted).toContain('Aspirin');
+      expect(formatted).toContain('Metformin');
+      expect(formatted).toContain('Insulin');
+      expect(formatted).toContain('Warfarin');
+    });
+
+    it('should handle text with measurements and units', () => {
+      const measurementText = `
+        Weight: 75.5 kg (BMI: 25.2 kg/m²)
+        BP: 145/90 mmHg
+        HR: 88 bpm
+        Temp: 37.2°C (99.0°F)
+        Labs: Na 138 mEq/L, K 4.2 mEq/L, Cr 1.1 mg/dL
+        Glucose: 156 mg/dL (8.7 mmol/L)
+      `;
+
+      const formatted = formatMedicalText(measurementText);
+
+      expect(formatted).toContain('kg/m²');
+      expect(formatted).toContain('mmHg');
+      expect(formatted).toContain('°C');
+      expect(formatted).toContain('mEq/L');
+    });
+
+    it('should handle medications with fractions and ranges', () => {
+      const fractionMeds = `
+        Levothyroxine 0.5mg daily
+        Digoxin 0.125mg daily
+        Warfarin 2.5-5mg daily based on INR
+        Insulin 4-6 units with meals
+      `;
+
+      const formatted = formatMedicationList(fractionMeds);
+
+      expect(formatted).toContain('0.5mg');
+      expect(formatted).toContain('0.125mg');
+      expect(formatted).toContain('2.5-5mg');
+    });
+
+    it('should handle text with parenthetical information', () => {
+      const parentheticalText = `
+        Patient (85F) presents with symptoms.
+        History of hypertension (controlled on medication).
+        Labs (see attached) show improvement.
+        Follow-up (scheduled for 2 weeks) arranged.
+      `;
+
+      const formatted = formatMedicalText(parentheticalText);
+
+      expect(formatted).toContain('(85F)');
+      expect(formatted).toContain('(controlled on medication)');
+      expect(formatted).toContain('(see attached)');
+    });
+  });
+
+  describe('ENHANCED STRESS TESTS - Edge Cases & Boundary Conditions', () => {
+    it('should handle empty or whitespace-only input', () => {
+      const testInputs = ['', '   ', '\n\n\n', '\t\t\t', ' \n \t '];
+
+      testInputs.forEach(input => {
+        expect(formatMedicalText(input)).toBe('');
+        expect(formatMedicationList(input)).toBe('');
+      });
+    });
+
+    it('should handle single character input', () => {
+      expect(formatMedicalText('A')).toBeTruthy();
+      expect(formatMedicationList('B')).toBeTruthy();
+    });
+
+    it('should handle text with only punctuation', () => {
+      const punctuation = '...!!!???;;;:::,,,';
+
+      const formatted = formatMedicalText(punctuation);
+      expect(formatted).toBeDefined();
+    });
+
+    it('should handle medication list with single medication', () => {
+      const singleMed = 'Aspirin 81mg daily';
+
+      const formatted = formatMedicationList(singleMed);
+
+      expect(formatted).toBe('Aspirin 81mg daily');
+    });
+
+    it('should handle text with excessive newlines', () => {
+      const excessiveNewlines = 'Line 1\n\n\n\n\n\nLine 2\n\n\n\n\nLine 3';
+
+      const formatted = formatMedicalText(excessiveNewlines);
+
+      // Should reduce excessive newlines
+      expect(formatted).not.toMatch(/\n{4,}/);
+      expect(formatted).toContain('Line 1');
+      expect(formatted).toContain('Line 3');
+    });
+
+    it('should handle medications with only delimiters', () => {
+      const delimiterOnly = ';;;,,,\n\n\n';
+
+      const formatted = formatMedicationList(delimiterOnly);
+
+      expect(formatted).toBe('');
+    });
+
+    it('should handle very long medication name', () => {
+      const longMedName = 'A'.repeat(500) + ' 100mg daily';
+
+      const formatted = formatMedicationList(longMedName);
+
+      expect(formatted).toContain('A'.repeat(500));
+    });
+
+    it('should handle text with mixed newline types', () => {
+      const mixedNewlines = 'Line1\nLine2\rLine3\r\nLine4';
+
+      const formatted = formatMedicalText(mixedNewlines);
+
+      expect(formatted).toBeDefined();
+      expect(formatted).toContain('Line1');
+      expect(formatted).toContain('Line4');
+    });
+  });
+
+  describe('ENHANCED STRESS TESTS - Performance', () => {
+    it('should format 10000 medication entries efficiently', () => {
+      const hugeMedList = Array.from({ length: 10000 }, (_, i) =>
+        `${i + 1}. Medication${i} ${10 + i}mg daily`
+      ).join('\n');
+
+      const startTime = Date.now();
+      const formatted = formatMedicationList(hugeMedList);
+      const duration = Date.now() - startTime;
+
+      expect(formatted.split('\n').length).toBeGreaterThanOrEqual(10000);
+      expect(duration).toBeLessThan(2000); // Should be fast
+    });
+
+    it('should handle rapid successive formatting calls (1000 iterations)', () => {
+      const text = 'Patient presents with symptoms. Treatment plan initiated.';
+
+      const startTime = Date.now();
+
+      for (let i = 0; i < 1000; i++) {
+        formatMedicalText(text);
+      }
+
+      const duration = Date.now() - startTime;
+
+      expect(duration).toBeLessThan(1000);
+    });
+
+    it('should format text with complex structure efficiently', () => {
+      const complexText = Array.from({ length: 1000 }, (_, i) => `
+        Section ${i}:
+        - Point 1 of section ${i}
+        - Point 2 of section ${i}
+
+        Details for section ${i} with multiple sentences.
+        Additional information here.
+
+      `).join('\n');
+
+      const startTime = Date.now();
+      const formatted = formatMedicalText(complexText);
+      const duration = Date.now() - startTime;
+
+      expect(formatted).toBeDefined();
+      expect(formatted.length).toBeGreaterThan(10000);
+      expect(duration).toBeLessThan(1000);
+    });
+
+    it('should handle concurrent formatting operations', async () => {
+      const texts = Array.from({ length: 100 }, (_, i) =>
+        `Patient ${i} presents with symptoms. Treatment initiated.`
+      );
+
+      const startTime = Date.now();
+
+      await Promise.all(
+        texts.map(text => Promise.resolve(formatMedicalText(text)))
+      );
+
+      const duration = Date.now() - startTime;
+
+      expect(duration).toBeLessThan(500);
+    });
+  });
+
+  describe('ENHANCED STRESS TESTS - Real-World Clinical Scenarios', () => {
+    it('should format comprehensive geriatric assessment', () => {
+      const assessment = `
+        COMPREHENSIVE GERIATRIC ASSESSMENT
+
+        Patient: 85F
+
+        Chief Complaint: Falls, confusion, decreased appetite
+
+        HPI: Patient is an 85-year-old female with PMH significant for HTN, DM2, CKD stage 3,
+        CHF (EF 35%), and dementia who presents with increased falls over the past 2 weeks.
+        Family reports 4 falls in past week, confusion worse at night, poor PO intake.
+
+        Medications:
+        1. Lisinopril 10mg PO daily
+        2. Metformin 1000mg PO BID
+        3. Furosemide 40mg PO daily
+        4. Donepezil 10mg PO qHS
+        5. Aspirin 81mg PO daily
+        6. Atorvastatin 40mg PO qHS
+
+        Functional Status: ADLs - needs assist with bathing, dressing. IADLs - dependent.
+
+        Cognitive: MMSE 18/30, significant decline from baseline of 24/30 six months ago.
+
+        Social: Lives with daughter. Home health aide 4 hours daily.
+      `;
+
+      const formatted = formatMedicalText(assessment);
+
+      expect(formatted).toContain('85F');
+      expect(formatted).toContain('Lisinopril');
+      expect(formatted).toContain('MMSE');
+    });
+
+    it('should format complex polypharmacy medication list', () => {
+      const polypharmacy = `
+        Active Medications (18 total):
+
+        Cardiovascular:
+        • Lisinopril 10mg PO daily for HTN
+        • Metoprolol succinate 50mg PO daily for CHF
+        • Furosemide 40mg PO BID for volume overload
+        • Spironolactone 25mg PO daily
+
+        Endocrine:
+        - Metformin 1000mg PO BID with meals
+        - Glipizide 5mg PO daily before breakfast
+        - Levothyroxine 75mcg PO daily on empty stomach
+
+        Neurologic:
+        * Donepezil 10mg PO qHS for dementia
+        * Memantine 10mg PO BID
+        * Gabapentin 300mg PO TID for neuropathy
+
+        GI:
+        1. Omeprazole 20mg PO daily
+        2. Docusate 100mg PO BID PRN
+
+        Other:
+        Aspirin 81mg PO daily; Atorvastatin 40mg PO qHS; Vitamin D3 2000 IU daily;
+        Calcium carbonate 500mg PO BID with meals
+      `;
+
+      const formatted = formatMedicationList(polypharmacy);
+      const lines = formatted.split('\n').filter(Boolean);
+
+      expect(lines.length).toBeGreaterThan(10);
+      expect(formatted).toContain('Lisinopril');
+      expect(formatted).toContain('Metformin');
+      expect(formatted).toContain('Donepezil');
+    });
+
+    it('should format discharge summary with complex formatting', () => {
+      const dischargeSummary = `
+        DISCHARGE SUMMARY
+
+        Admission Date: [DATE] Discharge Date: [DATE]
+
+        Principal Diagnosis: Acute decompensated heart failure
+        Secondary Diagnoses: 1) Acute on chronic kidney injury 2) Hyponatremia 3) Delirium
+
+        Hospital Course: 85F with known CHF (EF 30%) admitted with SOB and volume overload.
+        Diuresed with IV Lasix 40mg BID with good response. Cr peaked at 2.1, improved to 1.4.
+        Delirium resolved with treatment of underlying medical issues.
+
+        Discharge Medications: (see attached comprehensive list - 18 medications)
+
+        Follow-up: Cardiology in 1 week, PCP in 2 weeks, Home health for vitals monitoring
+      `;
+
+      const formatted = formatMedicalText(dischargeSummary);
+
+      expect(formatted).toContain('DISCHARGE SUMMARY');
+      expect(formatted).toContain('Hospital Course');
+      expect(formatted).toContain('Follow-up');
+    });
+  });
 });
