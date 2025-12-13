@@ -16,38 +16,546 @@
     <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js"></script>
     
     <style>
-        :root { --primary: #2c3e50; --accent: #27ae60; --bg: #f4f6f7; --sidebar: #ffffff; }
-        * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        :root {
+            --primary: #2c3e50;
+            --accent: #27ae60;
+            --bg: linear-gradient(135deg, #f5f7fa 0%, #e3e7ed 100%);
+            --sidebar: #ffffff;
+            --text: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --border: #dce1e6;
+            --shadow: rgba(0,0,0,0.08);
+            --shadow-hover: rgba(0,0,0,0.12);
+            --card-bg: #ffffff;
+            --input-bg: #fdfdfd;
+            --input-border: #e1e4e8;
+            --success: #27ae60;
+            --warning: #e67e22;
+            --danger: #e74c3c;
+            --info: #3498db;
+        }
+
+        [data-theme="dark"] {
+            --primary: #3498db;
+            --accent: #2ecc71;
+            --bg: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            --sidebar: #0f1419;
+            --text: #e4e6eb;
+            --text-secondary: #b0b3b8;
+            --border: #2d3748;
+            --shadow: rgba(0,0,0,0.3);
+            --shadow-hover: rgba(0,0,0,0.4);
+            --card-bg: #1e2938;
+            --input-bg: #161e2e;
+            --input-border: #2d3748;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --info: #3498db;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            color: var(--text);
+            transition: background 0.3s ease, color 0.3s ease;
+        }
 
         /* SIDEBAR (Desktop) */
-        .sidebar { width: 300px; background: var(--sidebar); border-right: 1px solid #dce1e6; display: flex; flex-direction: column; padding: 20px; z-index: 2; overflow-y: auto; }
-        .logo { font-size: 1.4rem; font-weight: 800; color: var(--primary); margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center; }
-        .badge { background: var(--accent); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; }
-        
+        .sidebar {
+            width: 320px;
+            background: var(--sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            z-index: 2;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px var(--shadow);
+            transition: all 0.3s ease;
+        }
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--primary) 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .badge {
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            color: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
         /* DROPZONE */
-        .drop-zone { border: 2px dashed #bdc3c7; border-radius: 12px; padding: 20px 10px; text-align: center; background: #fafafa; cursor: pointer; transition: 0.2s; min-height: 120px; display:flex; flex-direction:column; justify-content:center; align-items:center; }
-        .drop-zone:active { background: #eafaf1; border-color: var(--accent); }
-        
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 16px;
+            padding: 25px 15px;
+            text-align: center;
+            background: var(--input-bg);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 130px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .drop-zone::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, var(--accent), var(--primary));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 0;
+        }
+        .drop-zone:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+        .drop-zone:hover::before {
+            opacity: 0.05;
+        }
+        .drop-zone:active {
+            background: var(--accent);
+            border-color: var(--accent);
+            transform: translateY(0);
+        }
+        .drop-zone > * {
+            position: relative;
+            z-index: 1;
+        }
+
         /* MAIN LAYOUT (Desktop) */
-        .main { flex: 1; padding: 20px; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-bottom: 80px; }
-        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; height: fit-content; }
+        .main {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            padding-bottom: 80px;
+        }
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 4px 16px var(--shadow);
+            display: flex;
+            flex-direction: column;
+            height: fit-content;
+            transition: all 0.3s ease;
+            border: 1px solid var(--border);
+        }
+        .card:hover {
+            box-shadow: 0 6px 20px var(--shadow-hover);
+            transform: translateY(-2px);
+        }
         
         /* INPUTS */
-        h2 { margin-top:0; font-size:1rem; color:var(--primary); border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px; font-weight:700; }
-        label { display: block; font-size: 0.75rem; font-weight: 700; color: #7f8c8d; margin-bottom: 5px; text-transform: uppercase; letter-spacing:0.5px; }
-        input, textarea { width: 100%; padding: 12px; border: 1px solid #e1e4e8; border-radius: 8px; font-size: 16px; /* Prevents iOS zoom */ background: #fdfdfd; margin-bottom: 15px; -webkit-appearance: none; }
-        input:focus, textarea:focus { border-color: var(--accent); outline: none; background: white; }
+        h2 {
+            margin-top: 0;
+            font-size: 1.1rem;
+            color: var(--primary);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 12px;
+            margin-bottom: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid var(--input-border);
+            border-radius: 10px;
+            font-size: 16px;
+            background: var(--input-bg);
+            margin-bottom: 15px;
+            -webkit-appearance: none;
+            transition: all 0.3s ease;
+            color: var(--text);
+            font-family: inherit;
+        }
+        input:focus, textarea:focus {
+            border-color: var(--accent);
+            outline: none;
+            background: var(--card-bg);
+            box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+            transform: translateY(-1px);
+        }
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
 
         /* BUTTONS */
-        .btn { padding: 14px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; color: white; width: 100%; font-size: 0.95rem; margin-top: 5px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn:active { transform: scale(0.96); opacity: 0.9; }
-        .btn-magic { background: linear-gradient(135deg, #27ae60, #2ecc71); }
-        .btn-ppt { background: #e67e22; margin-bottom: 10px; }
-        .btn-doc { background: #2980b9; }
-        
-        .ai-box { border: 2px solid #27ae60; background: #f0fcf4; color: #2c3e50; font-family: monospace; font-size: 0.85rem; }
-        #status { font-size: 0.8rem; color: #e67e22; text-align: center; margin-top: 10px; min-height: 1.2em; font-weight: bold; }
+        .btn {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            color: white;
+            width: 100%;
+            font-size: 0.95rem;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn:active::before {
+            width: 300px;
+            height: 300px;
+        }
+        .btn-magic {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3); }
+            50% { box-shadow: 0 4px 16px rgba(39, 174, 96, 0.5); }
+        }
+        .btn-ppt {
+            background: linear-gradient(135deg, #e67e22, #f39c12);
+            margin-bottom: 10px;
+        }
+        .btn-doc {
+            background: linear-gradient(135deg, #2980b9, #3498db);
+        }
+
+        .ai-box {
+            border: 2px solid var(--success);
+            background: var(--input-bg);
+            color: var(--text);
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.85rem;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+        #status {
+            font-size: 0.85rem;
+            color: var(--warning);
+            text-align: center;
+            margin-top: 12px;
+            min-height: 1.2em;
+            font-weight: 600;
+            padding: 8px;
+            border-radius: 6px;
+            background: var(--input-bg);
+            transition: all 0.3s ease;
+        }
+
+        /* DARK MODE TOGGLE */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: var(--card-bg);
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+        .theme-toggle:hover {
+            transform: rotate(180deg) scale(1.1);
+            box-shadow: 0 6px 16px var(--shadow-hover);
+        }
+
+        /* TAB NAVIGATION */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+            overflow-x: auto;
+        }
+        .tab {
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        .tab:hover {
+            color: var(--primary);
+            background: var(--input-bg);
+        }
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--accent);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.3s ease;
+        }
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px var(--shadow);
+            animation: slideUp 0.3s ease;
+            position: relative;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+        }
+        .modal-close:hover {
+            transform: rotate(90deg);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        /* CALCULATOR PANEL */
+        .calc-container {
+            background: var(--input-bg);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .calc-result {
+            background: var(--success);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-align: center;
+            margin-top: 10px;
+            animation: pulse 0.5s ease;
+        }
+
+        /* NOTIFICATION TOAST */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--card-bg);
+            color: var(--text);
+            padding: 16px 24px;
+            border-radius: 10px;
+            box-shadow: 0 6px 20px var(--shadow);
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+            border-left: 4px solid var(--success);
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(100%); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .toast.error {
+            border-left-color: var(--danger);
+        }
+        .toast.warning {
+            border-left-color: var(--warning);
+        }
+
+        /* PROGRESS BAR */
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--primary));
+            transition: width 0.3s ease;
+            animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        /* CASE HISTORY ITEM */
+        .history-item {
+            background: var(--input-bg);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .history-item:hover {
+            border-color: var(--accent);
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+        .history-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+
+        /* TEMPLATE SELECTOR */
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+        .template-card {
+            background: var(--input-bg);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .template-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+        .template-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        /* QUICK ACTIONS */
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        .quick-btn {
+            padding: 8px 16px;
+            background: var(--input-bg);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .quick-btn:hover {
+            border-color: var(--accent);
+            background: var(--accent);
+            color: white;
+            transform: translateY(-2px);
+        }
 
         /* --- MOBILE RESPONSIVE ENGINE --- */
         @media (max-width: 768px) {
@@ -64,28 +572,43 @@
 </head>
 <body>
 
+<!-- Dark Mode Toggle -->
+<div class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
+    <span id="theme-icon">🌙</span>
+</div>
+
 <div class="sidebar">
-    <div class="logo"><span>SZMC Pro</span> <span class="badge">v15.5 Mobile</span></div>
-    
+    <div class="logo"><span>SZMC Pro</span> <span class="badge">v16.0 Enhanced</span></div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <button class="quick-btn" onclick="openHistoryModal()" title="View Case History">📚 History</button>
+        <button class="quick-btn" onclick="openCalculatorModal()" title="Clinical Calculators">🧮 Calc</button>
+        <button class="quick-btn" onclick="openTemplateModal()" title="Load Template">📋 Templates</button>
+        <button class="quick-btn" onclick="openReferenceModal()" title="Clinical References">📖 Refs</button>
+    </div>
+
     <div class="drop-zone" onclick="document.getElementById('file-in')?.click()" id="drop-area">
         <div style="font-size:1.8rem;">📂</div>
-        <div style="font-weight:700; color:#2c3e50; margin-top:5px;">Import File</div>
-        <div style="font-size:0.7rem; color:#7f8c8d;">PDF • DOCX • DOC • PPTX • HTML • JPG</div>
+        <div style="font-weight:700; color:var(--text); margin-top:5px;">Import File</div>
+        <div style="font-size:0.7rem; color:var(--text-secondary);">PDF • DOCX • DOC • PPTX • HTML • JPG</div>
         <input type="file" id="file-in" style="display:none" onchange="handleFile(this)">
     </div>
     <div id="status"></div>
-    
+
     <div id="raw-text-container" style="margin-top:20px;">
         <label>Raw Data</label>
         <textarea id="raw-text" style="height:150px; font-size:0.7rem; font-family:monospace;" placeholder="Text extractor..."></textarea>
     </div>
-    
-    <div style="margin-top:20px; padding:10px; background:#f9f9f9; border-radius:8px; font-size:0.75rem;">
+
+    <div style="margin-top:20px; padding:12px; background:var(--input-bg); border-radius:10px; font-size:0.75rem; border: 1px solid var(--border);">
         <strong>⌨️ Keyboard Shortcuts:</strong>
-        <div style="margin-top:8px; color:#666;">
+        <div style="margin-top:10px; color:var(--text-secondary); line-height:1.6;">
             <div>Ctrl/⌘ + G - Generate Prompt</div>
             <div>Ctrl/⌘ + E - Export PPTX</div>
             <div>Ctrl/⌘ + Shift + E - Export DOC</div>
+            <div>Ctrl/⌘ + H - View History</div>
+            <div>Ctrl/⌘ + Z - Undo</div>
         </div>
     </div>
 </div>
@@ -112,21 +635,638 @@
         <h2>2. AI Result & Export</h2>
         <label>Paste Claude/GPT Answer Here:</label>
         <textarea id="ai-response" class="ai-box" rows="12" placeholder="Paste the full AI analysis here. This text will be included in your export." aria-label="AI response input"></textarea>
-        
+
         <div style="margin-top:20px;">
             <button class="btn btn-ppt" onclick="exportPPT()" aria-label="Export to PowerPoint presentation with AI analysis">📊 Download PPTX (With AI)</button>
-            <button class="btn" style="background:#8e44ad; margin-top:10px;" onclick="exportProfessionalPPT()" aria-label="Export professional medical presentation without AI requirement">🎓 Professional PPTX (No AI)</button>
+            <button class="btn" style="background:linear-gradient(135deg, #8e44ad, #9b59b6); margin-top:10px;" onclick="exportProfessionalPPT()" aria-label="Export professional medical presentation without AI requirement">🎓 Professional PPTX (No AI)</button>
             <button class="btn btn-doc" onclick="exportDOC()" aria-label="Export to Word document">📝 Download Word (Doc)</button>
-            <button class="btn" style="background:#16a085; margin-top:10px;" onclick="exportJSON()" aria-label="Export data as JSON file">💾 Export JSON</button>
+            <button class="btn" style="background:linear-gradient(135deg, #c0392b, #e74c3c); margin-top:10px;" onclick="exportPDF()" aria-label="Export to PDF document">📄 Export PDF</button>
+            <button class="btn" style="background:linear-gradient(135deg, #16a085, #1abc9c); margin-top:10px;" onclick="exportJSON()" aria-label="Export data as JSON file">💾 Export JSON</button>
+        </div>
+    </div>
+</div>
+
+<!-- History Modal -->
+<div id="historyModal" class="modal">
+    <div class="modal-content" style="width: 90%; max-width: 900px;">
+        <button class="modal-close" onclick="closeModal('historyModal')">×</button>
+        <h2 style="margin-bottom: 20px;">📚 Case History</h2>
+        <input type="text" id="historySearch" placeholder="Search cases..." style="margin-bottom: 20px;" oninput="filterHistory()">
+        <div id="historyList"></div>
+    </div>
+</div>
+
+<!-- Calculator Modal -->
+<div id="calculatorModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeModal('calculatorModal')">×</button>
+        <h2 style="margin-bottom: 20px;">🧮 Clinical Calculators</h2>
+
+        <!-- Calculator Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchCalcTab('egfr')">eGFR</button>
+            <button class="tab" onclick="switchCalcTab('crcl')">CrCl</button>
+            <button class="tab" onclick="switchCalcTab('frax')">FRAX</button>
+            <button class="tab" onclick="switchCalcTab('chadvasc')">CHA₂DS₂-VASc</button>
+            <button class="tab" onclick="switchCalcTab('mmse')">MMSE</button>
+        </div>
+
+        <!-- eGFR Calculator -->
+        <div id="calc-egfr" class="tab-content active calc-container">
+            <h3 style="margin-bottom: 15px;">eGFR (CKD-EPI)</h3>
+            <label>Creatinine (mg/dL)</label>
+            <input type="number" id="egfr-cr" step="0.01" placeholder="1.2">
+            <label>Age</label>
+            <input type="number" id="egfr-age" placeholder="75">
+            <label>Sex</label>
+            <select id="egfr-sex" style="width:100%; padding:12px; border-radius:8px; margin-bottom:15px;">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
+            <button class="btn" style="background:var(--info);" onclick="calculateEGFR()">Calculate</button>
+            <div id="egfr-result"></div>
+        </div>
+
+        <!-- CrCl Calculator -->
+        <div id="calc-crcl" class="tab-content calc-container">
+            <h3 style="margin-bottom: 15px;">Creatinine Clearance (Cockcroft-Gault)</h3>
+            <label>Creatinine (mg/dL)</label>
+            <input type="number" id="crcl-cr" step="0.01" placeholder="1.2">
+            <label>Age</label>
+            <input type="number" id="crcl-age" placeholder="75">
+            <label>Weight (kg)</label>
+            <input type="number" id="crcl-weight" placeholder="70">
+            <label>Sex</label>
+            <select id="crcl-sex" style="width:100%; padding:12px; border-radius:8px; margin-bottom:15px;">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
+            <button class="btn" style="background:var(--info);" onclick="calculateCrCl()">Calculate</button>
+            <div id="crcl-result"></div>
+        </div>
+
+        <!-- FRAX Calculator -->
+        <div id="calc-frax" class="tab-content calc-container">
+            <h3 style="margin-bottom: 15px;">FRAX Score (Simplified)</h3>
+            <label>Age</label>
+            <input type="number" id="frax-age" min="40" max="90" placeholder="75">
+            <label>Previous Fracture</label>
+            <select id="frax-fracture" style="width:100%; padding:12px; border-radius:8px; margin-bottom:15px;">
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+            </select>
+            <label>Smoking</label>
+            <select id="frax-smoking" style="width:100%; padding:12px; border-radius:8px; margin-bottom:15px;">
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+            </select>
+            <button class="btn" style="background:var(--info);" onclick="calculateFRAX()">Calculate Risk</button>
+            <div id="frax-result"></div>
+        </div>
+
+        <!-- CHA2DS2-VASc Calculator -->
+        <div id="calc-chadvasc" class="tab-content calc-container">
+            <h3 style="margin-bottom: 15px;">CHA₂DS₂-VASc Score</h3>
+            <label>Age</label>
+            <select id="chadvasc-age" style="width:100%; padding:12px; border-radius:8px; margin-bottom:15px;">
+                <option value="0">&lt; 65 years</option>
+                <option value="1">65-74 years</option>
+                <option value="2">≥ 75 years</option>
+            </select>
+            <label>Sex</label>
+            <select id="chadvasc-sex" style="width:100%; padding:12px; border-radius:8px; margin-bottom:15px;">
+                <option value="0">Male</option>
+                <option value="1">Female</option>
+            </select>
+            <div style="margin: 10px 0;">
+                <label><input type="checkbox" id="chadvasc-chf"> Congestive Heart Failure (1 pt)</label><br>
+                <label><input type="checkbox" id="chadvasc-htn"> Hypertension (1 pt)</label><br>
+                <label><input type="checkbox" id="chadvasc-stroke"> Stroke/TIA/TE (2 pts)</label><br>
+                <label><input type="checkbox" id="chadvasc-vasc"> Vascular Disease (1 pt)</label><br>
+                <label><input type="checkbox" id="chadvasc-dm"> Diabetes (1 pt)</label>
+            </div>
+            <button class="btn" style="background:var(--info);" onclick="calculateCHADVASc()">Calculate</button>
+            <div id="chadvasc-result"></div>
+        </div>
+
+        <!-- MMSE Calculator -->
+        <div id="calc-mmse" class="tab-content calc-container">
+            <h3 style="margin-bottom: 15px;">Mini-Mental State Examination (MMSE)</h3>
+            <label>Total Score (0-30)</label>
+            <input type="number" id="mmse-score" min="0" max="30" placeholder="24">
+            <button class="btn" style="background:var(--info);" onclick="interpretMMSE()">Interpret</button>
+            <div id="mmse-result"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Template Modal -->
+<div id="templateModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeModal('templateModal')">×</button>
+        <h2 style="margin-bottom: 20px;">📋 Case Templates</h2>
+        <div class="template-grid">
+            <div class="template-card" onclick="loadTemplate('falls')">
+                <div class="template-icon">🚶‍♂️</div>
+                <strong>Falls Assessment</strong>
+            </div>
+            <div class="template-card" onclick="loadTemplate('delirium')">
+                <div class="template-icon">🧠</div>
+                <strong>Delirium</strong>
+            </div>
+            <div class="template-card" onclick="loadTemplate('polypharmacy')">
+                <div class="template-icon">💊</div>
+                <strong>Polypharmacy</strong>
+            </div>
+            <div class="template-card" onclick="loadTemplate('dementia')">
+                <div class="template-icon">🔍</div>
+                <strong>Dementia Eval</strong>
+            </div>
+            <div class="template-card" onclick="loadTemplate('frailty')">
+                <div class="template-icon">⚖️</div>
+                <strong>Frailty Screen</strong>
+            </div>
+            <div class="template-card" onclick="loadTemplate('pain')">
+                <div class="template-icon">😣</div>
+                <strong>Pain Mgmt</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reference Modal -->
+<div id="referenceModal" class="modal">
+    <div class="modal-content" style="width: 90%; max-width: 900px;">
+        <button class="modal-close" onclick="closeModal('referenceModal')">×</button>
+        <h2 style="margin-bottom: 20px;">📖 Clinical References</h2>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchRefTab('beers')">Beers Criteria</button>
+            <button class="tab" onclick="switchRefTab('stopp')">STOPP/START</button>
+            <button class="tab" onclick="switchRefTab('cga')">CGA Tools</button>
+        </div>
+
+        <div id="ref-beers" class="tab-content active" style="max-height: 400px; overflow-y: auto;">
+            <h3>AGS Beers Criteria® - Common High-Risk Medications</h3>
+            <ul style="line-height: 1.8; padding-left: 20px;">
+                <li><strong>Anticholinergics:</strong> Diphenhydramine, Promethazine → Delirium, falls</li>
+                <li><strong>Benzodiazepines:</strong> Diazepam, Lorazepam → Falls, cognitive impairment</li>
+                <li><strong>First-gen Antipsychotics:</strong> Haloperidol, Chlorpromazine → Extrapyramidal symptoms</li>
+                <li><strong>NSAIDs:</strong> Ibuprofen, Naproxen → GI bleeding, renal impairment</li>
+                <li><strong>PPIs:</strong> Long-term use → C. diff, fractures, pneumonia</li>
+                <li><strong>Sulfonylureas:</strong> Glyburide → Hypoglycemia</li>
+                <li><strong>Sliding Scale Insulin:</strong> → Hypoglycemia without improved control</li>
+            </ul>
+        </div>
+
+        <div id="ref-stopp" class="tab-content" style="max-height: 400px; overflow-y: auto;">
+            <h3>STOPP/START Criteria</h3>
+            <h4>STOPP (Screening Tool of Older Persons' Prescriptions)</h4>
+            <ul style="line-height: 1.8; padding-left: 20px;">
+                <li>Benzodiazepines for > 4 weeks</li>
+                <li>NSAIDs with history of PUD without PPI</li>
+                <li>Antipsychotics for behavioral symptoms without trial of non-pharm</li>
+                <li>PPIs at full dose > 8 weeks for uncomplicated GERD</li>
+            </ul>
+            <h4 style="margin-top: 15px;">START (Screening Tool to Alert to Right Treatment)</h4>
+            <ul style="line-height: 1.8; padding-left: 20px;">
+                <li>Statin in diabetes if additional CV risk factors</li>
+                <li>ACE-I/ARB in systolic HF or CKD with proteinuria</li>
+                <li>Antiplatelet in DM with CV risk factors</li>
+                <li>Bone anti-resorptive in osteoporosis with fragility fracture</li>
+            </ul>
+        </div>
+
+        <div id="ref-cga" class="tab-content" style="max-height: 400px; overflow-y: auto;">
+            <h3>Comprehensive Geriatric Assessment (CGA) Domains</h3>
+            <ul style="line-height: 1.8; padding-left: 20px;">
+                <li><strong>Functional:</strong> ADLs (Katz Index), IADLs (Lawton Scale)</li>
+                <li><strong>Cognitive:</strong> MMSE, MoCA, Clock Draw</li>
+                <li><strong>Psychological:</strong> PHQ-9, GDS (Geriatric Depression Scale)</li>
+                <li><strong>Social:</strong> Living situation, caregiver support, financial</li>
+                <li><strong>Environmental:</strong> Home safety, fall risks</li>
+                <li><strong>Nutritional:</strong> MNA (Mini Nutritional Assessment)</li>
+                <li><strong>Mobility:</strong> Timed Up and Go (TUG), gait speed</li>
+                <li><strong>Sensory:</strong> Vision, hearing screening</li>
+            </ul>
         </div>
     </div>
 </div>
 
 <script>
     // --- 0. CONSTANTS ---
-    const APP_VERSION = '15.5.0';
+    const APP_VERSION = '16.0.0';
     const STORAGE_KEY = 'szmc-pro-form-data';
+    const HISTORY_KEY = 'szmc-pro-case-history';
+    const THEME_KEY = 'szmc-pro-theme';
     const FORM_FIELDS = ['age_sex', 'initials', 'hpi', 'meds', 'ai-response', 'raw-text'];
+
+    // --- 0.1 DARK MODE ---
+    function toggleTheme() {
+        const html = document.documentElement;
+        const currentTheme = html.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? '' : 'dark';
+        html.setAttribute('data-theme', newTheme);
+        document.getElementById('theme-icon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        localStorage.setItem(THEME_KEY, newTheme);
+        showToast(newTheme === 'dark' ? 'Dark mode enabled' : 'Light mode enabled');
+    }
+
+    // Load theme on startup
+    function loadTheme() {
+        const savedTheme = localStorage.getItem(THEME_KEY);
+        if (savedTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.getElementById('theme-icon').textContent = '☀️';
+        }
+    }
+
+    // --- 0.2 TOAST NOTIFICATIONS ---
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+            <span style="font-size: 1.2rem;">${type === 'error' ? '❌' : type === 'warning' ? '⚠️' : '✅'}</span>
+            <span>${message}</span>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.animation = 'slideIn 0.3s ease reverse';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // --- 0.3 MODAL MANAGEMENT ---
+    function openModal(modalId) {
+        document.getElementById(modalId).classList.add('active');
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.remove('active');
+    }
+
+    function openHistoryModal() {
+        loadHistoryList();
+        openModal('historyModal');
+    }
+
+    function openCalculatorModal() {
+        openModal('calculatorModal');
+    }
+
+    function openTemplateModal() {
+        openModal('templateModal');
+    }
+
+    function openReferenceModal() {
+        openModal('referenceModal');
+    }
+
+    // Close modal when clicking outside
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal')) {
+            e.target.classList.remove('active');
+        }
+    });
+
+    // --- 0.4 TAB MANAGEMENT ---
+    function switchCalcTab(tabName) {
+        // Hide all calculator tabs
+        document.querySelectorAll('#calculatorModal .tab-content').forEach(tc => tc.classList.remove('active'));
+        document.querySelectorAll('#calculatorModal .tab').forEach(t => t.classList.remove('active'));
+
+        // Show selected tab
+        document.getElementById('calc-' + tabName).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    function switchRefTab(tabName) {
+        // Hide all reference tabs
+        document.querySelectorAll('#referenceModal .tab-content').forEach(tc => tc.classList.remove('active'));
+        document.querySelectorAll('#referenceModal .tab').forEach(t => t.classList.remove('active'));
+
+        // Show selected tab
+        document.getElementById('ref-' + tabName).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    // --- 0.5 CLINICAL CALCULATORS ---
+    function calculateEGFR() {
+        const cr = parseFloat(document.getElementById('egfr-cr').value);
+        const age = parseInt(document.getElementById('egfr-age').value);
+        const sex = document.getElementById('egfr-sex').value;
+
+        if (!cr || !age) {
+            showToast('Please fill all fields', 'error');
+            return;
+        }
+
+        // CKD-EPI formula (simplified)
+        const kappa = sex === 'female' ? 0.7 : 0.9;
+        const alpha = sex === 'female' ? -0.329 : -0.411;
+        const sexFactor = sex === 'female' ? 1.018 : 1.0;
+
+        const minVal = Math.min(cr / kappa, 1);
+        const maxVal = Math.max(cr / kappa, 1);
+        const egfr = 141 * Math.pow(minVal, alpha) * Math.pow(maxVal, -1.209) * Math.pow(0.993, age) * sexFactor;
+
+        const stage = egfr >= 90 ? 'Stage 1 (Normal)' :
+                      egfr >= 60 ? 'Stage 2 (Mild CKD)' :
+                      egfr >= 45 ? 'Stage 3a (Moderate CKD)' :
+                      egfr >= 30 ? 'Stage 3b (Moderate CKD)' :
+                      egfr >= 15 ? 'Stage 4 (Severe CKD)' :
+                      'Stage 5 (Kidney Failure)';
+
+        document.getElementById('egfr-result').innerHTML = `
+            <div class="calc-result">
+                eGFR: ${egfr.toFixed(1)} mL/min/1.73m²<br>
+                ${stage}
+            </div>
+        `;
+    }
+
+    function calculateCrCl() {
+        const cr = parseFloat(document.getElementById('crcl-cr').value);
+        const age = parseInt(document.getElementById('crcl-age').value);
+        const weight = parseFloat(document.getElementById('crcl-weight').value);
+        const sex = document.getElementById('crcl-sex').value;
+
+        if (!cr || !age || !weight) {
+            showToast('Please fill all fields', 'error');
+            return;
+        }
+
+        // Cockcroft-Gault formula
+        const sexFactor = sex === 'female' ? 0.85 : 1.0;
+        const crcl = ((140 - age) * weight * sexFactor) / (72 * cr);
+
+        document.getElementById('crcl-result').innerHTML = `
+            <div class="calc-result">
+                CrCl: ${crcl.toFixed(1)} mL/min
+            </div>
+        `;
+    }
+
+    function calculateFRAX() {
+        const age = parseInt(document.getElementById('frax-age').value);
+        const fracture = document.getElementById('frax-fracture').value === 'yes';
+        const smoking = document.getElementById('frax-smoking').value === 'yes';
+
+        if (!age) {
+            showToast('Please enter age', 'error');
+            return;
+        }
+
+        // Simplified FRAX estimation
+        let risk = (age - 40) * 0.5; // Base risk increases with age
+        if (fracture) risk += 15;
+        if (smoking) risk += 5;
+
+        const riskLevel = risk < 10 ? 'Low' : risk < 20 ? 'Moderate' : 'High';
+
+        document.getElementById('frax-result').innerHTML = `
+            <div class="calc-result">
+                10-Year Fracture Risk: ~${risk.toFixed(0)}%<br>
+                Risk Level: ${riskLevel}
+                ${risk >= 20 ? '<br><small>Consider osteoporosis treatment</small>' : ''}
+            </div>
+        `;
+    }
+
+    function calculateCHADVASc() {
+        let score = 0;
+        score += parseInt(document.getElementById('chadvasc-age').value);
+        score += parseInt(document.getElementById('chadvasc-sex').value);
+        score += document.getElementById('chadvasc-chf').checked ? 1 : 0;
+        score += document.getElementById('chadvasc-htn').checked ? 1 : 0;
+        score += document.getElementById('chadvasc-stroke').checked ? 2 : 0;
+        score += document.getElementById('chadvasc-vasc').checked ? 1 : 0;
+        score += document.getElementById('chadvasc-dm').checked ? 1 : 0;
+
+        const riskText = score === 0 ? '0.2% - Low risk' :
+                        score === 1 ? '0.6% - Low-moderate risk' :
+                        score === 2 ? '2.2% - Moderate risk, consider anticoagulation' :
+                        score >= 3 ? `${(score * 3).toFixed(1)}% - High risk, anticoagulation recommended` : '';
+
+        document.getElementById('chadvasc-result').innerHTML = `
+            <div class="calc-result">
+                CHA₂DS₂-VASc Score: ${score}<br>
+                Annual Stroke Risk: ${riskText}
+            </div>
+        `;
+    }
+
+    function interpretMMSE() {
+        const score = parseInt(document.getElementById('mmse-score').value);
+
+        if (isNaN(score) || score < 0 || score > 30) {
+            showToast('Please enter a valid score (0-30)', 'error');
+            return;
+        }
+
+        const interpretation = score >= 25 ? 'Normal cognition' :
+                              score >= 21 ? 'Mild cognitive impairment' :
+                              score >= 10 ? 'Moderate dementia' :
+                              'Severe dementia';
+
+        document.getElementById('mmse-result').innerHTML = `
+            <div class="calc-result">
+                Score: ${score}/30<br>
+                Interpretation: ${interpretation}
+            </div>
+        `;
+    }
+
+    // --- 0.6 TEMPLATES ---
+    const TEMPLATES = {
+        falls: {
+            age_sex: '82F',
+            initials: 'J.D.',
+            hpi: 'Falls Assessment:\nPatient presents with 3 falls in past 6 months. Last fall resulted in hip contusion. Lives alone, uses walker inconsistently. Denies loss of consciousness, chest pain, or palpitations with falls. Takes multiple medications including antihypertensives.',
+            meds: 'Amlodipine 10mg daily\nHydrochlorothiazide 25mg daily\nLorazepam 1mg PRN anxiety\nAlprazolam 0.5mg HS\nDiphenhydramine 50mg HS\nMetformin 1000mg BID'
+        },
+        delirium: {
+            age_sex: '78M',
+            initials: 'R.S.',
+            hpi: 'Acute Delirium Workup:\nAcute change in mental status over 2 days. Family reports confusion, disorientation, and hallucinations. Baseline independent in ADLs. Recent UTI treated with ciprofloxacin 3 days ago.',
+            meds: 'Ciprofloxacin 500mg BID (started 3 days ago)\nDiphenhydramine 25mg HS\nOxycodone 5mg q6h PRN pain\nFurosemide 40mg daily'
+        },
+        polypharmacy: {
+            age_sex: '85F',
+            initials: 'M.K.',
+            hpi: 'Medication Review - Polypharmacy:\nPatient on 15+ medications. Complains of dizziness, falls, and confusion. Multiple prescribers. Difficulty managing medication regimen.',
+            meds: 'List all current medications for comprehensive medication review and deprescribing assessment using Beers Criteria and STOPP/START.'
+        },
+        dementia: {
+            age_sex: '79F',
+            initials: 'A.T.',
+            hpi: 'Dementia Evaluation:\nProgressive memory decline over 18 months. Family reports difficulty with finances, missed appointments, getting lost in familiar places. MMSE score 21/30.',
+            meds: 'Donepezil 10mg daily\nMemantine 10mg BID\nVitamin E 400 IU daily\nSertraline 50mg daily'
+        },
+        frailty: {
+            age_sex: '83M',
+            initials: 'H.W.',
+            hpi: 'Frailty Screening:\nUnintentional weight loss 15 lbs over 6 months. Decreased activity, fatigue. Gait speed <0.8 m/s. Weak grip strength. Recent hospitalization for pneumonia.',
+            meds: 'Lisinopril 20mg daily\nAtorvastatin 40mg daily\nAspirin 81mg daily'
+        },
+        pain: {
+            age_sex: '81F',
+            initials: 'L.B.',
+            hpi: 'Chronic Pain Management:\nChronic lower back pain and osteoarthritis. Pain 7/10 on average. Currently on opioids. Seeking safer pain management alternatives.',
+            meds: 'Oxycodone 10mg q4h PRN pain (taking 6x daily)\nAcetaminophen 1000mg TID\nGabapentin 300mg TID'
+        }
+    };
+
+    function loadTemplate(templateName) {
+        const template = TEMPLATES[templateName];
+        if (!template) {
+            showToast('Template not found', 'error');
+            return;
+        }
+
+        document.getElementById('age_sex').value = template.age_sex || '';
+        document.getElementById('initials').value = template.initials || '';
+        document.getElementById('hpi').value = template.hpi || '';
+        document.getElementById('meds').value = template.meds || '';
+
+        closeModal('templateModal');
+        showToast(`Template loaded: ${templateName}`, 'success');
+        saveFormData();
+    }
+
+    // --- 0.7 CASE HISTORY ---
+    function saveToHistory() {
+        const data = {
+            date: new Date().toISOString(),
+            age_sex: document.getElementById('age_sex').value,
+            initials: document.getElementById('initials').value,
+            hpi: document.getElementById('hpi').value,
+            meds: document.getElementById('meds').value,
+            aiResponse: document.getElementById('ai-response').value
+        };
+
+        if (!data.age_sex && !data.initials && !data.hpi) {
+            return; // Don't save empty cases
+        }
+
+        try {
+            const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+            history.unshift(data); // Add to beginning
+            if (history.length > 50) history.pop(); // Keep last 50
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        } catch (err) {
+            console.error('Error saving to history:', err);
+        }
+    }
+
+    function loadHistoryList() {
+        try {
+            const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+            const listEl = document.getElementById('historyList');
+
+            if (history.length === 0) {
+                listEl.innerHTML = '<p style="text-align:center; color:var(--text-secondary);">No saved cases yet</p>';
+                return;
+            }
+
+            listEl.innerHTML = history.map((item, index) => {
+                const date = new Date(item.date).toLocaleString();
+                const preview = item.hpi.substring(0, 100) + (item.hpi.length > 100 ? '...' : '');
+                return `
+                    <div class="history-item" onclick="loadHistoryItem(${index})">
+                        <strong>${item.age_sex || 'Unknown'} - ${item.initials || 'N/A'}</strong>
+                        <p style="margin:8px 0; font-size:0.9rem;">${preview}</p>
+                        <div class="history-meta">${date}</div>
+                    </div>
+                `;
+            }).join('');
+        } catch (err) {
+            console.error('Error loading history:', err);
+        }
+    }
+
+    function loadHistoryItem(index) {
+        try {
+            const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+            const item = history[index];
+            if (!item) return;
+
+            document.getElementById('age_sex').value = item.age_sex || '';
+            document.getElementById('initials').value = item.initials || '';
+            document.getElementById('hpi').value = item.hpi || '';
+            document.getElementById('meds').value = item.meds || '';
+            document.getElementById('ai-response').value = item.aiResponse || '';
+
+            closeModal('historyModal');
+            showToast('Case loaded from history', 'success');
+            saveFormData();
+        } catch (err) {
+            console.error('Error loading history item:', err);
+        }
+    }
+
+    function filterHistory() {
+        const searchTerm = document.getElementById('historySearch').value.toLowerCase();
+        const items = document.querySelectorAll('.history-item');
+
+        items.forEach(item => {
+            const text = item.textContent.toLowerCase();
+            item.style.display = text.includes(searchTerm) ? 'block' : 'none';
+        });
+    }
+
+    // --- 0.8 PDF EXPORT ---
+    function exportPDF() {
+        showToast('PDF export: Use browser Print > Save as PDF for now', 'warning');
+        setTimeout(() => {
+            window.print();
+        }, 500);
+    }
+
+    // --- 0.9 UNDO/REDO (Simple History) ---
+    let formHistory = [];
+    let historyIndex = -1;
+
+    function captureFormState() {
+        const state = {};
+        FORM_FIELDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) state[id] = el.value;
+        });
+        return state;
+    }
+
+    function setupUndoRedo() {
+        let lastState = JSON.stringify(captureFormState());
+
+        FORM_FIELDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', () => {
+                    const currentState = JSON.stringify(captureFormState());
+                    if (currentState !== lastState) {
+                        formHistory = formHistory.slice(0, historyIndex + 1);
+                        formHistory.push(lastState);
+                        if (formHistory.length > 20) formHistory.shift();
+                        else historyIndex++;
+                        lastState = currentState;
+                    }
+                });
+            }
+        });
+    }
+
+    function undo() {
+        if (historyIndex >= 0) {
+            const state = JSON.parse(formHistory[historyIndex]);
+            Object.keys(state).forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = state[id];
+            });
+            historyIndex--;
+            showToast('Undo', 'success');
+        }
+    }
 
     // Load saved data on page load
     function loadSavedData() {
@@ -183,13 +1323,17 @@
         saveFormDataNow();
     });
 
-    // Attach auto-save listeners
+    // Attach auto-save listeners and initialize app
     document.addEventListener('DOMContentLoaded', () => {
+        loadTheme();
         loadSavedData();
+        setupUndoRedo();
         FORM_FIELDS.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', saveFormData);
         });
+        console.log('SZMC Pro v16.0 Enhanced - Loaded successfully');
+        showToast('SZMC Pro Enhanced loaded!', 'success');
     });
 
     // --- 1. IMPORT ENGINE ---
@@ -1611,6 +2755,22 @@ Generated by SZMC Geriatrics Pro | ${currentDate}\\par
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'E') {
             e.preventDefault();
             exportDOC();
+        }
+        // Ctrl/Cmd + H to open history
+        if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
+            e.preventDefault();
+            openHistoryModal();
+        }
+        // Ctrl/Cmd + Z to undo
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+            e.preventDefault();
+            undo();
+        }
+        // Ctrl/Cmd + S to save to history
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            saveToHistory();
+            showToast('Case saved to history!', 'success');
         }
     });
 </script>
