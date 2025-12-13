@@ -1,7 +1,7 @@
 {
   "name": "szmc-geriatrics-pro",
-  "version": "15.5.0",
-  "description": "SZMC Geriatrics Pro - Clinical decision support tool for geriatricians",
+  "version": "16.0.0",
+  "description": "SZMC Geriatrics Pro Enhanced - Comprehensive clinical decision support with Dark Mode, Clinical Calculators, Templates, and Reference Library",
   "type": "module",
   "scripts": {
     "test": "vitest",
