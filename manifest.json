@@ -1,12 +1,12 @@
 {
-  "name": "SZMC Pro v15.3",
+  "name": "SZMC Pro v16.0 Enhanced",
   "short_name": "SZMC Pro",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f4f6f7",
   "theme_color": "#2c3e50",
   "orientation": "any",
-  "description": "Geriatric Clinical Decision Support & Safety Auditor - Mobile Optimized",
+  "description": "Enhanced Geriatric Clinical Decision Support - Dark Mode, Calculators, Templates & More",
   "icons": [
     {
       "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>",
